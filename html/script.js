@@ -2,6 +2,7 @@
 const taskInput = document.getElementById('new-task');
 const addButton = document.getElementById('add-btn');
 let dragging = false; // true if in dragging mode
+let taskListJson = ""; // task list json
 
 // start polling
 setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
@@ -58,12 +59,16 @@ function fetchTasksFromServer (taskList) {
         )
         .then(response => response.json())
         .then(taskListResponse => {
-            while (taskList.firstChild) {
-                taskList.removeChild(taskList.firstChild);
+            const json = JSON.stringify(taskListResponse);
+            if (json != taskListJson) {            
+                while (taskList.firstChild) {
+                    taskList.removeChild(taskList.firstChild);
+                }
+                taskListResponse.forEach (item => {
+                    addTask (item.task, taskList, false, item.id)
+                })
             }
-            taskListResponse.forEach (item => {
-                addTask (item.task, taskList, false, item.id)
-            })
+            taskListJson = json;
         })
         .catch(error => console.error(error));
     }
