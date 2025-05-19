@@ -10,6 +10,7 @@ addButton.onclick = () => {
 
   const li = document.createElement('li');
   li.textContent = taskText;
+  li.className = "task"
 
   const removeBtn = document.createElement('button');
   removeBtn.textContent = 'Remove';
