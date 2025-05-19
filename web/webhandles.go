@@ -35,55 +35,80 @@ func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 }
 
 // Handler for processing the post_file request, which writes the body to the file content.txt
-func postTaskListHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost {
+func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost && request.Method != http.MethodGet {
 		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// read body
-	body, err := io.ReadAll(request.Body)
-	if err != nil {
-		http.Error(responseWriter, "Failed to read body", http.StatusInternalServerError)
-		return
+	// Sending data to the server via POST method
+	if request.Method == http.MethodPost {
+		// read body
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(responseWriter, "Failed to read body", http.StatusInternalServerError)
+			return
+		}
+		defer request.Body.Close()
+
+		type Task struct {
+			Task string `json:"task"`
+		}
+
+		var tasks []Task
+
+		err = json.Unmarshal([]byte(body), &tasks)
+		if err != nil {
+			http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
+			return
+		}
+
+		for i := 0; i < len(tasks); i++ {
+			tasks[i].Task = strings.Split(tasks[i].Task, "\n")[0]
+		}
+
+		jsonTaskData, err := json.Marshal(tasks)
+		if err != nil {
+			http.Error(responseWriter, "Failed to serialize data", http.StatusInternalServerError)
+			return
+		}
+
+		err = os.WriteFile(util.GetExecDir()+"data/task.json", jsonTaskData, 0644)
+		if err != nil {
+			http.Error(responseWriter, "Failed to write data to server", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println(body)
+
+		responseWriter.WriteHeader(http.StatusOK)
+		responseWriter.Header().Set("Content-Type", "application/json")
+
+		data := map[string]string{
+			"status": "success",
+		}
+		json.NewEncoder(responseWriter).Encode(data)
 	}
-	defer request.Body.Close()
 
-	type Task struct {
-		Task string `json:"task"`
+	//Fetching data from the server via GET method
+	if request.Method == http.MethodGet {
+		taskList, err := os.ReadFile(util.GetExecDir() + "data/task.json")
+		if err != nil {
+			// file not created yet
+			if os.IsNotExist(err) {
+				fmt.Print("Data file not created yet")
+			} else {
+				http.Error(responseWriter, "Failed to fetch data from the server", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if taskList == nil || len(taskList) == 0 {
+			taskList = []byte("[]")
+		}
+
+		responseWriter.WriteHeader(http.StatusOK)
+		responseWriter.Header().Set("Content-Type", "application/json")
+		responseWriter.Write(taskList)
 	}
-
-	var tasks []Task
-
-	err = json.Unmarshal([]byte(body), &tasks)
-	if err != nil {
-		http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
-		return
-	}
-
-	for i := 0; i < len(tasks); i++ {
-		tasks[i].Task = strings.Split(tasks[i].Task, "\n")[0]
-	}
-
-	jsonTaskData, err := json.Marshal(tasks)
-	if err != nil {
-		http.Error(responseWriter, "Failed to serialize data", http.StatusInternalServerError)
-		return
-	}
-
-	err = os.WriteFile(util.GetExecDir()+"data/task.json", jsonTaskData, 0644)
-	if err != nil {
-		http.Error(responseWriter, "Failed to write data to server", http.StatusInternalServerError)
-		return
-	}
-
-	fmt.Println(body)
-
-	responseWriter.WriteHeader(http.StatusOK)
-	responseWriter.Header().Set("Content-Type", "application/json")
-
-	data := map[string]string{
-		"status": "success",
-	}
-	json.NewEncoder(responseWriter).Encode(data)
 }

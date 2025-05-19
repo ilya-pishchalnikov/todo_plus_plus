@@ -19,7 +19,7 @@ func StartServer(port string, cert string, certKey string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", getMainHandler) // index.html
 	mux.Handle("/html/", http.StripPrefix("/html/", http.FileServer(http.Dir("html"))))
-	mux.HandleFunc("/api/task_list", postTaskListHandler) // index.html
+	mux.HandleFunc("/api/task_list", taskListHandler) // index.html
 
 	fmt.Println("Server listening on port", port)
 

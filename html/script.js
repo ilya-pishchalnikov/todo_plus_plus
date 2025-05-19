@@ -1,26 +1,13 @@
 
 const taskInput = document.getElementById('new-task');
 const addButton = document.getElementById('add-btn');
-const taskList = document.getElementById('task-list');
+fetchTasksFromServer (document.getElementById('task-list'))
 
 // Add new task
 addButton.onclick = () => {
-  const taskText = taskInput.value.trim();
-  if (taskText === "") return;
-
-  const li = document.createElement('li');
-  li.textContent = taskText;
-  li.className = "task"
-
-  const removeBtn = document.createElement('button');
-  removeBtn.textContent = 'Remove';
-  removeBtn.className = 'remove-btn';
-  removeBtn.onclick = () => remove(li);
-
-  li.appendChild(removeBtn);
-  taskList.appendChild(li);
-  taskInput.value = '';
-  postTaskList(taskList);
+    const taskText = taskInput.value.trim();
+    if (taskText === "") return;
+    addTask(taskText, document.getElementById('task-list'))
 };
 
 // Add task on enter
@@ -28,14 +15,51 @@ taskInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addButton.click();
 });
 
+//Add a task
+function addTask (taskText, taskList) {
+    const li = document.createElement('li');
+    li.textContent = taskText;
+    li.className = "task"
+  
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.className = 'remove-btn';
+    removeBtn.onclick = () => remove(li);
+  
+    li.appendChild(removeBtn);
+    taskList.appendChild(li);
+    taskInput.value = '';
+    postTaskList(taskList);
+}
+
+function fetchTasksFromServer (taskList) {
+    fetch ('/api/task_list', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }
+    )
+    .then(response => response.json())
+    .then(taskListResponse => {
+        while (taskListResponse.firstChild) {
+            taskListResponse.removeChild(ul.firstChild);
+        }
+        taskListResponse.forEach (item => {
+            console.log(`Task: ${item.task}`)
+            addTask (item.task, taskList)
+        })
+    })
+    .catch(error => console.error(error));
+}
+
 function remove (li) {
-  li.remove();
-  postTaskList(taskList);
+    li.remove();
+    postTaskList(taskList);
 }
 
 function postTaskList (taskList) {
     const jsonBody = taskListToJson(taskList);
-    console.log (taskListToJson (taskList));
     fetch ('/api/task_list', {
         method: 'POST',
         headers: {
@@ -45,7 +69,6 @@ function postTaskList (taskList) {
     }
     )
     .then(response => response.json)
-    .then(data => console.log(data)) // ToDo: response handler
     .catch(error => console.error(error));
 }
 
