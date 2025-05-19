@@ -1,13 +1,15 @@
 
 const taskInput = document.getElementById('new-task');
 const addButton = document.getElementById('add-btn');
-fetchTasksFromServer (document.getElementById('task-list'))
+// start polling
+setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
 
 // Add new task
 addButton.onclick = () => {
     const taskText = taskInput.value.trim();
     if (taskText === "") return;
     addTask(taskText, document.getElementById('task-list'))
+    taskInput.value = '';
 };
 
 // Add task on enter
@@ -16,7 +18,7 @@ taskInput.addEventListener('keydown', (e) => {
 });
 
 //Add a task
-function addTask (taskText, taskList) {
+function addTask (taskText, taskList, isFetchToServer = true) {
     const li = document.createElement('li');
     li.textContent = taskText;
     li.className = "task"
@@ -28,11 +30,12 @@ function addTask (taskText, taskList) {
   
     li.appendChild(removeBtn);
     taskList.appendChild(li);
-    taskInput.value = '';
-    postTaskList(taskList);
+    if (isFetchToServer) {
+        postTaskList(taskList);
+    }
 }
 
-function fetchTasksFromServer (taskList) {
+function fetchTasksFromServer (taskList) { 
     fetch ('/api/task_list', {
         method: 'GET',
         headers: {
@@ -42,12 +45,11 @@ function fetchTasksFromServer (taskList) {
     )
     .then(response => response.json())
     .then(taskListResponse => {
-        while (taskListResponse.firstChild) {
-            taskListResponse.removeChild(ul.firstChild);
+        while (taskList.firstChild) {
+            taskList.removeChild(taskList.firstChild);
         }
         taskListResponse.forEach (item => {
-            console.log(`Task: ${item.task}`)
-            addTask (item.task, taskList)
+            addTask (item.task, taskList, false)
         })
     })
     .catch(error => console.error(error));
