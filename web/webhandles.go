@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"todopp/util"
 )
 
@@ -62,10 +61,6 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		if err != nil {
 			http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
 			return
-		}
-
-		for i := 0; i < len(tasks); i++ {
-			tasks[i].Task = strings.Split(tasks[i].Task, "\n")[0]
 		}
 
 		jsonTaskData, err := json.Marshal(tasks)
