@@ -129,10 +129,10 @@ function handleDragStart(e) {
     e.stopPropagation();
   
     if (dragSrcEl !== this) {
-      // Swap innerHTML or move nodes
-      const temp = this.innerHTML;
-      this.innerHTML = dragSrcEl.innerHTML;
-      dragSrcEl.innerHTML = temp;
+      // move
+      const taskList = document.getElementById('task-list');
+
+      taskList.insertBefore(dragSrcEl, this)
   
       // Reattach event listeners after swapping content
       addDragAndDropHandlers(dragSrcEl);
