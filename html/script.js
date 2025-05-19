@@ -18,10 +18,16 @@ taskInput.addEventListener('keydown', (e) => {
 });
 
 //Add a task
-function addTask (taskText, taskList, isFetchToServer = true) {
+function addTask (taskText, taskList, isFetchToServer = true, id = null) {
     const li = document.createElement('li');
     li.textContent = taskText;
     li.className = "task"
+    if (id == null) {
+        li.id = guid();
+    }
+    else {
+        li.id = id;
+    }
   
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
@@ -49,7 +55,7 @@ function fetchTasksFromServer (taskList) {
             taskList.removeChild(taskList.firstChild);
         }
         taskListResponse.forEach (item => {
-            addTask (item.task, taskList, false)
+            addTask (item.task, taskList, false, item.id)
         })
     })
     .catch(error => console.error(error));
@@ -78,8 +84,14 @@ function taskListToJson (taskList) {
     const items = [];
 
     taskList.querySelectorAll('li').forEach(li => {
-    items.push({ task: li.innerText });
+    items.push({ id: li.id, task: li.firstChild.nodeValue.trim() });
     });
 
     return JSON.stringify(items);
 }
+
+function guid() {
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    );
+  }

@@ -52,6 +52,7 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		defer request.Body.Close()
 
 		type Task struct {
+			Id   string `json:"id"`
 			Task string `json:"task"`
 		}
 
