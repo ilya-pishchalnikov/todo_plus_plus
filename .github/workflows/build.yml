@@ -24,10 +24,10 @@ jobs:
           
       - name: Copy additional files
         run: |
-          cp -r sql/* ./output/ 
-          cp -r html/* ./output/   
-          cp -r doc/* ./output/
-          cp README.md LICENSE ./output/
+          cp -r sql/* ./output/sql/ 
+          cp -r html/* ./output/html/  
+          cp -r doc/* ./output/doc/
+          cp README.md LICENSE ./output/doc/
 
       - name: Create artifact
         uses: actions/upload-artifact@v4
