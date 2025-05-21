@@ -33,3 +33,6 @@ todopp
 
 #data ignore
 data/*
+
+#config
+config.json
