@@ -24,6 +24,9 @@ jobs:
           
       - name: Copy additional files
         run: |
+          mkdir ./output/sql
+          mkdir ./output/html/
+          mkdir ./output/doc/
           cp -r sql/* ./output/sql/ 
           cp -r html/* ./output/html/  
           cp -r doc/* ./output/doc/
