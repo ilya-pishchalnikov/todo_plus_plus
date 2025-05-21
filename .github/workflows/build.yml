@@ -35,7 +35,7 @@ jobs:
       - name: Create artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-package
+          name: release-package-linux
           path: ./output/
           retention-days: 5
   build_windows:
@@ -61,11 +61,12 @@ jobs:
           cp -r sql/* ./output/sql/ 
           cp -r html/* ./output/html/  
           cp -r doc/* ./output/doc/
-          cp README.md LICENSE ./output/doc/
+          cp README.md ./output/doc/
+          cp LICENSE ./output/doc/
 
       - name: Create artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-package
+          name: release-package-windows
           path: ./output/
           retention-days: 5
