@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"todopp/util"
+	"strings"
 )
 
 // Handler that redirects all http requests to https
@@ -29,9 +30,9 @@ func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 	case strings.HasSuffix(request.URL.Path, ".js"):
 		responseWriter.Header().Set("Content-Type", "application/javascript")
 	case strings.HasSuffix(request.URL.Path, ".png"):
-		responseWriterw.Header().Set("Content-Type", "image/png")
+		responseWriter.Header().Set("Content-Type", "image/png")
 	case strings.HasSuffix(request.URL.Path, ".html"):
-		responseWriterw.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	default:
 		responseWriter.Header().Set("Content-Type", "text/plain")
 	}
