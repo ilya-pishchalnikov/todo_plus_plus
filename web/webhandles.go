@@ -22,15 +22,21 @@ func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	html, err := os.ReadFile(util.GetExecDir() + "html/index.html")
-
-	if err != nil {
-		http.Error(responseWriter, "Failed to read HTML file", http.StatusInternalServerError)
-		return
+	// Detecting MIME type via file extension
+	switch {
+	case strings.HasSuffix(request.URL.Path, ".css"):
+		responseWriter.Header().Set("Content-Type", "text/css")
+	case strings.HasSuffix(request.URL.Path, ".js"):
+		responseWriter.Header().Set("Content-Type", "application/javascript")
+	case strings.HasSuffix(request.URL.Path, ".png"):
+		responseWriterw.Header().Set("Content-Type", "image/png")
+	case strings.HasSuffix(request.URL.Path, ".html"):
+		responseWriterw.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	default:
+		responseWriter.Header().Set("Content-Type", "text/plain")
 	}
 
-	responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	responseWriter.Write([]byte(html))
+	http.ServeFile(responseWriter, request, "." + request.URL.Path)
 }
 
 // Handler for processing the post_file request, which writes the body to the file content.txt
