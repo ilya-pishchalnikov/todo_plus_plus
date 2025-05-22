@@ -55,6 +55,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
+            cp -aT /home/todopp/output/ /home/todopp/
+            rm -rf output
             reboot
   
   build_windows:
