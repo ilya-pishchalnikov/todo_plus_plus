@@ -33,7 +33,6 @@ jobs:
           cp README.md LICENSE ./output/doc/
           echo "${{ secrets.CONFIG }}" > ./output/config.json
 
-
       - name: Create artifact
         uses: actions/upload-artifact@v4
         with:
