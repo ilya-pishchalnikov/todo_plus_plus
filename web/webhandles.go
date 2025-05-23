@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"todopp/util"
 	"strings"
+	"todopp/util"
 )
 
 // Handler that redirects all http requests to https
@@ -31,13 +31,17 @@ func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", "application/javascript")
 	case strings.HasSuffix(request.URL.Path, ".png"):
 		responseWriter.Header().Set("Content-Type", "image/png")
+	case strings.HasSuffix(request.URL.Path, ".ico"):
+		responseWriter.Header().Set("Content-Type", "image/x-icon")
 	case strings.HasSuffix(request.URL.Path, ".html"):
+		responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	case strings.HasSuffix(request.URL.Path, "/"):
 		responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	default:
 		responseWriter.Header().Set("Content-Type", "text/plain")
 	}
 
-	http.ServeFile(responseWriter, request, "." + request.URL.Path)
+	http.ServeFile(responseWriter, request, "./html"+request.URL.Path)
 }
 
 // Handler for processing the post_file request, which writes the body to the file content.txt
