@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"todopp/util"
 )
 
 // Initializes and starts the HTTP server
@@ -18,7 +19,7 @@ func StartServer(port string, cert string, certKey string) error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", getMainHandler) // index.html
-	mux.Handle("/html/", http.StripPrefix("/html/", http.FileServer(http.Dir("html"))))
+	mux.Handle("/html/", http.StripPrefix("/html/", http.FileServer(http.Dir(util.GetExecDir()+"html"))))
 	mux.HandleFunc("/api/task_list", taskListHandler) // index.html
 
 	fmt.Println("Server listening on port", port)
