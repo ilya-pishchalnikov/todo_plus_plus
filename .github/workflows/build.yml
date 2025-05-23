@@ -31,6 +31,8 @@ jobs:
           cp -r html/* ./output/html/  
           cp -r doc/* ./output/doc/
           cp README.md LICENSE ./output/doc/
+          echo "${{ secrets.FILE_CONTENT }}" > ./output/config.json
+
 
       - name: Create artifact
         uses: actions/upload-artifact@v4
