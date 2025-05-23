@@ -39,6 +39,15 @@ jobs:
           path: ./output/
           retention-days: 5
 
+      - name: Remove files from VPS
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            rm -rf /home/todopp/output/ /home/todopp/*
+
       - name: Deploy to VPS
         uses: appleboy/scp-action@master
         with:
@@ -48,7 +57,7 @@ jobs:
           source: "./output/*"
           target: "/home/todopp"
 
-      - name: Reboot SSH
+      - name: Reboot VPS
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.VPS_HOST }}
