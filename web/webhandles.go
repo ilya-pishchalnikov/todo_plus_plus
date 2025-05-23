@@ -41,7 +41,7 @@ func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", "text/plain")
 	}
 
-	http.ServeFile(responseWriter, request, "./html"+request.URL.Path)
+	http.ServeFile(responseWriter, request, util.GetExecDir()+"html"+request.URL.Path)
 }
 
 // Handler for processing the post_file request, which writes the body to the file content.txt
