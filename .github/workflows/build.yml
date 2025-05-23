@@ -47,7 +47,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            rm -rf /home/todopp/output/ /home/todopp/*
+            cp /home/todopp/bin/data /home/todopp/bin/
+            rm -rf /home/todopp/bin/output/ /home/todopp/data/*
 
       - name: Deploy to VPS
         uses: appleboy/scp-action@master
@@ -56,7 +57,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           source: "./output/*"
-          target: "/home/todopp"
+          target: "/home/todopp/bin"
 
       - name: Reboot VPS
         uses: appleboy/ssh-action@v0.1.6
@@ -65,8 +66,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            cp -aT /home/todopp/output/ /home/todopp/
+            cp -aT /home/todopp/bin/output/ /home/todopp/bin/
             rm -rf output
+            cd /home/todopp/bin/
+            mkdir data
+            cp /home/todopp/data /home/todopp/bin/data/
             reboot
   
   build_windows:
