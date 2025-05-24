@@ -2,11 +2,10 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
+	"todopp/store"
 	"todopp/util"
 )
 
@@ -61,32 +60,31 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		}
 		defer request.Body.Close()
 
-		type Task struct {
-			Id   string `json:"id"`
-			Task string `json:"task"`
-		}
-
-		var tasks []Task
-
-		err = json.Unmarshal([]byte(body), &tasks)
+		login, err := getCurrentLogin(*request)
 		if err != nil {
-			http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
+			http.Error(responseWriter, "Failed to extract current login", http.StatusInternalServerError)
 			return
 		}
 
-		jsonTaskData, err := json.Marshal(tasks)
+		config, err := util.GetConfig()
 		if err != nil {
-			http.Error(responseWriter, "Failed to serialize data", http.StatusInternalServerError)
+			http.Error(responseWriter, "Failed to read config", http.StatusInternalServerError)
 			return
 		}
 
-		err = os.WriteFile(util.GetExecDir()+"data/task.json", jsonTaskData, 0644)
+		db, err := store.OpenDb(config.DbPath)
 		if err != nil {
-			http.Error(responseWriter, "Failed to write data to server", http.StatusInternalServerError)
+			http.Error(responseWriter, "Failed to open database", http.StatusInternalServerError)
 			return
 		}
 
-		fmt.Println(body)
+		userId, err := store.GetUserIdByLogin(db, login)
+		if err != nil {
+			http.Error(responseWriter, "Failed to get user id", http.StatusInternalServerError)
+			return
+		}
+
+		store.UpdateTasksFromJson(db, body, userId, "flat")
 
 		responseWriter.WriteHeader(http.StatusOK)
 		responseWriter.Header().Set("Content-Type", "application/json")
@@ -99,19 +97,34 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 
 	//Fetching data from the server via GET method
 	if request.Method == http.MethodGet {
-		taskList, err := os.ReadFile(util.GetExecDir() + "data/task.json")
+		login, err := getCurrentLogin(*request)
 		if err != nil {
-			// file not created yet
-			if os.IsNotExist(err) {
-				fmt.Print("Data file not created yet")
-			} else {
-				http.Error(responseWriter, "Failed to fetch data from the server", http.StatusInternalServerError)
-				return
-			}
+			http.Error(responseWriter, "Failed to extract current login", http.StatusInternalServerError)
+			return
 		}
 
-		if taskList == nil || len(taskList) == 0 {
-			taskList = []byte("[]")
+		config, err := util.GetConfig()
+		if err != nil {
+			http.Error(responseWriter, "Failed to read config", http.StatusInternalServerError)
+			return
+		}
+
+		db, err := store.OpenDb(config.DbPath)
+		if err != nil {
+			http.Error(responseWriter, "Failed to open database", http.StatusInternalServerError)
+			return
+		}
+
+		userId, err := store.GetUserIdByLogin(db, login)
+		if err != nil {
+			http.Error(responseWriter, "Failed to get user id", http.StatusInternalServerError)
+			return
+		}
+
+		taskList, err := store.GetTasksToJson(db, userId, "flat")
+		if err != nil {
+			http.Error(responseWriter, "Failed to get tasks", http.StatusInternalServerError)
+			return
 		}
 
 		responseWriter.WriteHeader(http.StatusOK)

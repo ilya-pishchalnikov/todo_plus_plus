@@ -65,7 +65,7 @@ function fetchTasksFromServer (taskList) {
                     taskList.removeChild(taskList.firstChild);
                 }
                 taskListResponse.forEach (item => {
-                    addTask (item.task, taskList, false, item.id)
+                    addTask (item.name, taskList, false, item.id)
                 })
             }
             taskListJson = json;
@@ -100,7 +100,7 @@ function taskListToJson (taskList) {
     const items = [];
 
     taskList.querySelectorAll('li').forEach(li => {
-    items.push({ id: li.id, task: li.firstChild.nodeValue.trim() });
+    items.push({ id: li.id, name: li.firstChild.nodeValue.trim() });
     });
 
     return JSON.stringify(items);
@@ -137,7 +137,8 @@ function handleDragStart(e) {
       // move
       const taskList = document.getElementById('task-list');
 
-      taskList.insertBefore(dragSrcEl, this)
+      taskList.insertBefore(dragSrcEl, this);
+      postTaskList(taskList);
   
       // Reattach event listeners after swapping content
       addDragAndDropHandlers(dragSrcEl);

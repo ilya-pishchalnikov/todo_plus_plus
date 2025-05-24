@@ -2,36 +2,37 @@ package web
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
+	"todopp/store"
+	"todopp/util"
 )
 
 // Simple login and password validation
 // Credentials should be stored in the gohelloworld_credentials environment variable,
 // formatted as 'login1=password1;login2=password2'.
 func checkCredentials(username, password string) bool {
-	credentialsString := os.Getenv("websrvfileshow_credentials")
-
-	if credentialsString == "" {
-		fmt.Print("environment variable not found")
+	config, err := util.GetConfig()
+	if err != nil {
+		fmt.Println("Error reading config: ", err)
 		return false
 	}
 
-	credentials := strings.Split(credentialsString, ";")
-
-	for index := range credentials {
-		loginPassword := strings.Split(credentials[index], "=")
-		login := loginPassword[0]
-		password1 := loginPassword[1]
-
-		if username == login && password == password1 {
-			return true
-		}
+	db, err := store.OpenDb(config.DbPath)
+	if err != nil {
+		fmt.Println("Error opening db: ", err)
+		return false
 	}
+	defer db.Close()
 
-	return false
+	password_hash, err := store.GetUserPasswordHashByLogin(db, username)
+	if err != nil {
+		fmt.Println("Failed to get the password hash: ", err)
+		return false
+	}
+	return util.CheckPassword(password, password_hash)
 }
 
 func basicAuth(next http.Handler) http.Handler {
@@ -61,4 +62,22 @@ func basicAuth(next http.Handler) http.Handler {
 
 		next.ServeHTTP(responseWriter, request)
 	})
+}
+
+func getCurrentLogin(request http.Request) (string, error) {
+	authHeader := request.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("Authorization header is empty")
+	}
+
+	if !strings.HasPrefix(authHeader, "Basic ") {
+		return "", errors.New("Invalid Authorization header format")
+	}
+
+	encodedCredentials := authHeader[6:]
+	usernamePassword, err := base64.StdEncoding.DecodeString(encodedCredentials)
+	if err != nil {
+		return "", err
+	}
+	return strings.Split(string(usernamePassword), ":")[0], nil
 }

@@ -1,37 +1,84 @@
 package main
 
 import (
-	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"todopp/store"
 	"todopp/util"
 	"todopp/web"
 )
 
-type Config struct {
-	Port    string `json:"port"`
-	Cert    string `json:"cert"`
-	CertKey string `json:"certKey"`
-}
-
 func main() {
+	// command line attributes variables
 
-	data, err := os.ReadFile(util.GetExecDir() + "config.json")
+	var userSet *bool
+	var userName *string
+	var userLogin *string
+	var userPassword *string
+
+	// parse command line attributes
+	if len(os.Args) > 0 {
+		userSet = flag.Bool("user", false, "Input user data mode")
+		userName = flag.String("name", "", "User name")
+		userLogin = flag.String("login", "", "User login")
+		userPassword = flag.String("password", "", "User password")
+
+		flag.Parse()
+
+		if userSet != nil && *userSet {
+			if userName == nil || *userName == "" {
+				fmt.Println("User name must be defined")
+			}
+			if userLogin == nil || *userLogin == "" {
+				fmt.Println("User login must be defined")
+			}
+			if userPassword == nil || *userPassword == "" {
+				fmt.Println("User password must be defined")
+			}
+		}
+	}
+
+	appConfig, err := util.GetConfig()
+
+	if userSet != nil && *userSet {
+		db, err := store.OpenDb(appConfig.DbPath)
+		if err != nil {
+			fmt.Print("Error opening database: ", err)
+			log.Fatal(err)
+		}
+		defer db.Close()
+
+		passwordHash, err := util.HashPassword(*userPassword)
+		if err != nil {
+			fmt.Print("Error hashing password: ", err)
+			log.Fatal(err)
+		}
+
+		var user store.User
+
+		user.UserId = util.Uuid()
+		user.Name = *userName
+		user.Login = *userLogin
+		user.PasswordHash = passwordHash
+
+		err = store.InsertUser(db, user)
+		if err != nil {
+			fmt.Print("Error storing user: ", err)
+			log.Fatal(err)
+		}
+
+		return
+	}
+
+	err = store.InitDatabase(appConfig.DbPath)
 	if err != nil {
-		fmt.Print("Error while reading config.json: ", err)
+		fmt.Print("Error while initializing database: ", err)
 		log.Fatal(err)
 	}
 
-	var config Config
-
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		fmt.Print("Error while parsing config.json: ", err)
-		log.Fatal(err)
-	}
-
-	err = web.StartServer(config.Port, config.Cert, config.CertKey)
+	err = web.StartServer(appConfig.Port, appConfig.Cert, appConfig.CertKey)
 	if err != nil {
 		fmt.Print("Error while starting web server: ", err)
 		log.Fatal(err)

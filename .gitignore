@@ -36,3 +36,6 @@ data/*
 
 #config
 config.json
+
+#vscode files
+.vscode/*
