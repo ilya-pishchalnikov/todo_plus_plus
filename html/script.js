@@ -23,9 +23,7 @@ function addInput() {
     input.id = "new-task";
     input.className = "new-task";
     input.placeholder = "Enter new task";// Add new task on enter
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') addBtnOnClick();
-    });
+    input.addEventListener('keydown', (e) => addBtnKeyDown(e));
     const btnAdd = document.createElement("button");
     btnAdd.id = "add-btn";
     btnAdd.className = "add-btn";
@@ -33,15 +31,39 @@ function addInput() {
     btnAdd.onclick = () => addBtnOnClick();
     li.appendChild(input);
     li.appendChild(btnAdd);
-
+    input.focus();
 }
 
-function addBtnOnClick () {
+function addBtnOnClick (e) {
     const taskInput = document.getElementById("new-task");
     const taskText = taskInput.value.trim();
     if (taskText === "") return;
     addTask(taskText, document.getElementById('input-task-li'))
     taskInput.value = '';
+}
+
+function addBtnKeyDown(e) {
+    switch (true) {
+        case (e.key === 'Enter'):
+            addBtnOnClick();
+            break
+        case (e.key === 'ArrowUp'):
+            inputTaskLi = document.getElementById("input-task-li");
+            previousSibling = inputTaskLi.previousElementSibling;
+            if (previousSibling != null) {
+                document.getElementById("task-list").insertBefore(inputTaskLi, previousSibling);
+            }
+            document.getElementById("new-task").focus()
+            break;
+        case (e.key === 'ArrowDown'):
+            inputTaskLi = document.getElementById("input-task-li");
+            nextSibling = inputTaskLi.nextElementSibling;
+            if (nextSibling != null) {
+                document.getElementById("task-list").insertBefore(inputTaskLi, nextSibling.nextElementSibling);
+            }
+            document.getElementById("new-task").focus()
+            break;
+    }
 }
 
 //Add a task function
