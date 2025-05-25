@@ -1,28 +1,52 @@
 
-const taskInput = document.getElementById('new-task');
-const addButton = document.getElementById('add-btn');
 let dragging = false; // true if in dragging mode
-let taskListJson = ""; // task list json
+let taskListJson = ""; // previous task list json for optimization reasons
+
 
 // start polling
-setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
-//fetchTasksFromServer (document.getElementById('task-list'));
+//setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
+fetchTasksFromServer (document.getElementById('task-list'))
 
-// Add new task on click
-addButton.onclick = () => {
+function addInput() {
+    const taskList = document.getElementById("task-list");
+    // Add li element for input
+    const li = document.createElement('li');
+    li.className = "input-task";
+    li.id = "input-task-li";
+    li.draggable = true;
+
+    taskList.appendChild(li);
+    addDragAndDropHandlers(li);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = "new-task";
+    input.className = "new-task";
+    input.placeholder = "Enter new task";// Add new task on enter
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addBtnOnClick();
+    });
+    const btnAdd = document.createElement("button");
+    btnAdd.id = "add-btn";
+    btnAdd.className = "add-btn";
+    btnAdd.innerText = "Add";
+    btnAdd.onclick = () => addBtnOnClick();
+    li.appendChild(input);
+    li.appendChild(btnAdd);
+
+}
+
+function addBtnOnClick () {
+    const taskInput = document.getElementById("new-task");
     const taskText = taskInput.value.trim();
     if (taskText === "") return;
-    addTask(taskText, document.getElementById('task-list'))
+    addTask(taskText, document.getElementById('input-task-li'))
     taskInput.value = '';
-};
-
-// Add new task on enter
-taskInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') addButton.click();
-});
+}
 
 //Add a task function
-function addTask (taskText, taskList, isFetchToServer = true, id = null) {
+function addTask (taskText, insertBefore = null, isFetchToServer = true, id = null) {
+    const taskList = document.getElementById("task-list")
     const li = document.createElement('li');
     li.textContent = taskText;
     li.className = "task";
@@ -41,7 +65,7 @@ function addTask (taskText, taskList, isFetchToServer = true, id = null) {
     removeBtn.onclick = () => remove(li);
   
     li.appendChild(removeBtn);
-    taskList.appendChild(li);
+    taskList.insertBefore(li, insertBefore);
     if (isFetchToServer) {
         postTaskList(taskList);
     }
@@ -60,17 +84,25 @@ function fetchTasksFromServer (taskList) {
         .then(response => response.json())
         .then(taskListResponse => {
             const json = JSON.stringify(taskListResponse);
-            if (json != taskListJson) {            
-                while (taskList.firstChild) {
-                    taskList.removeChild(taskList.firstChild);
-                }
+            if (json != taskListJson) { 
+                
+                const lis = taskList.querySelectorAll('li');
+
+                Array.from(lis).forEach(li => {
+                    if (li.className =="task") {
+                        taskList.removeChild(li);
+                    }
+                  });
+
                 taskListResponse.forEach (item => {
-                    addTask (item.name, taskList, false, item.id)
+                    addTask (item.name, null, false, item.id)
                 })
             }
             taskListJson = json;
+            addInput();
         })
         .catch(error => console.error(error));
+        
     }
 }
 
@@ -100,7 +132,9 @@ function taskListToJson (taskList) {
     const items = [];
 
     taskList.querySelectorAll('li').forEach(li => {
-    items.push({ id: li.id, name: li.firstChild.nodeValue.trim() });
+        if (li.className == "task") {
+            items.push({ id: li.id, name: li.firstChild.nodeValue.trim() });
+        }
     });
 
     return JSON.stringify(items);
@@ -113,50 +147,5 @@ function guid() {
     );
   }
 
-///////// DRAG-N-DROP /////////
-let dragSrcEl = null;
 
-function handleDragStart(e) {
-    dragSrcEl = this;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.innerHTML);
-    this.classList.add('dragging');
-    dragging = true;
-  }
-  
-  function handleDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-  }
-  
-  function handleDrop(e) {
-    e.stopPropagation();
-  
-    if (dragSrcEl !== this) {
-      // move
-      const taskList = document.getElementById('task-list');
-
-      taskList.insertBefore(dragSrcEl, this);
-      postTaskList(taskList);
-  
-      // Reattach event listeners after swapping content
-      addDragAndDropHandlers(dragSrcEl);
-      addDragAndDropHandlers(this);
-    }
-    return false;
-  }
-  
-  function handleDragEnd() {
-    this.classList.remove('dragging');
-    postTaskList (document.getElementById('task-list'));
-    dragging = false;
-  }
-  
-  function addDragAndDropHandlers(item) {
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('drop', handleDrop);
-    item.addEventListener('dragend', handleDragEnd);
-  }
   
