@@ -319,10 +319,9 @@ function postTaskList(taskList) {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: taskListToJson(taskList)
+        body: jsonBody
     }
     )
-        .then(response => response.json)
         .catch(error => console.error(error));
 }
 

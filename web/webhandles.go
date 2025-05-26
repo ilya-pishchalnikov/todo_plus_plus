@@ -84,7 +84,11 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 			return
 		}
 
-		store.UpdateTasksFromJson(db, body, userId, "flat")
+		err = store.UpdateTasksFromJson(db, body, userId, "flat")
+		if err != nil {
+			http.Error(responseWriter, "Failed to store data: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		responseWriter.WriteHeader(http.StatusOK)
 		responseWriter.Header().Set("Content-Type", "application/json")
@@ -92,7 +96,11 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		data := map[string]string{
 			"status": "success",
 		}
-		json.NewEncoder(responseWriter).Encode(data)
+		err = json.NewEncoder(responseWriter).Encode(data)
+		if err != nil {
+			http.Error(responseWriter, "Failed to encode resonse", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	//Fetching data from the server via GET method
