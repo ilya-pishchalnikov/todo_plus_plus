@@ -30,6 +30,7 @@ function addInputElements(li) {
     input.id = "new-task";
     input.className = "new-task";
     input.placeholder = "Enter new task";// Add new task on enter
+    input.setAttribute("autocomplete", "off");
     input.addEventListener('keydown', (event) => newTaskInputKeyDown(event));
     input.addEventListener('focus', (event) => newTaskInputFocus(event));    
     const btnAdd = document.createElement("button");
@@ -43,7 +44,7 @@ function addInputElements(li) {
     return input;
 }
 
-function addBtnOnClick(e) {
+function addBtnOnClick(event) {
     const taskInput = document.getElementById("new-task");
     const taskText = taskInput.value.trim();
     if (taskText === "") return;
@@ -94,23 +95,24 @@ function newTaskInputFocus(event) {
 //Add a task function
 function addTask(taskText, insertBefore = null, isFetchToServer = true, id = null) {
     const taskList = document.getElementById("task-list")
-    const li = document.createElement('li');
-    li.textContent = taskText;
-    li.className = "task";
+    const newTask = document.createElement("li");
+    newTask.textContent = taskText;
+    newTask.className = "task";
     if (id == null) {
-        li.id = guid();
+        newTask.id = guid();
     }
     else {
-        li.id = id;
+        newTask.id = id;
     }
-    li.draggable = true;
-    addDragAndDropHandlers(li);
-    li.onclick = (event) => taskOnClick(event);
-    li.ondblclick = (event) => taskOnDblClick(event);
-    li.onkeydown = (event) => taskOnKeyDown(event);
-    li.tabIndex = 0; // Make focusable
-    RemoveBtnCreate(li);
-    taskList.insertBefore(li, insertBefore);
+    newTask.draggable = true;
+    addDragAndDropHandlers(newTask);
+    newTask.onclick = (event) => taskOnClick(event);
+    newTask.ondblclick = (event) => taskOnDblClick(event);
+    newTask.onkeydown = (event) => taskOnKeyDown(event);
+    newTask.tabIndex = 0; // Make focusable
+    RemoveBtnCreate(newTask);
+    taskList.insertBefore(newTask, insertBefore);
+    newTask.focus();
     if (isFetchToServer) {
         postTaskList(taskList);
     }
@@ -120,7 +122,7 @@ function RemoveBtnCreate(parent) {
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
     removeBtn.className = 'remove-btn';
-    removeBtn.onclick = () => remove(li);
+    removeBtn.onclick = () => remove(parent);
     parent.appendChild(removeBtn);
     return removeBtn
 }
@@ -264,6 +266,7 @@ function btnUpdateOnClick() {
         RemoveBtnCreate(taskLi);
     }
     inputLi = addInput();
+    console.log(nextTaskLi.firstChild.nodeValue);
     taskList.insertBefore(inputLi, nextTaskLi);    
     taskLi.dataset.selected = false;
     taskLi.style.border = "none";
@@ -286,17 +289,36 @@ function fetchTasksFromServer(taskList) {
                 const json = JSON.stringify(taskListResponse);
                 if (json != taskListJson) {
 
-                    const lis = taskList.querySelectorAll('li');
+                    const taskLiList = taskList.querySelectorAll('li');
+                    const inputTask = document.getElementById("input-task-li");
+                    const input = document.getElementById("new-task");
+                    let inputTaskNext = null;
+                    let inputTaskNextId = null;
+                    if (inputTask!=null) {
+                        inputTaskNext = inputTask.nextElementSibling
+                        if (inputTaskNext != null) {
+                            inputTaskNextId = inputTaskNext.id;
+                        }
+                    }
 
-                    Array.from(lis).forEach(li => {
-                        if (li.className == "task") {
-                            taskList.removeChild(li);
+                    Array.from(taskLiList).forEach(task => {
+                        if (task.className == "task") {
+                            taskList.removeChild(task);
                         }
                     });
 
                     taskListResponse.forEach(item => {
                         addTask(item.name, null, false, item.id)
                     })
+                    
+                    console.log (inputTaskNextId)
+                    if (inputTask != null) {
+                        taskList.insertBefore(inputTask, document.getElementById(inputTaskNextId));
+                    }
+
+                    if (input != null) {
+                        input.focus()
+                    }
                 }
                 taskListJson = json;
             })
