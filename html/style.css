@@ -1,9 +1,10 @@
 
 body {
     font-family: Arial, sans-serif;
-    max-width: 500px;
-    margin: 50px auto;
+    max-width: 80%;
+    margin: auto auto;
     padding: 20px;
+    font-size: 130%;
   }
   .main-header {
     text-align: center;
@@ -12,17 +13,19 @@ body {
     background: red;
     color: white;
     border: none;
-    padding: 5px 10px;
+    height: 45px;
     cursor: pointer;
-    width: 70px
+    width: 130px;
+    font-size: 130%;
   }
   .update-btn {
     background: red;
     color: white;
     border: none;
-    padding: 5px 10px;
+    height: 40px;
     cursor: pointer;
-    width: 70px
+    width: 130px;
+    font-size: 130%;
   }
   .task-list {
     list-style: none;
@@ -46,30 +49,33 @@ body {
     align-items: center;
   }
   .new-task {
-    width: 80%;
+    width: calc(100% - 160px);
     background: white;
     margin-bottom: 2px;
     padding: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 130%;
   }
-  .update-task {
-    width: 80%;
+  .update-task {    
+    width: calc(100% - 160px);
     background: white;
     margin-bottom: 2px;
     padding: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 130%;
   }
   .remove-btn {
     background: red;
     color: white;
     border: none;
-    padding: 5px 10px;
+    height: 45px;
     cursor: pointer;
-    width: 70px
+    width: 130px;
+    font-size: 130%;
   }
   li[tabindex="0"]:focus {
     outline: 0;
