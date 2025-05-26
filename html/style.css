@@ -16,6 +16,14 @@ body {
     cursor: pointer;
     width: 70px
   }
+  .update-btn {
+    background: red;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    width: 70px
+  }
   .task-list {
     list-style: none;
     padding: 0;
@@ -46,6 +54,15 @@ body {
     justify-content: space-between;
     align-items: center;
   }
+  .update-task {
+    width: 80%;
+    background: white;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
   .remove-btn {
     background: red;
     color: white;
@@ -53,4 +70,8 @@ body {
     padding: 5px 10px;
     cursor: pointer;
     width: 70px
+  }
+  li[tabindex="0"]:focus {
+    outline: 0;
+    box-shadow: none;
   }
