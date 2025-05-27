@@ -32,7 +32,6 @@ function addInputElements(li) {
     input.placeholder = "Enter new task";// Add new task on enter
     input.setAttribute("autocomplete", "off");
     input.addEventListener('keydown', (event) => newTaskInputKeyDown(event));
-    input.addEventListener('focus', (event) => newTaskInputFocus(event));    
     const btnAdd = document.createElement("button");
     btnAdd.id = "add-btn";
     btnAdd.className = "add-btn";
@@ -57,41 +56,23 @@ function newTaskInputKeyDown(event) {
         case (event.key === 'Enter' && !event.shiftKey):
             addBtnOnClick();
             break
-        case (event.key === 'ArrowUp' && !event.ctrlKey):
+        case (event.key === 'ArrowUp'):
             inputTaskLi = document.getElementById("input-task-li");
             previousSibling = inputTaskLi.previousElementSibling;
             if (previousSibling != null) {
-                document.getElementById("task-list").insertBefore(inputTaskLi, previousSibling);
+                taskStartUpdate(previousSibling);
             }
-            document.getElementById("new-task").focus()
             break;
-        case (event.key === 'ArrowDown' && !event.ctrlKey):
+        case (event.key === 'ArrowDown'):
             inputTaskLi = document.getElementById("input-task-li");
             nextSibling = inputTaskLi.nextElementSibling;
-            if (nextSibling != null) {
-                document.getElementById("task-list").insertBefore(inputTaskLi, nextSibling.nextElementSibling);
+            if (nextSibling != null) {                
+                taskStartUpdate(nextSibling);
             }
             document.getElementById("new-task").focus()
-            break;
-        case (event.key === 'ArrowUp' && event.ctrlKey):
-            inputTaskLi = document.getElementById("input-task-li");
-            previousSibling = inputTaskLi.previousElementSibling;
-            if (previousSibling != null) {
-                taskSelect(previousSibling);
-                previousSibling.focus();
-            }
-            break;
+            break;      
     }
 }
-
-function newTaskInputFocus(event) {
-    taskList = event.target.parentElement.parentElement;
-    for (const task of taskList.children) {
-        task.dataset.selected = false;
-        task.style.border = "none";
-    }
-}
-
 //Add a task function
 function addTask(taskText, insertBefore = null, isFetchToServer = true, id = null) {
     const taskList = document.getElementById("task-list")
@@ -107,9 +88,6 @@ function addTask(taskText, insertBefore = null, isFetchToServer = true, id = nul
     newTask.draggable = true;
     addDragAndDropHandlers(newTask);
     newTask.onclick = (event) => taskOnClick(event);
-    newTask.ondblclick = (event) => taskOnDblClick(event);
-    newTask.onkeydown = (event) => taskOnKeyDown(event);
-    newTask.tabIndex = 0; // Make focusable
     RemoveBtnCreate(newTask);
     taskList.insertBefore(newTask, insertBefore);
     newTask.focus();
@@ -128,45 +106,17 @@ function RemoveBtnCreate(parent) {
 }
 
 function taskOnClick(event) {
-    taskSelect(event.target)
-}
-
-function taskSelect(task) {
-    taskList = task.parentElement;
-
-    if (taskList == null) {
-        return;
-    }
-
-    for (const task of taskList.children) {
-        if (task.dataset.selected == "true" && task.querySelector(".update-task") != null) {
-            task.querySelector(".update-task").focus();
-            return;
-        }
-        task.dataset.selected = false;
-        task.style.border = "none";
-    }
-
-    task.dataset.selected = true;
-    task.style.borderWidth = '1px';
-    task.style.borderStyle = 'solid';
-    task.style.borderColor = 'red'; 
-    task.focus();
-}
-
-function taskOnDblClick(event) {
     taskStartUpdate (event.target)
 }
 
 function taskStartUpdate (task) {
     taskList = task.parentElement;
-    taskSelect(task);
-    for (const task of taskList.children) {
-        if (task.dataset.selected == "true" && task.querySelector(".update-task") != null) {
-            task.querySelector(".update-task").focus();
-            return;
-        }
+
+    const taskUpdateBtn = document.getElementById("update-btn");
+    if (taskUpdateBtn != null){
+        taskUpdateBtn.onclick();
     }
+
     // add input elements
     const input = document.createElement("input");
     input.type = "text";
@@ -189,40 +139,6 @@ function taskStartUpdate (task) {
     task.removeChild(removeBtn);
     task.firstChild.nodeValue = "";
     document.getElementById("input-task-li").remove()
-}
-
-function taskOnKeyDown(event) {
-    currentTask = event.target;
-    taskList = currentTask.parentElement;
-    switch (true) {
-        case (event.key === 'Enter' && !event.ctrlKey):
-            taskStartUpdate (currentTask);
-            break
-        case (event.key === 'ArrowUp'):
-            previousSibling = currentTask.previousElementSibling;
-            if (previousSibling != null && previousSibling.className == "task") {    
-                taskSelect(previousSibling);
-            }
-            if (previousSibling != null && previousSibling.className != "task") {    
-                prePreviousSibling = previousSibling.previousElementSibling;
-                if (prePreviousSibling != null) {
-                    taskSelect(prePreviousSibling);
-                }
-            }
-            break;            
-        case (event.key === 'ArrowDown'):
-            nextSibling = currentTask.nextElementSibling;
-            if (nextSibling != null && nextSibling.className == "task") {     
-                taskSelect(nextSibling);
-            }
-            if (nextSibling != null && nextSibling.className != "task") {    
-                nextNextSibling = nextSibling.nextElementSibling;
-                if (nextNextSibling != null) {
-                    taskSelect(nextNextSibling);
-                }
-            }
-            break;
-    }
 }
 
 function updateInputkeyDown(event) {
@@ -266,10 +182,7 @@ function btnUpdateOnClick() {
         RemoveBtnCreate(taskLi);
     }
     inputLi = addInput();
-    console.log(nextTaskLi.firstChild.nodeValue);
-    taskList.insertBefore(inputLi, nextTaskLi);    
-    taskLi.dataset.selected = false;
-    taskLi.style.border = "none";
+    taskList.insertBefore(inputLi, nextTaskLi);  
     postTaskList(taskList);
     document.getElementById("new-task").focus();
 }
@@ -311,7 +224,6 @@ function fetchTasksFromServer(taskList) {
                         addTask(item.name, null, false, item.id)
                     })
                     
-                    console.log (inputTaskNextId)
                     if (inputTask != null) {
                         taskList.insertBefore(inputTask, document.getElementById(inputTaskNextId));
                     }

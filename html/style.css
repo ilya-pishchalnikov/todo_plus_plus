@@ -2,6 +2,7 @@
 body {
     font-family: Arial, sans-serif;
     max-width: 80%;
+    min-width: 400px;
     margin: auto auto;
     padding: 20px;
     font-size: 130%;
@@ -76,8 +77,4 @@ body {
     cursor: pointer;
     width: 130px;
     font-size: 130%;
-  }
-  li[tabindex="0"]:focus {
-    outline: 0;
-    box-shadow: none;
   }
