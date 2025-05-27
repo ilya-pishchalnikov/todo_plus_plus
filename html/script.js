@@ -7,7 +7,7 @@ let taskListJson = ""; // previous task list json for optimization reasons
 // start polling
 setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
 fetchTasksFromServer(document.getElementById('task-list'))
-setTimeout(() => addInput(), 500);
+//setTimeout(() => addInput(), 500);
 
 
 function addInput() {
@@ -69,7 +69,6 @@ function newTaskInputKeyDown(event) {
             if (nextSibling != null) {                
                 taskStartUpdate(nextSibling);
             }
-            document.getElementById("new-task").focus()
             break;      
     }
 }
@@ -135,10 +134,15 @@ function taskStartUpdate (task) {
     input.focus();
     input.value = task.firstChild.nodeValue;
     input.dataset =
-        removeBtn = task.querySelector(".remove-btn");
-    task.removeChild(removeBtn);
+    removeBtn = task.querySelector(".remove-btn");
+    if (removeBtn != null) {
+        removeBtn.remove();
+    }
     task.firstChild.nodeValue = "";
-    document.getElementById("input-task-li").remove()
+    inputTaskLi = document.getElementById("input-task-li")
+    if (inputTaskLi != null) {
+        inputTaskLi.remove();
+    }
 }
 
 function updateInputkeyDown(event) {
@@ -205,14 +209,28 @@ function fetchTasksFromServer(taskList) {
                     const taskLiList = taskList.querySelectorAll('li');
                     const inputTask = document.getElementById("input-task-li");
                     const input = document.getElementById("new-task");
+                    let updateInput = document.getElementById("update-task");
                     let inputTaskNext = null;
                     let inputTaskNextId = null;
+                    let updateInputTasktId = null;
+                    let updateInputValue = null;
+
                     if (inputTask!=null) {
                         inputTaskNext = inputTask.nextElementSibling
                         if (inputTaskNext != null) {
                             inputTaskNextId = inputTaskNext.id;
                         }
                     }
+
+                    if (updateInput != null) {
+
+                        console.log("update_input_parent: " + updateInput.parent)
+                        console.log("update_input_parent_element: " + updateInput.parentElement)
+                        updateInputTasktId = updateInput.parentElement.id;
+                        updateInputValue = updateInput.value;
+                    }
+
+                    console.log("update_input_task_id: " + updateInputTasktId)
 
                     Array.from(taskLiList).forEach(task => {
                         if (task.className == "task") {
@@ -223,6 +241,16 @@ function fetchTasksFromServer(taskList) {
                     taskListResponse.forEach(item => {
                         addTask(item.name, null, false, item.id)
                     })
+
+                    if (updateInputTasktId != null) {
+                        updateTask = document.getElementById(updateInputTasktId);
+                        if (updateTask == null) {
+                            alert ("The editing task has been removed")
+                        }
+                        taskStartUpdate(updateTask);
+                        updateInput = document.getElementById("update-task");
+                        updateInput.value = updateInputValue;
+                    }
                     
                     if (inputTask != null) {
                         taskList.insertBefore(inputTask, document.getElementById(inputTaskNextId));
@@ -230,6 +258,10 @@ function fetchTasksFromServer(taskList) {
 
                     if (input != null) {
                         input.focus()
+                    }
+
+                    if (inputTask == null && updateInput == null) {
+                        addInput();
                     }
                 }
                 taskListJson = json;
@@ -265,7 +297,14 @@ function taskListToJson(taskList) {
 
     taskList.querySelectorAll('li').forEach(li => {
         if (li.className == "task") {
-            items.push({ id: li.id, name: li.firstChild.nodeValue.trim() });
+            updateInput = li.querySelector("#update-task");
+            let taskName = null;
+            if (updateInput == null ){
+                taskName = li.firstChild.nodeValue.trim();
+            } else {
+                taskName= updateInput.value;
+            }
+            items.push({ id: li.id, name: taskName});
         }
     });
 
