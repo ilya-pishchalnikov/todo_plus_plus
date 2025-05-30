@@ -6,9 +6,9 @@ let taskListJson = ""; // previous task list json for optimization reasons
 
 // start polling
 setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
+setInterval(() => renewToken(), 3600000); //hourly
+renewToken()
 fetchTasksFromServer(document.getElementById('task-list'))
-//setTimeout(() => addInput(), 500);
-
 
 function addInput() {
     const taskList = document.getElementById("task-list");
@@ -192,6 +192,12 @@ function btnUpdateOnClick() {
     document.getElementById("new-task").focus();
 }
 
+// removes Task (li)
+function remove(li) {
+    li.remove();
+    postTaskList(document.getElementById('task-list'));
+}
+
 // Fetches task list from the server 
 function fetchTasksFromServer(taskList) {
     if (!dragging) {
@@ -283,12 +289,6 @@ function fetchTasksFromServer(taskList) {
     }
 }
 
-// removes Task (li)
-function remove(li) {
-    li.remove();
-    postTaskList(document.getElementById('task-list'));
-}
-
 // Uploads task list to the server
 function postTaskList(taskList) {
     const jsonBody = taskListToJson(taskList);
@@ -299,7 +299,7 @@ function postTaskList(taskList) {
             'Authorization': 'Bearer ' + getCookieByName("jwtToken")
         },
         body: jsonBody
-    }
+    })
     .then(response => {
         if (response.status === 401) {
         console.error("Unauthorized - Redirect to login");
@@ -307,7 +307,33 @@ function postTaskList(taskList) {
         }
         return response.json();
     })
-    )
+        .catch(error => console.error(error));
+}
+
+function renewToken() {
+    fetch('/api/token_renew', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
+        }
+    })
+        .then(response => {
+            if (response.status === 401) {
+                console.error("Unauthorized - Redirect to login");
+                window.location.href = '/login.html';
+                return Promise.reject("Unauthorized");
+            } if (!response.ok) {
+                return response.text().then(text => {
+                    return Promise.reject(text); // Properly reject with the error text
+                });
+            } else{
+                return response.text();
+            }
+        })
+        .then (tokenString => {
+            setCookie("jwtToken", tokenString, {})
+        })
         .catch(error => console.error(error));
 }
 

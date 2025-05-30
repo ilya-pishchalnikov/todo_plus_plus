@@ -22,10 +22,11 @@ func StartServer(port string, cert string, certKey string) error {
 	mux.Handle("/html/", http.StripPrefix("/html/", http.FileServer(http.Dir(util.GetExecDir()+"html"))))
 	mux.HandleFunc("/api/task_list", taskListHandler)
 	mux.HandleFunc("/api/login", loginHandle)
+	mux.HandleFunc("/api/token_renew", tokenRenewHandler)
 
 	fmt.Println("Server listening on port", port)
 
-	err := http.ListenAndServeTLS(port, cert, certKey, basicAuth(mux))
+	err := http.ListenAndServeTLS(port, cert, certKey, bearerAuth(mux))
 	if err != nil {
 		return err
 	}

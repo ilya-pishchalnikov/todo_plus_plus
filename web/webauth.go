@@ -2,8 +2,10 @@ package web
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -38,7 +40,7 @@ func checkCredentials(username, password string) bool {
 	return util.CheckPassword(password, password_hash)
 }
 
-func basicAuth(next http.Handler) http.Handler {
+func bearerAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		if !strings.Contains(request.URL.Path, "/api/") || request.URL.Path == "/api/login" {
 			next.ServeHTTP(responseWriter, request)
@@ -55,17 +57,92 @@ func basicAuth(next http.Handler) http.Handler {
 	})
 }
 
+type LoginPrompt struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
+func loginHandle(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// 1. Parse username/password from request
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(responseWriter, "Failed to read body", http.StatusInternalServerError)
+		return
+	}
+	defer request.Body.Close()
+
+	var loginPrompt LoginPrompt
+	err = json.Unmarshal(body, &loginPrompt)
+	if err != nil {
+		http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Validate credentials (check against DB)
+	if checkCredentials(loginPrompt.Login, loginPrompt.Password) {
+		jwtKey, err := getJwtKey()
+		if err != nil {
+			http.Error(responseWriter, "Failed to read jwt key", http.StatusInternalServerError)
+			return
+		}
+
+		tokenString, err := createJWTToken(jwtKey, loginPrompt.Login)
+		if err != nil {
+			http.Error(responseWriter, "Failed to create jwt token", http.StatusInternalServerError)
+			return
+		}
+
+		responseWriter.Header().Set("Content-Type", "text/plain")
+		responseWriter.Write([]byte(tokenString))
+	} else {
+		http.Error(responseWriter, "Invalid login or password", http.StatusUnauthorized)
+		return
+	}
+
+}
+
+func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	login, err := verifyJwtAndGetLogin(*request)
+	if err != nil {
+		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
+	}
+
+	jwtKey, err := getJwtKey()
+	if err != nil {
+		http.Error(responseWriter, "Failed to read jwt key", http.StatusInternalServerError)
+		return
+	}
+
+	tokenString, err := createJWTToken(jwtKey, login)
+	if err != nil {
+		http.Error(responseWriter, "Failed to create jwt token", http.StatusInternalServerError)
+		return
+	}
+
+	responseWriter.Header().Set("Content-Type", "text/plain")
+	responseWriter.Write([]byte(tokenString))
+}
+
 func verifyJwtAndGetLogin(request http.Request) (string, error) {
 	auth := request.Header.Get("Authorization")
 	if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
-		return "", errors.New("The request is missing the 'Authorization: Bearer' header")
+		return "", errors.New("the request is missing the 'Authorization: Bearer' header")
 	}
 
 	tokenString := []byte(auth[len("Bearer "):])
 
 	jwtkey, err := getJwtKey()
 	if err != nil {
-		return "", errors.New("Failed to retrieve JWT signing key")
+		return "", errors.New("failed to retrieve JWT signing key")
 	}
 
 	token, err := verifyJWTToken(tokenString, jwtkey)
@@ -74,23 +151,23 @@ func verifyJwtAndGetLogin(request http.Request) (string, error) {
 	}
 
 	if !token.Valid {
-		return "", errors.New("The provided JWT is invalid")
+		return "", errors.New("the provided JWT is invalid")
 	}
 
 	var login string
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
 		if login, ok = claims["login"].(string); !ok {
-			return "", errors.New("The provided JWT is invalid: login claim not provided")
+			return "", errors.New("the provided JWT is invalid: login claim not provided")
 		}
 
 		if expire, ok := claims["expire"].(float64); !ok {
-			return "", errors.New("The provided JWT is invalid: expire claim not provided")
+			return "", errors.New("the provided JWT is invalid: expire claim not provided")
 		} else if time.Now().Unix() > int64(expire) {
-			return "", errors.New("The provided JWT is invalid: expired")
+			return "", errors.New("the provided JWT is invalid: expired")
 		}
 	} else {
-		return "", errors.New("The provided JWT is invalid: claims not found")
+		return "", errors.New("the provided JWT is invalid: claims not found")
 	}
 	return login, nil
 }
