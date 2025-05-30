@@ -13,7 +13,7 @@ func OpenDb(dbPath string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = db.Exec("PRAGMA read_uncommitted = 1")
+	//_, err = db.Exec("PRAGMA read_uncommitted = 1")
 	return db, err
 }
 

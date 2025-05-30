@@ -109,6 +109,7 @@ function taskOnClick(event) {
 }
 
 function taskStartUpdate (task) {
+
     taskList = task.parentElement;
 
     const taskUpdateBtn = document.getElementById("update-btn");
@@ -197,11 +198,24 @@ function fetchTasksFromServer(taskList) {
         fetch('/api/task_list', {
             method: 'GET',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getCookieByName("jwtToken")
             }
         }
         )
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 401) {
+                    console.error("Unauthorized - Redirect to login");
+                    window.location.href = '/login.html';
+                    return Promise.reject("Unauthorized");
+                } if (!response.ok) {
+                    return response.text().then(text => {
+                        return Promise.reject(text); // Properly reject with the error text
+                    });
+                } else{
+                    return response.json();
+                }
+            })
             .then(taskListResponse => {
                 const json = JSON.stringify(taskListResponse);
                 if (json != taskListJson) {
@@ -223,14 +237,10 @@ function fetchTasksFromServer(taskList) {
                     }
 
                     if (updateInput != null) {
-
-                        console.log("update_input_parent: " + updateInput.parent)
-                        console.log("update_input_parent_element: " + updateInput.parentElement)
                         updateInputTasktId = updateInput.parentElement.id;
                         updateInputValue = updateInput.value;
                     }
 
-                    console.log("update_input_task_id: " + updateInputTasktId)
 
                     Array.from(taskLiList).forEach(task => {
                         if (task.className == "task") {
@@ -247,9 +257,11 @@ function fetchTasksFromServer(taskList) {
                         if (updateTask == null) {
                             alert ("The editing task has been removed")
                         }
-                        taskStartUpdate(updateTask);
-                        updateInput = document.getElementById("update-task");
-                        updateInput.value = updateInputValue;
+                        else {
+                            taskStartUpdate(updateTask);
+                            updateInput = document.getElementById("update-task");
+                            updateInput.value = updateInputValue;
+                        }
                     }
                     
                     if (inputTask != null) {
@@ -283,10 +295,18 @@ function postTaskList(taskList) {
     fetch('/api/task_list', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
         },
         body: jsonBody
     }
+    .then(response => {
+        if (response.status === 401) {
+        console.error("Unauthorized - Redirect to login");
+        window.location.href = '/login.html';
+        }
+        return response.json();
+    })
     )
         .catch(error => console.error(error));
 }
@@ -318,4 +338,37 @@ function guid() {
     );
 }
 
+
+function setCookie(name, value, options = {}) {
+    let cookieString = encodeURIComponent(name) + "=" + encodeURIComponent(value);
+  
+    // Опции по умолчанию
+    const defaults = {
+        expires: 1, // days
+        path: '/',
+        domain: '', 
+        secure: true, // https
+        sameSite: 'none' 
+    };
+  
+    const optionsToUse = { ...defaults, ...options };
+  
+    const expiresDate = new Date(Date.now() + optionsToUse.expires * 24 * 60 * 60 * 1000);
+    cookieString += "; expires=" + expiresDate.toUTCString();
+  
+    cookieString += "; path=" + optionsToUse.path;
+    cookieString += "; domain=" + optionsToUse.domain;
+    if (optionsToUse.secure) cookieString += "; secure";
+    if (optionsToUse.sameSite === 'none') cookieString += "; samesite=none";
+  
+    document.cookie = cookieString;
+}
+
+function getCookieByName(name) {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    if (match) {
+        return match[2];
+    }
+    return null;
+}
 

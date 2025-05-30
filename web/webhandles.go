@@ -140,3 +140,51 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		responseWriter.Write(taskList)
 	}
 }
+
+type LoginPrompt struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
+func loginHandle(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// 1. Parse username/password from request
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(responseWriter, "Failed to read body", http.StatusInternalServerError)
+		return
+	}
+	defer request.Body.Close()
+
+	var loginPrompt LoginPrompt
+	err = json.Unmarshal(body, &loginPrompt)
+	if err != nil {
+		http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Validate credentials (check against DB)
+	if checkCredentials(loginPrompt.Login, loginPrompt.Password) {
+		jwtKey, err := getJwtKey()
+		if err != nil {
+			http.Error(responseWriter, "Failed to read jwt key", http.StatusInternalServerError)
+			return
+		}
+
+		tokenString, err := createJWTToken(jwtKey, loginPrompt.Login)
+		if err != nil {
+			http.Error(responseWriter, "Failed to create jwt token", http.StatusInternalServerError)
+			return
+		}
+
+		responseWriter.Header().Set("Content-Type", "application/json")
+		responseWriter.Write([]byte(tokenString))
+	} else {
+		http.Error(responseWriter, "Invalid login or password", http.StatusUnauthorized)
+		return
+	}
+
+}

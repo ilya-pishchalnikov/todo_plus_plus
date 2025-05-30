@@ -55,3 +55,8 @@ where not exists (
 	from task_status ts
 	where ts.task_status_id = t.task_status_id
 );
+
+
+create table if not exists jwt (
+	jwt_key text
+);

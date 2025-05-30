@@ -6,8 +6,32 @@ body {
     margin: auto auto;
     padding: 20px;
     font-size: 130%;
+  }  
+  input {
+    background: #f4f4f4;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
   }
-  .main-header {
+  button {
+    background: red;
+    color: white;
+    border: none;
+    height: 40px;
+    cursor: pointer;
+    width: 130px;
+    font-size: 130%;
+  }
+  p {
+    line-height: 0.1;
+  }
+  br {
+    line-height: 0.1;
+  }
+  .header-main {
     text-align: center;
   }
   .add-btn {
@@ -77,4 +101,17 @@ body {
     cursor: pointer;
     width: 130px;
     font-size: 130%;
+  }
+  .button-login {
+    margin-top: 20px;
+  }
+  .div-button-login {
+    margin: auto;
+    width: 200px;
+  }
+
+
+  .div-login {
+    margin: auto;
+    width: 400px;
   }
