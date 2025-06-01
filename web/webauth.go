@@ -41,13 +41,14 @@ func checkCredentials(username, password string) bool {
 }
 
 func bearerAuth(next http.Handler) http.Handler {
+
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		if !strings.Contains(request.URL.Path, "/api/") || request.URL.Path == "/api/login" {
 			next.ServeHTTP(responseWriter, request)
 			return
 		}
 
-		_, err := verifyJwtAndGetLogin(*request)
+		_, err := verifyJwtAndGetLoginByRequest(*request)
 		if err != nil {
 			http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
 			return
@@ -111,7 +112,7 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 		return
 	}
 
-	login, err := verifyJwtAndGetLogin(*request)
+	login, err := verifyJwtAndGetLoginByRequest(*request)
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
 	}
@@ -132,20 +133,13 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 	responseWriter.Write([]byte(tokenString))
 }
 
-func verifyJwtAndGetLogin(request http.Request) (string, error) {
-	auth := request.Header.Get("Authorization")
-	if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
-		return "", errors.New("the request is missing the 'Authorization: Bearer' header")
-	}
-
-	tokenString := []byte(auth[len("Bearer "):])
-
+func verifyJwtAndGetLogin(tokenString string) (string, error) {
 	jwtkey, err := getJwtKey()
 	if err != nil {
 		return "", errors.New("failed to retrieve JWT signing key")
 	}
 
-	token, err := verifyJWTToken(tokenString, jwtkey)
+	token, err := verifyJWTToken([]byte(tokenString), jwtkey)
 	if err != nil {
 		return "", errors.New("JWT verification failed")
 	}
@@ -172,8 +166,17 @@ func verifyJwtAndGetLogin(request http.Request) (string, error) {
 	return login, nil
 }
 
+func verifyJwtAndGetLoginByRequest(request http.Request) (string, error) {
+	auth := request.Header.Get("Authorization")
+	if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
+		return "", errors.New("the request is missing the 'Authorization: Bearer' header")
+	}
+	tokenString := auth[len("Bearer "):]
+	return verifyJwtAndGetLogin(tokenString)
+}
+
 func getCurrentLogin(request http.Request) (string, error) {
-	return verifyJwtAndGetLogin(request)
+	return verifyJwtAndGetLoginByRequest(request)
 }
 
 func generateHmacKey() ([]byte, error) {

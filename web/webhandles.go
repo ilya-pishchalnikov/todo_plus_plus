@@ -11,6 +11,10 @@ import (
 
 // Handler that redirects all http requests to https
 func redirectToHTTPS(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.RequestURI == "/ws" {
+		handleEventConnections(responseWriter, request)
+		return
+	}
 	target := "https://" + request.Host + request.RequestURI
 	http.Redirect(responseWriter, request, target, http.StatusMovedPermanently)
 }

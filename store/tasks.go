@@ -12,6 +12,7 @@ type Task struct {
 	Sequence     int    //`json:"sequence"`
 	TaskStatusId int    `json:"status"`
 	TaskGroupId  string `json:"group"`
+	TaskUserName string
 }
 
 func InsertTask(db *sql.DB, task Task) error {
@@ -82,10 +83,11 @@ func DeleteTask(db *sql.DB, taskId string) error {
 
 func GetTasks(db *sql.DB, userId string) ([]Task, error) {
 	rows, err := db.Query(`
-		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id
+		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id, u.login
 		FROM task t 
 		INNER JOIN task_group g ON g.task_group_id = t.task_group_id
 		INNER JOIN project p on p.project_id = g.project_id
+		INNER JOIN user u on u.user_id = p.user_id
 		WHERE p.user_id = ?
 		ORDER BY t.sequence
 		`, userId)
@@ -97,7 +99,7 @@ func GetTasks(db *sql.DB, userId string) ([]Task, error) {
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId)
+		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId, &task.TaskUserName)
 		if err != nil {
 			return nil, err
 		}
@@ -131,22 +133,11 @@ func GetTasksToJson(db *sql.DB, userId string, jsonFormat string) ([]byte, error
 
 func UpdateTasksFromJson(db *sql.DB, jsonTasks []byte, userId string, jsonFormat string) error {
 	if jsonFormat == "flat" {
-		var defaultTaskGroupId string
-		err := db.QueryRow(`
-			SELECT g.task_group_id
-			FROM task_group g 
-			INNER JOIN project p on p.project_id = g.project_id
-			WHERE p.user_id = ?
-			  AND g.is_default = 1
-			`, userId).Scan(&defaultTaskGroupId)
-		if err != nil {
-			return err
-		}
 
 		sequence := 0
 		var tasks []Task
 
-		err = json.Unmarshal(jsonTasks, &tasks)
+		err := json.Unmarshal(jsonTasks, &tasks)
 		if err != nil {
 			return err
 		}
@@ -155,11 +146,12 @@ func UpdateTasksFromJson(db *sql.DB, jsonTasks []byte, userId string, jsonFormat
 			task.Sequence = sequence
 			sequence++
 			if task.TaskGroupId == "" {
-				task.TaskGroupId = defaultTaskGroupId
+				return errors.New("Task group id for task id = '" + task.TaskId + "' not defined")
 			}
 			if task.TaskStatusId == 0 {
 				task.TaskStatusId = 1
 			}
+
 			err = UpsertTask(db, task)
 			if err != nil {
 				return err
@@ -189,4 +181,21 @@ func UpdateTasksFromJson(db *sql.DB, jsonTasks []byte, userId string, jsonFormat
 	} else {
 		return errors.New("The json format '" + jsonFormat + "' is currently not implemented")
 	}
+}
+
+func GetTask(db *sql.DB, taskId string) (*Task, error) {
+
+	var task Task
+
+	err := db.QueryRow(`
+		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id, u.name
+		FROM task t 
+		INNER JOIN task_group g ON g.task_group_id = t.task_group_id
+		INNER JOIN project p on p.project_id = g.project_id
+		INNER JOIN user u on u.user_id = p.user_id
+		WHERE t.taskId = ?
+		LIMIT 1
+		`, taskId).Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId, &task.TaskUserName)
+
+	return &task, err
 }

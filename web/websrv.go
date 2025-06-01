@@ -10,6 +10,8 @@ import (
 func StartServer(port string, cert string, certKey string) error {
 
 	go func() {
+
+		http.HandleFunc("/ws", handleEventConnections)
 		err := http.ListenAndServe(":80", http.HandlerFunc(redirectToHTTPS))
 		if err != nil {
 			fmt.Println("Error while redirecting: ", err)
@@ -23,6 +25,10 @@ func StartServer(port string, cert string, certKey string) error {
 	mux.HandleFunc("/api/task_list", taskListHandler)
 	mux.HandleFunc("/api/login", loginHandle)
 	mux.HandleFunc("/api/token_renew", tokenRenewHandler)
+	mux.HandleFunc("/ws", handleEventConnections)
+	//mux.HandleFunc("/ws", handleEventConnections)
+
+	go handleEventMessages()
 
 	fmt.Println("Server listening on port", port)
 

@@ -1,14 +1,17 @@
 
 let dragging = false; // true if in dragging mode
 let taskListJson = ""; // previous task list json for optimization reasons
+const instanceGuid = guid();
+appEvent = new AppEvent();
+appEvent.onTaskAdd = (event) => {console.log(JSON.stringify(event));}
 
-
+setInterval(() => renewToken(), 3600000); //hourly
+renewToken()
 
 // start polling
 setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
-setInterval(() => renewToken(), 3600000); //hourly
-renewToken()
 fetchTasksFromServer(document.getElementById('task-list'))
+
 
 function addInput() {
     const taskList = document.getElementById("task-list");
@@ -46,8 +49,27 @@ function addInputElements(li) {
 function addBtnOnClick(event) {
     const taskInput = document.getElementById("new-task");
     const taskText = taskInput.value.trim();
+    const taskInputLi = taskInput.parentElement;
+    const prevTaskLi = taskInputLi.previousElementSibling;
+    let prevTaskId = null
+    if (prevTaskLi != null && prevTaskLi.className == "task") {
+        prevTaskId = prevTaskLi.id;
+    }
     if (taskText === "") return;
-    addTask(taskText, document.getElementById('input-task-li'))
+    const eventMessage = {
+        "type": "task-add",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": guid(),
+                "group": null,
+                "after": prevTaskId
+            }
+        };
+    
+    appEvent.send(JSON.stringify(eventMessage));
+    addTask(taskText, document.getElementById("input-task-li"));
     taskInput.value = '';
 }
 

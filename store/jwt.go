@@ -35,7 +35,7 @@ func GetJwtKey(db *sql.DB) (string, error) {
 	}
 
 	if isEmpty {
-		return "", errors.New("Jwt key not defined")
+		return "", errors.New("jwt key not defined")
 	}
 
 	var jwt_key string
