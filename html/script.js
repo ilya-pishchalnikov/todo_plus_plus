@@ -136,7 +136,22 @@ function projectsFetch() {
         Array.from(projects).forEach(project => {
             projectAdd(project.id, project.name, prevProjectId);
             prevProjectId = project.id;
-        })
+        });
+
+        if (projects.length == 0) {
+            const eventMessage = {
+                "type": "project-add",
+                "instance": instanceGuid,
+                "jwt": getCookieByName("jwtToken"),
+                "payload": {
+                        "name": "Project1",
+                        "id": guid(),
+                        "after": null
+                    }
+                };
+        
+            appEvent.send(JSON.stringify(eventMessage));
+        }
     })
     .catch(error => logger.error(error));
 }
@@ -205,10 +220,10 @@ function projectRemoveOnEvent(project) {
         if (firstProject!=null) {
             projectSelect(firstProject);
         } else {
-            projectName = prompt("Project name:", "");
+            let projectName = prompt("Project name:", "");
             while (projectName == null || projectName == "") {
-                prompt('Working without any projects is prohibited');
-                const projectName = prompt("Project name:", "");
+                alert('Working without any projects is prohibited');
+                projectName = prompt("Project name:", "");
             }
             const projectId = guid();
             const eventMessage = {
