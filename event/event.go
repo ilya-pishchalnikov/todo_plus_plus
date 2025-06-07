@@ -124,6 +124,16 @@ func ProcessEvent(event Event) error {
 		if err != nil {
 			return err
 		}
+	case "group-update":
+		var groupPayload GroupPayload
+		err := json.Unmarshal(event.Payload, &groupPayload)
+		if err != nil {
+			return err
+		}
+		err = upsertGroup(db, groupPayload)
+		if err != nil {
+			return err
+		}
 	case "task-add":
 		var taskPayload TaskPayload
 		err := json.Unmarshal(event.Payload, &taskPayload)

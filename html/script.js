@@ -10,9 +10,11 @@ appEvent.onProjectDelete = projectRemoveOnEvent;
 appEvent.onProjectUpdate = projectUpdateOnEvent;
 appEvent.onGroupAdd = groupAddOnEvent;
 appEvent.onGroupDelete = groupRemoveOnEvent;
+appEvent.onGroupUpdate = groupUpdateOnEvent;
+appEvent.onTaskUpdate = groupUpdateOnEvent;
 appEvent.onTaskAdd = taskAddOnEvent;
 appEvent.onTaskDelete = onTaskDeleteEvent;
-appEvent.onTaskUpdate = taskUpdateOnEvent
+appEvent.onTaskUpdate = taskUpdateOnEvent;
 
 setInterval(() => renewToken(), 3600000); //hourly
 renewToken()
@@ -53,7 +55,7 @@ function taskListFetch(projectId) {
 }
 
 function taskListPopulate(taskList) {
-    const taskListRegion = document.getElementById("group-list-region");
+    const taskListRegion = document.getElementById("groups-region");
     taskListRegion.innerHTML = "";
     groupInputRegion = document.createElement("div");
     groupInputRegion.className = "group-input-region";
@@ -67,6 +69,11 @@ function taskListPopulate(taskList) {
     groupInput.setAttribute("autocomplete", "off");
     groupInput.addEventListener('focus', groupInputOnFocus);
     groupInputRegion.append (groupInput);
+
+    const groupListRegion = document.createElement("div");
+    groupListRegion.className = "group-list-region";
+    groupListRegion.id = "group-list-region";
+    taskListRegion.append(groupListRegion);
 
     let currentGroupRegion = null;
     if (taskList != null) {
@@ -440,12 +447,29 @@ function groupNewAddOnClick(event) {
 
 function groupAddOnEvent(group) {
     const groupRegion = groupAdd(group, group.after);
-    //projectSelect(projectRegion);
+}
+
+function groupUpdateOnEvent(group) {
+    const groupRegion = document.getElementById(group.id);
+    let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
+    if (groupHeaderRegion == null) {
+        groupHeaderRegion = groupRegion.querySelector(".group-header-region");
+    }
+    groupHeaderRegion.innerText = group.name;
+    if (group.after != null && group.after != "") {
+        prevGroupRegion = document.getElementById(group.after)
+        prevGroupRegion.after(groupRegion);
+    } else {
+        const groupListRegion = groupRegion.parentElement;
+        groupListRegion.prepend(groupRegion);
+    }
+
+
 }
 
 
 function groupAdd(group, prevGroupId) {
-    const groupInputRegion = document.getElementById("group-input-region");
+    const groupListRegion = document.getElementById("group-list-region");
     const groupRegion = document.createElement("div");
     groupRegion.className = "group-region";
     groupRegion.id = group.id;
@@ -454,7 +478,7 @@ function groupAdd(group, prevGroupId) {
         const prevGroupRegion = document.getElementById(prevGroupId);
         prevGroupRegion.after(groupRegion);
     } else {
-        groupInputRegion.after(groupRegion);
+        groupListRegion.prepend(groupRegion);
     }
 
     const groupHeader = document.createElement("div");
@@ -513,6 +537,8 @@ function groupSelect(groupHeaderRegion) {
     menu.showHeader("Group: ");
     menu.addButton("Add", groupRegion.id, groupAddOnClick);
      menu.addButton("Remove", groupRegion.id, groupRemoveOnClick);
+     menu.addButton("∧", groupRegion.id, groupUpOnClick, "50px");
+     menu.addButton("∨", groupRegion.id, groupDownOnClick, "50px");
     // menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
     // menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
     // menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
@@ -589,6 +615,78 @@ function groupRemoveOnClick(event) {
 function groupRemoveOnEvent(group) {
     const groupRegion = document.getElementById(group.id)
     groupRegion.remove();
+}
+
+function groupUpOnClick(event) {
+    const upButton =  event.target;
+    const groupId = upButton.dataset.payload;
+    const groupRegion = document.getElementById(groupId);
+    const prevGroupRegion = groupRegion.previousElementSibling;
+    if (prevGroupRegion == null) {
+        return;
+    }
+    const prevPrevGroupRegion = prevGroupRegion.previousElementSibling;
+    let prevPrevGroupId = null;
+    if (prevPrevGroupRegion != null) {
+        prevPrevGroupId = prevPrevGroupRegion.id;
+    }
+    let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
+    if (groupHeaderRegion == null ) {
+        groupHeaderRegion = groupRegion.querySelector(".group-header-region");
+    }
+    const groupName = groupHeaderRegion.innerText;
+    const projectRegion = document.querySelector(".project-region-selected");
+    const projectId = projectRegion.id;
+
+
+    const eventMessage = {
+        "type": "group-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": prevPrevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+    
+}
+
+function groupDownOnClick(event) {
+    const upButton =  event.target;
+    const groupId = upButton.dataset.payload;
+    const groupRegion = document.getElementById(groupId);
+    const nextGroupRegion = groupRegion.nextElementSibling;
+    if (nextGroupRegion == null) {
+        return;
+    }
+    const nextGroupId = nextGroupRegion.id;
+
+    let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
+    if (groupHeaderRegion == null ) {
+        groupHeaderRegion = groupRegion.querySelector(".group-header-region");
+    }
+    const groupName = groupHeaderRegion.innerText;
+    const projectRegion = document.querySelector(".project-region-selected");
+    const projectId = projectRegion.id;
+
+    const eventMessage = {
+        "type": "group-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": nextGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+    
 }
 
 function taskInputOnFocus(event) {

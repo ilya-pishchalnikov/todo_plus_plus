@@ -6,6 +6,7 @@ class AppEvent {
     onProjectUpdate;
     onGroupAdd;
     onGroupDelete;
+    onGroupUpdate;
     onTaskAdd;
     onTaskDelete;
     onTaskUpdate;
@@ -41,6 +42,11 @@ class AppEvent {
             case "group-delete":
                 if (this.onGroupDelete != null){
                     this.onGroupDelete(parsedEvent.payload);
+                }
+                break;
+            case "group-update":
+                if (this.onGroupUpdate != null){
+                    this.onGroupUpdate(parsedEvent.payload);
                 }
                 break;
             case "task-add":
