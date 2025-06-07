@@ -133,12 +133,13 @@ function projectsFetch() {
         const projectsRegion = document.getElementById("projects-region");
         projectsRegion.innerHTML = "";
         projectsRegion.innerText = "Projects: "
-        Array.from(projects).forEach(project => {
-            projectAdd(project.id, project.name, prevProjectId);
-            prevProjectId = project.id;
-        });
 
-        if (projects.length == 0) {
+        if (projects != null && projects.length > 0) {
+            Array.from(projects).forEach(project => {
+                projectAdd(project.id, project.name, prevProjectId);
+                prevProjectId = project.id;
+            });
+        } else {
             const eventMessage = {
                 "type": "project-add",
                 "instance": instanceGuid,
