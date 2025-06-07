@@ -8,11 +8,10 @@ import (
 
 type Task struct {
 	TaskId       string `json:"id"`
-	Name         string `json:"name"`
+	Name         string `json:"text"`
 	Sequence     int    //`json:"sequence"`
 	TaskStatusId int    `json:"status"`
 	TaskGroupId  string `json:"group"`
-	TaskUserName string
 }
 
 func InsertTask(db *sql.DB, task Task) error {
@@ -81,16 +80,14 @@ func DeleteTask(db *sql.DB, taskId string) error {
 	return err
 }
 
-func GetTasks(db *sql.DB, userId string) ([]Task, error) {
+func GetTasksByProject(db *sql.DB, ProjectId string) ([]Task, error) {
 	rows, err := db.Query(`
-		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id, u.login
+		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id
 		FROM task t 
 		INNER JOIN task_group g ON g.task_group_id = t.task_group_id
-		INNER JOIN project p on p.project_id = g.project_id
-		INNER JOIN user u on u.user_id = p.user_id
-		WHERE p.user_id = ?
+		WHERE g.project_id = ?
 		ORDER BY t.sequence
-		`, userId)
+		`, ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +96,7 @@ func GetTasks(db *sql.DB, userId string) ([]Task, error) {
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId, &task.TaskUserName)
+		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId)
 		if err != nil {
 			return nil, err
 		}
@@ -109,9 +106,36 @@ func GetTasks(db *sql.DB, userId string) ([]Task, error) {
 	return tasks, nil
 }
 
-func GetTasksToJson(db *sql.DB, userId string, jsonFormat string) ([]byte, error) {
-	if jsonFormat == "flat" {
-		tasks, err := GetTasks(db, userId)
+func GetTasksByGroup(db *sql.DB, groupId string) ([]Task, error) {
+	rows, err := db.Query(`
+		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id
+		FROM task t 
+		WHERE t.task_group_id = ?
+		ORDER BY t.sequence
+		`, groupId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []Task
+	for rows.Next() {
+		var task Task
+		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
+func GetTasksToJson(db *sql.DB, projectId string, jsonFormat string) ([]byte, error) {
+
+	switch jsonFormat {
+	case "flat":
+		tasks, err := GetTasksByProject(db, projectId)
 		if err != nil {
 			return nil, err
 		}
@@ -126,12 +150,22 @@ func GetTasksToJson(db *sql.DB, userId string, jsonFormat string) ([]byte, error
 			}
 		}
 		return jsonData, nil
-	} else {
+	case "grouped":
+		taskgroups, err := GetTaskGroups(db, projectId)
+		if err != nil {
+			return nil, err
+		}
+		jsonData, err := json.Marshal(taskgroups)
+		if err != nil {
+			return nil, err
+		}
+		return jsonData, nil
+	default:
 		return nil, errors.New("The json format '" + jsonFormat + "' is currently not implemented")
 	}
 }
 
-func UpdateTasksFromJson(db *sql.DB, jsonTasks []byte, userId string, jsonFormat string) error {
+func UpdateTasksFromJson(db *sql.DB, jsonTasks []byte, projectId string, jsonFormat string) error {
 	if jsonFormat == "flat" {
 
 		sequence := 0
@@ -158,7 +192,7 @@ func UpdateTasksFromJson(db *sql.DB, jsonTasks []byte, userId string, jsonFormat
 			}
 		}
 
-		savedTasks, err := GetTasks(db, userId)
+		savedTasks, err := GetTasksByProject(db, projectId)
 		if err != nil {
 			return err
 		}
@@ -188,14 +222,11 @@ func GetTask(db *sql.DB, taskId string) (*Task, error) {
 	var task Task
 
 	err := db.QueryRow(`
-		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id, u.name
-		FROM task t 
-		INNER JOIN task_group g ON g.task_group_id = t.task_group_id
-		INNER JOIN project p on p.project_id = g.project_id
-		INNER JOIN user u on u.user_id = p.user_id
+		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id
+		FROM task t
 		WHERE t.taskId = ?
 		LIMIT 1
-		`, taskId).Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId, &task.TaskUserName)
+		`, taskId).Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId)
 
 	return &task, err
 }

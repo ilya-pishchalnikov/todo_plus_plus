@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+	"todopp/auth"
 	"todopp/event"
 
 	"github.com/gorilla/websocket"
@@ -38,7 +39,7 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 		return
 	}
 
-	login, err := verifyJwtAndGetLogin(jwt)
+	login, err := auth.VerifyJwtAndGetLogin(jwt)
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 		return
@@ -69,7 +70,7 @@ func handleEventMessages() {
 			continue // ignore invalid messages
 		}
 
-		login, err := verifyJwtAndGetLogin(appEvent.Jwt)
+		login, err := auth.VerifyJwtAndGetLogin(appEvent.Jwt)
 		if err != nil {
 			continue // ignore invalid jwt
 		}
@@ -83,11 +84,13 @@ func handleEventMessages() {
 			}
 		}
 
-		//exclude jwt from responce
-		appEvent.Jwt = ""
-		responce, err = json.Marshal(appEvent)
 		if err != nil {
-			continue
+			//exclude jwt from responce
+			appEvent.Jwt = ""
+			responce, err = json.Marshal(appEvent)
+			if err != nil {
+				continue
+			}
 		}
 
 		for client := range clients {

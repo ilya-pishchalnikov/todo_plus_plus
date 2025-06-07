@@ -1,20 +1,27 @@
 
 body {
     font-family: Arial, sans-serif;
-    max-width: 80%;
+    max-width: 90%;
     min-width: 400px;
     margin: auto auto;
     padding: 20px;
     font-size: 130%;
   }  
+  /*
+  div {    
+    border-width:thin;
+    border-style: inset;
+    border-color: red;
+  }
+  */
   input {
-    background: #f4f4f4;
+    background: white;
     margin-bottom: 2px;
     padding: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
+    font-size: 130%;
   }
   button {
     background: red;
@@ -25,15 +32,19 @@ body {
     width: 130px;
     font-size: 130%;
   }
+  button:hover {
+    background: darkred;
+  }
   p {
     line-height: 0.1;
   }
   br {
     line-height: 0.1;
   }
-  .header-main {
+  /*.header-main {
     text-align: center;
-  }
+  }*/
+  /*
   .add-btn {
     background: red;
     color: white;
@@ -52,7 +63,7 @@ body {
     width: 130px;
     font-size: 130%;
   }
-  .task-list {
+  .task-list-region {
     list-style: none;
     padding: 0;
     margin-top: 20px;
@@ -64,6 +75,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+  .task:hover {
+    background: #a4a4a4;
   }
   .input-task {
     background: #f4f4f4;
@@ -102,6 +116,7 @@ body {
     width: 130px;
     font-size: 130%;
   }
+  */
   .button-login {
     margin-top: 20px;
   }
@@ -110,8 +125,136 @@ body {
     width: 200px;
   }
 
-
   .div-login {
     margin: auto;
     width: 400px;
+  }
+  .project-region {
+    background: #f4f4f4;
+    margin: 0 0 6px 0;
+    padding: 10px;
+    display: inline-block;
+    align-items: center;
+    min-width: 30px;
+  }
+  
+  .project-region:hover {
+    background: #a4a4a4;
+  }
+
+  .project-region-selected {
+    background: red;
+    margin: 0 0 6px 0;
+    padding: 10px;
+    display: inline-block;
+    align-items: center;
+    min-width: 30px;
+  }
+  .project-region-selected:hover {
+    background: darkred;
+  }
+  
+  .menu-bar {
+    position:sticky;
+    top: 10px;
+    z-index: 100;
+    background: #f4f4f4;;
+    /*height: 50px;*/
+    align-items: center;
+    display: flex;
+    padding: 10px;
+    margin-top: 0;
+  }
+
+  .menu-main-button {
+    margin-left: 2px;
+  }
+
+  .group-list-region {
+    background: none;
+    padding: 10px;
+  }
+
+  .group-input {
+    width: calc(100% - 20px);
+  }
+
+  .group-region {
+    background: none;
+    padding: 10px;
+  }
+
+  .group-header-region {
+    background: #f4f4f4;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .group-header-region:hover {
+    background: #a4a4a4;
+  }
+
+  .group-header-region-selected {
+    background: red;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .group-header-region-selected:hover {
+    background: darkred;
+  }
+
+  .task-input-region {
+    margin-left: 30px;
+  }
+
+  .task-input {    
+    background: white;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 130%;
+    height: 26px;
+    width: calc(100% - 20px);
+  }
+
+  .task-region {    
+    background: #f4f4f4;
+    margin-bottom: 2px;
+    margin-left: 30px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .task-region:hover {
+    background: #a4a4a4;
+  }
+
+  .task {
+    margin: 0;
+    font-size: 130%;
+  }
+
+  .task-region-selected {    
+    background: red;
+    margin-bottom: 2px;
+    margin-left: 30px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .task-region-selected:hover {
+    background: darkred;
   }

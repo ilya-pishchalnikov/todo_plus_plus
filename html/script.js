@@ -1,335 +1,82 @@
 
-let dragging = false; // true if in dragging mode
-let taskListJson = ""; // previous task list json for optimization reasons
+//let dragging = false; // true if in dragging mode
+//let taskListJson = ""; // previous task list json for optimization reasons
 const instanceGuid = guid();
-appEvent = new AppEvent();
-appEvent.onTaskAdd = (event) => {console.log(JSON.stringify(event));}
+const appEvent = new AppEvent();
+const menu = new Menu();
+
+appEvent.onProjectAdd = projectAddOnEvent;
+appEvent.onProjectDelete = projectRemoveOnEvent;
+appEvent.onProjectUpdate = projectUpdateOnEvent;
+appEvent.onGroupAdd = groupAddOnEvent;
+appEvent.onGroupDelete = groupRemoveOnEvent;
+appEvent.onTaskAdd = taskAddOnEvent;
+appEvent.onTaskDelete = onTaksDeleteEvent;
 
 setInterval(() => renewToken(), 3600000); //hourly
 renewToken()
 
 // start polling
-setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
-fetchTasksFromServer(document.getElementById('task-list'))
+//setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
+projectsFetch()
+//fetchTasksFromServer(document.getElementById('task-list'))
 
-
-function addInput() {
-    const taskList = document.getElementById("task-list");
-    // Add li element for input
-    const li = document.createElement('li');
-    li.className = "input-task";
-    li.id = "input-task-li";
-    li.draggable = true;
-
-    taskList.appendChild(li);
-    addDragAndDropHandlers(li);
-    addInputElements(li);
-    return li;
-}
-
-function addInputElements(li) {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = "new-task";
-    input.className = "new-task";
-    input.placeholder = "Enter new task";// Add new task on enter
-    input.setAttribute("autocomplete", "off");
-    input.addEventListener('keydown', (event) => newTaskInputKeyDown(event));
-    const btnAdd = document.createElement("button");
-    btnAdd.id = "add-btn";
-    btnAdd.className = "add-btn";
-    btnAdd.innerText = "Add";
-    btnAdd.onclick = () => addBtnOnClick();
-    li.appendChild(input);
-    li.appendChild(btnAdd);
-    input.focus();
-    return input;
-}
-
-function addBtnOnClick(event) {
-    const taskInput = document.getElementById("new-task");
-    const taskText = taskInput.value.trim();
-    const taskInputLi = taskInput.parentElement;
-    const prevTaskLi = taskInputLi.previousElementSibling;
-    let prevTaskId = null
-    if (prevTaskLi != null && prevTaskLi.className == "task") {
-        prevTaskId = prevTaskLi.id;
-    }
-    if (taskText === "") return;
-    const eventMessage = {
-        "type": "task-add",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-                "text": taskText,
-                "id": guid(),
-                "group": null,
-                "after": prevTaskId
-            }
-        };
-    
-    appEvent.send(JSON.stringify(eventMessage));
-    addTask(taskText, document.getElementById("input-task-li"));
-    taskInput.value = '';
-}
-
-function newTaskInputKeyDown(event) {
-    switch (true) {
-        case (event.key === 'Enter' && !event.shiftKey):
-            addBtnOnClick();
-            break
-        case (event.key === 'ArrowUp'):
-            inputTaskLi = document.getElementById("input-task-li");
-            previousSibling = inputTaskLi.previousElementSibling;
-            if (previousSibling != null) {
-                taskStartUpdate(previousSibling);
-            }
-            break;
-        case (event.key === 'ArrowDown'):
-            inputTaskLi = document.getElementById("input-task-li");
-            nextSibling = inputTaskLi.nextElementSibling;
-            if (nextSibling != null) {                
-                taskStartUpdate(nextSibling);
-            }
-            break;      
-    }
-}
-//Add a task function
-function addTask(taskText, insertBefore = null, isFetchToServer = true, id = null) {
-    const taskList = document.getElementById("task-list")
-    const newTask = document.createElement("li");
-    newTask.textContent = taskText;
-    newTask.className = "task";
-    if (id == null) {
-        newTask.id = guid();
-    }
-    else {
-        newTask.id = id;
-    }
-    newTask.draggable = true;
-    addDragAndDropHandlers(newTask);
-    newTask.onclick = (event) => taskOnClick(event);
-    RemoveBtnCreate(newTask);
-    taskList.insertBefore(newTask, insertBefore);
-    newTask.focus();
-    if (isFetchToServer) {
-        postTaskList(taskList);
-    }
-}
-
-function RemoveBtnCreate(parent) {
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.className = 'remove-btn';
-    removeBtn.onclick = () => remove(parent);
-    parent.appendChild(removeBtn);
-    return removeBtn
-}
-
-function taskOnClick(event) {
-    taskStartUpdate (event.target)
-}
-
-function taskStartUpdate (task) {
-
-    taskList = task.parentElement;
-
-    const taskUpdateBtn = document.getElementById("update-btn");
-    if (taskUpdateBtn != null){
-        taskUpdateBtn.onclick();
-    }
-
-    // add input elements
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = "update-task";
-    input.className = "update-task";
-    input.placeholder = "Enter task content";// Add new task on enter
-    input.setAttribute("autocomplete", "off");
-    input.addEventListener('keydown', (event) => updateInputkeyDown(event));
-    const btnAdd = document.createElement("button");
-    btnAdd.id = "update-btn";
-    btnAdd.className = "update-btn";
-    btnAdd.innerText = "Update";
-    btnAdd.onclick = () => btnUpdateOnClick();
-    task.appendChild(input);
-    task.appendChild(btnAdd);
-    input.focus();
-    input.value = task.firstChild.nodeValue;
-    input.dataset =
-    removeBtn = task.querySelector(".remove-btn");
-    if (removeBtn != null) {
-        removeBtn.remove();
-    }
-    task.firstChild.nodeValue = "";
-    inputTaskLi = document.getElementById("input-task-li")
-    if (inputTaskLi != null) {
-        inputTaskLi.remove();
-    }
-}
-
-function updateInputkeyDown(event) {
-    currentTask = event.target.parentElement;
-    taskList = currentTask.parentElement;
-    switch (true) {
-        case (event.key === 'Enter' && !event.shiftKey):
-            btnUpdateOnClick();
-            break
-        case (event.key === 'Escape'):
-            btnUpdateOnClick();
-            break
-        case (event.key === 'ArrowUp'):
-            previousSibling = currentTask.previousElementSibling;
-            if (previousSibling != null) {    
-                btnUpdateOnClick();            
-                taskStartUpdate (previousSibling)
-            }
-            break;            
-        case (event.key === 'ArrowDown'):
-            nextSibling = currentTask.nextElementSibling;
-            if (nextSibling != null) {    
-                btnUpdateOnClick();            
-                taskStartUpdate (nextSibling)
-            }
-            break;
-    }
-}
-
-function btnUpdateOnClick() {
-    const taskUpdateInput = document.getElementById("update-task");
-    const taskText = taskUpdateInput.value.trim();
-    const taskLi = taskUpdateInput.parentElement;
-    const taskList = taskLi.parentElement;
-    const nextTaskLi = taskLi.nextElementSibling;
-    if (taskText === "") {
-        taskLi.remove();
-    } else {
-        taskLi.innerText = taskText;
-        taskUpdateInput.remove();
-        RemoveBtnCreate(taskLi);
-    }
-    inputLi = addInput();
-    taskList.insertBefore(inputLi, nextTaskLi);  
-    postTaskList(taskList);
-    document.getElementById("new-task").focus();
-}
-
-// removes Task (li)
-function remove(li) {
-    li.remove();
-    postTaskList(document.getElementById('task-list'));
-}
 
 // Fetches task list from the server 
-function fetchTasksFromServer(taskList) {
-    if (!dragging) {
-        fetch('/api/task_list', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getCookieByName("jwtToken")
-            }
-        }
-        )
-            .then(response => {
-                if (response.status === 401) {
-                    console.error("Unauthorized - Redirect to login");
-                    window.location.href = '/login.html';
-                    return Promise.reject("Unauthorized");
-                } if (!response.ok) {
-                    return response.text().then(text => {
-                        return Promise.reject(text); // Properly reject with the error text
-                    });
-                } else{
-                    return response.json();
-                }
-            })
-            .then(taskListResponse => {
-                const json = JSON.stringify(taskListResponse);
-                if (json != taskListJson) {
-
-                    const taskLiList = taskList.querySelectorAll('li');
-                    const inputTask = document.getElementById("input-task-li");
-                    const input = document.getElementById("new-task");
-                    let updateInput = document.getElementById("update-task");
-                    let inputTaskNext = null;
-                    let inputTaskNextId = null;
-                    let updateInputTasktId = null;
-                    let updateInputValue = null;
-
-                    if (inputTask!=null) {
-                        inputTaskNext = inputTask.nextElementSibling
-                        if (inputTaskNext != null) {
-                            inputTaskNextId = inputTaskNext.id;
-                        }
-                    }
-
-                    if (updateInput != null) {
-                        updateInputTasktId = updateInput.parentElement.id;
-                        updateInputValue = updateInput.value;
-                    }
-
-
-                    Array.from(taskLiList).forEach(task => {
-                        if (task.className == "task") {
-                            taskList.removeChild(task);
-                        }
-                    });
-
-                    taskListResponse.forEach(item => {
-                        addTask(item.name, null, false, item.id)
-                    })
-
-                    if (updateInputTasktId != null) {
-                        updateTask = document.getElementById(updateInputTasktId);
-                        if (updateTask == null) {
-                            alert ("The editing task has been removed")
-                        }
-                        else {
-                            taskStartUpdate(updateTask);
-                            updateInput = document.getElementById("update-task");
-                            updateInput.value = updateInputValue;
-                        }
-                    }
-                    
-                    if (inputTask != null) {
-                        taskList.insertBefore(inputTask, document.getElementById(inputTaskNextId));
-                    }
-
-                    if (input != null) {
-                        input.focus()
-                    }
-
-                    if (inputTask == null && updateInput == null) {
-                        addInput();
-                    }
-                }
-                taskListJson = json;
-            })
-            .catch(error => console.error(error));
-
-    }
-}
-
-// Uploads task list to the server
-function postTaskList(taskList) {
-    const jsonBody = taskListToJson(taskList);
-    fetch('/api/task_list', {
-        method: 'POST',
+function taskListFetch(projectId) {
+    fetch(`/api/task_list?project_id=${projectId}&json_format=grouped`, {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + getCookieByName("jwtToken")
-        },
-        body: jsonBody
-    })
-    .then(response => {
-        if (response.status === 401) {
-        console.error("Unauthorized - Redirect to login");
-        window.location.href = '/login.html';
         }
-        return response.json();
-    })
-        .catch(error => console.error(error));
+    }
+    )
+        .then(response => {
+            if (response.status === 401) {
+                logger.error("Unauthorized - Redirect to login");
+                window.location.href = '/login.html';
+                return Promise.reject("Unauthorized");
+            } if (!response.ok) {
+                return response.text().then(text => {
+                    return Promise.reject(text); // Properly reject with the error text
+                });
+            } else{
+                return response.json();
+            }
+        })
+        .then(taskList => {
+            taskListPopulate(taskList);
+        })
+        .catch(error => logger.error(error));
+}
+
+function taskListPopulate(taskList) {
+    const taskListRegion = document.getElementById("group-list-region");
+    taskListRegion.innerHTML = "";
+    groupInputRegion = document.createElement("div");
+    groupInputRegion.className = "group-input-region";
+    groupInputRegion.id = "group-input-region";
+    taskListRegion.append(groupInputRegion);
+    
+    groupInput = document.createElement("input");
+    groupInput.className = "group-input";
+    groupInput.id = "group-input";
+    groupInput.placeholder = "New task group";
+    groupInput.setAttribute("autocomplete", "off");
+    groupInput.addEventListener('focus', groupInputOnFocus);
+    groupInputRegion.append (groupInput);
+
+    let currentGroupRegion = null;
+    if (taskList != null) {
+        taskList.forEach(group => {
+            let currentGroupRegionId = null
+            if (currentGroupRegion != null) {
+                currentGroupRegionId = currentGroupRegion.id
+            }
+            currentGroupRegion = groupAdd(group, currentGroupRegionId);
+        });
+    }
 }
 
 function renewToken() {
@@ -342,7 +89,7 @@ function renewToken() {
     })
         .then(response => {
             if (response.status === 401) {
-                console.error("Unauthorized - Redirect to login");
+                logger.error("Unauthorized - Redirect to login");
                 window.location.href = '/login.html';
                 return Promise.reject("Unauthorized");
             } if (!response.ok) {
@@ -356,28 +103,615 @@ function renewToken() {
         .then (tokenString => {
             setCookie("jwtToken", tokenString, {})
         })
-        .catch(error => console.error(error));
+        .catch(error => logger.error(error));
 }
 
-// Serializes task list to JSON for server upload
-function taskListToJson(taskList) {
-    const items = [];
-
-    taskList.querySelectorAll('li').forEach(li => {
-        if (li.className == "task") {
-            updateInput = li.querySelector("#update-task");
-            let taskName = null;
-            if (updateInput == null ){
-                taskName = li.firstChild.nodeValue.trim();
-            } else {
-                taskName= updateInput.value;
-            }
-            items.push({ id: li.id, name: taskName});
+function projectsFetch() {
+    fetch('/api/projects', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
         }
-    });
-
-    return JSON.stringify(items);
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logger.error("Unauthorized - Redirect to login");
+            window.location.href = '/login.html';
+            return Promise.reject("Unauthorized");
+        } if (!response.ok) {
+            return response.text().then(text => {
+                return Promise.reject(text); // Properly reject with the error text
+            });
+        } else{
+            return response.json();
+        }
+    })
+    .then(projects => {
+        //projects = JSON.parse(json);
+        prevProjectId = null;
+        const projectsRegion = document.getElementById("projects-region");
+        projectsRegion.innerHTML = "";
+        projectsRegion.innerText = "Projects: "
+        Array.from(projects).forEach(project => {
+            projectAdd(project.id, project.name, prevProjectId);
+            prevProjectId = project.id;
+        })
+    })
+    .catch(error => logger.error(error));
 }
+
+function projectAdd(projectId, projectName, previousProjectId) {
+    const projectsRegion = document.getElementById("projects-region");
+    const projectRegion = document.createElement("div");
+    projectRegion.className = "project-region";
+    projectRegion.id = projectId;
+    if (projectName == "") {
+        projectName = "\u00A0"; // &nbsp;
+    }
+    projectRegion.innerText = projectName;
+
+    projectRegion.onclick = (event) => projectRegionOnClick(event);
+    if (previousProjectId != null && previousProjectId != "") {
+        const prevProjectRegion = document.getElementById(previousProjectId);
+        if (prevProjectRegion != null) {
+            prevProjectRegion.after(projectRegion);
+        }
+    }
+    if (!document.contains(projectRegion)) {
+        projectsRegion.append(projectRegion);
+    }
+    const selectedProjectRegion = document.getElementsByClassName("project-region-selected");
+     if (selectedProjectRegion.length == 0) {
+        projectSelect(projectRegion);
+    }
+    return projectRegion
+}
+
+function projectRegionOnClick(event) {
+    const projectRegion = event.target;
+    projectSelect(projectRegion);
+}
+
+function projectSelect(projectRegion) {
+    const prevSelectedProjectRegion = document.getElementsByClassName("project-region-selected");
+    if (prevSelectedProjectRegion.length != 0) {
+        prevSelectedProjectRegion[0].className = "project-region";
+    }
+    projectRegion.className = "project-region-selected";
+    menu.showHeader("Project: ");
+    menu.addButton("Add", projectRegion.id, projectAddOnClick);
+    menu.addButton("Remove", projectRegion.id, projectRemoveOnClick);
+    menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
+    menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
+    menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
+    taskListFetch(projectRegion.id);
+}
+
+function projectAddOnEvent(project) {
+    const projectRegion = projectAdd(project.id, project.name, project.after);
+    projectSelect(projectRegion);
+}
+
+function projectRemoveOnEvent(project) {
+    const projectRegion = document.getElementById(project.id);
+    const projectsRegion = projectRegion.parentElement;
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    projectRegion.remove();
+    if (prevProjectRegion != null) {
+        projectSelect(prevProjectRegion);
+    } else {
+        const firstProject = projectsRegion.firstElementChild;
+        if (firstProject!=null) {
+            projectSelect(firstProject);
+        } else {
+            projectName = prompt("Project name:", "");
+            while (projectName == null || projectName == "") {
+                prompt('Working without any projects is prohibited');
+                const projectName = prompt("Project name:", "");
+            }
+            const projectId = guid();
+            const eventMessage = {
+                "type": "project-add",
+                "instance": instanceGuid,
+                "jwt": getCookieByName("jwtToken"),
+                "payload": {
+                        "name": projectName,
+                        "id": projectId,
+                        "after": null
+                    }
+                };
+        
+            appEvent.send(JSON.stringify(eventMessage));
+        }
+
+    }
+}
+
+function projectUpdateOnEvent(project) {
+    const projectRegion = document.getElementById(project.id);
+    const projectsRegion = projectRegion.parentElement;
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    let   prevProjectId;
+    if (prevProjectRegion != null) {
+        prevProjectId = prevProjectRegion.id;
+    }
+
+    if (prevProjectId != project.after) {
+        if (project.after != null && project.after != "") {
+            const newPrevProjectRegion = document.getElementById(project.after);
+            newPrevProjectRegion.after(projectRegion);
+        } else {
+            const firstProjectRegion = projectsRegion.firstElementChild;
+            if (firstProjectRegion != null) {
+                projectsRegion.insertBefore(projectRegion, firstProjectRegion )
+            }
+        }
+    }
+
+    projectRegion.innerText = project.name;
+}
+
+function projectAddOnClick(event) {
+    const addProjectButton = event.target;
+    const projectId = addProjectButton.dataset.payload;
+    const projectRegion = document.getElementById(projectId);
+    const projectName = prompt("Project name:", "");
+    if (projectName==null || projectName == "") {
+        return;
+    }
+    const prevProjectRegion = projectRegion.previousElementSibling;
+
+    const eventMessage = {
+        "type": "project-add",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": guid(),
+                "after": projectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function projectRemoveOnClick(event) {
+    if (!confirm("Warning: This will permanently delete the project and all its contents, including task groups and tasks. This action cannot be undone. Are you sure you want to proceed?")) {
+        return
+    }
+    const addProjectButton = event.target;
+    const projectId = addProjectButton.dataset.payload;
+    const projectRegion = document.getElementById(projectId);
+    const projectName = projectRegion.innerText;
+
+    const eventMessage = {
+        "type": "project-delete",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": null
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function projectRenameOnClick(event) {
+    const addProjectButton = event.target;
+    const projectId = addProjectButton.dataset.payload;
+    const projectRegion = document.getElementById(projectId);
+    const projectName = prompt("New project name: ",  projectRegion.innerText);
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    let prevProjectId = null;
+
+    if (projectName == projectRegion.innerText) {
+        return;
+    }
+
+    if (prevProjectRegion != null) {
+        prevProjectId = prevProjectRegion.id;
+    }
+
+
+    const eventMessage = {
+        "type": "project-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": prevProjectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function projectMoveLeftOnClick(event) {
+    const addProjectButton = event.target;
+    const projectId = addProjectButton.dataset.payload;
+    const projectRegion = document.getElementById(projectId);
+    const projectName = projectRegion.innerText
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    if (prevProjectRegion == null) {
+        return;
+    }
+
+    const prevPrevProjectRegion = prevProjectRegion.previousElementSibling;
+    let prevPrevProjectId = null;
+    if (prevPrevProjectRegion != null) {
+        prevPrevProjectId = prevPrevProjectRegion.id;
+    }
+
+    const prevProjectId =  prevProjectRegion.id;
+
+    const eventMessage = {
+        "type": "project-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": prevPrevProjectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+function projectMoveRightOnClick(event) {
+    const addProjectButton = event.target;
+    const projectId = addProjectButton.dataset.payload;
+    const projectRegion = document.getElementById(projectId);
+    const projectName = projectRegion.innerText
+    const nextProjectRegion = projectRegion.nextElementSibling;
+    if (nextProjectRegion == null) {
+        return;
+    }
+
+    const prevProjectId =  nextProjectRegion.id;
+
+    const eventMessage = {
+        "type": "project-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": prevProjectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function groupInputOnFocus(event) {    
+    menu.showHeader("New Group: ");
+    menu.addButton("Add", null, groupNewAddOnClick);
+}
+
+function groupNewAddOnClick(event) {
+    const groupInput = document.getElementById("group-input");
+    const groupName = groupInput.value;
+    const selectedProjectRegions = document.getElementsByClassName("project-region-selected");
+    let   projectId = null;
+    if (selectedProjectRegions.length != 0) {
+        projectId = selectedProjectRegions[0].id;
+    }
+    if (groupName==null || groupName == "") {
+        return;
+    }
+
+    const eventMessage = {
+        "type": "group-add",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": guid(),
+                "project-id": projectId,
+                "after": null
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+
+    groupInput.value = "";
+}
+
+function groupAddOnEvent(group) {
+    const groupRegion = groupAdd(group, group.after);
+    //projectSelect(projectRegion);
+}
+
+
+function groupAdd(group, prevGroupId) {
+    const groupInputRegion = document.getElementById("group-input-region");
+    const groupRegion = document.createElement("div");
+    groupRegion.className = "group-region";
+    groupRegion.id = group.id;
+
+    if (prevGroupId != null && prevGroupId != "") {
+        const prevGroupRegion = document.getElementById(prevGroupId);
+        prevGroupRegion.after(groupRegion);
+    } else {
+        groupInputRegion.after(groupRegion);
+    }
+
+    const groupHeader = document.createElement("div");
+    groupHeader.className = "group-header-region";
+    groupHeader.innerText = group.name;
+    groupHeader.onclick = groupHeaderOnClick;
+    groupRegion.append(groupHeader);
+
+    const taskInputRegion = document.createElement("div");
+    taskInputRegion.className = "task-input-region";
+    groupRegion.append(taskInputRegion);
+
+    const taskInput = document.createElement("textarea")
+    taskInput.className = "task-input";
+    taskInput.placeholder = "New task text";
+    taskInput.wrap = "hard";
+    taskInput.id = guid();
+    taskInput.dataset.groupid = group.id
+    taskInput.onfocus = taskInputOnFocus;
+    taskInputRegion.append(taskInput);
+
+    const tasks = group.tasks;
+    if (tasks != null) {
+        tasks.forEach(task => {
+            taskAdd(task);
+        })
+    }
+    return groupRegion;
+}
+
+function groupHeaderOnClick(event) {
+    const groupHeaderRegion = event.target;
+    groupSelect(groupHeaderRegion);
+}
+
+function groupSelect(groupHeaderRegion) {
+
+    const groupHeaderSelectedList = document.getElementsByClassName("group-header-region-selected");
+    const groupRegion = groupHeaderRegion.parentElement;
+
+    Array.from(groupHeaderSelectedList).forEach(groupHeaderSelected => {
+        groupHeaderSelected.className = "group-header-region";
+    });
+    
+    const taskRegionsSelected = document.getElementsByClassName("task-region-selected");
+
+    Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
+        taskRegionSelected.className= "task-region";
+    })
+    
+    groupHeaderRegion.className = "group-header-region-selected";
+    menu.showHeader("Group: ");
+    menu.addButton("Add", groupRegion.id, groupAddOnClick);
+     menu.addButton("Remove", groupRegion.id, groupRemoveOnClick);
+    // menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
+    // menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
+    // menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
+}
+
+function groupAddOnClick(event) {
+    const button = event.target;
+    const prevGroupId = button.dataset.payload;
+    const groupName = prompt("New group name: ", "");
+    const projectRegionsSelected = document.getElementsByClassName("project-region-selected")
+
+    if (groupName == null || groupName == "") {
+        return;
+    }
+
+    if (projectRegionsSelected == null || projectRegionsSelected.length == 0) {
+        return;
+    }
+
+    const projectId = projectRegionsSelected[0].id;
+    
+    const eventMessage = {
+        "type": "group-add",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": guid(),
+                "project-id": projectId,
+                "after": prevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+
+function groupRemoveOnClick(event) {
+    const button = event.target;
+    const groupId = button.dataset.payload;
+    const groupRegion = document.getElementById(groupId);
+    const prevGroupRegion = groupRegion.previousElementSibling;
+    let   prevGroupId = null;
+    const groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected").parentElement;
+    const groupName = groupHeaderRegion.innerText;
+
+    const projectRegionsSelected = document.getElementsByClassName("project-region-selected")
+
+    if (projectRegionsSelected == null || projectRegionsSelected.length == 0) {
+        return;
+    }
+
+    const projectId = projectRegionsSelected[0].id;
+
+    if (prevGroupRegion != null) {
+        prevGroupId = prevGroupRegion.id;
+    }
+    
+    const eventMessage = {
+        "type": "group-delete",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": prevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function groupRemoveOnEvent(group) {
+    const groupRegion = document.getElementById(group.id)
+    groupRegion.remove();
+}
+
+function taskInputOnFocus(event) {
+    const taskInput = event.target;
+    menu.showHeader("New Group: ");
+    menu.addButton("Add", taskInput.id, taskNewAddOnClick);
+}
+
+function taskNewAddOnClick(event) {
+    const addTaskButton = event.target;
+    const taskInputId = addTaskButton.dataset.payload;
+    const taskInput = document.getElementById(taskInputId);
+    const taskInputRegion =  taskInput.parentElement;
+    const groupId = taskInput.dataset.groupid;
+    const taskName = taskInput.value;
+    if (taskName == null || taskName == "") {
+        return
+    }
+
+    const prevTaskRegion = taskInputRegion.previousElementSibling;
+    let prevTaskId = null;
+    if (prevTaskRegion != null) {
+        prevTaskId = prevTaskRegion.id;
+    }
+
+    const eventMessage = {
+        "type": "task-add",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskName,
+                "id": guid(),
+                "group": groupId,
+                "status": 1, // todo
+                "after": prevTaskId
+            }
+        };
+
+
+    appEvent.send(JSON.stringify(eventMessage));
+
+    taskInput.value = "";
+}
+
+function taskAddOnEvent(task) {
+    //const groupRegion = groupAdd(group, group.after);
+    logger.log(JSON.stringify(task));
+    taskAdd(task);
+}
+
+function taskAdd(task) {
+    const prevTaskRegionId = task.after;
+    let prevTaskRegion = null;
+    
+    if (prevTaskRegionId != null && prevTaskRegionId != "") {
+        prevTaskRegion = document.getElementById(prevTaskRegionId);
+    }
+    
+    taskRegion = document.createElement("div");
+    taskRegion.className = "task-region";
+    taskRegion.id = task.id;
+    taskRegion.onclick = taskRegionOnClick;
+    
+    taskPre = document.createElement("pre");
+    taskPre.className = "task";  // Fixed: className instead of class
+    taskPre.innerText = task.text;
+    taskRegion.appendChild(taskPre);  // Or taskPre.appendChild(taskRegion) depending on your needs
+    
+    if (prevTaskRegion != null) {
+        prevTaskRegion.after(taskRegion);  // Fixed: added element to insert
+    } else {
+        const groupRegion = document.getElementById(task.group);
+        const taskInputRegion = groupRegion.querySelector(".task-input-region");
+        groupRegion.insertBefore(taskRegion, taskInputRegion);
+    }
+
+
+}
+
+function taskRegionOnClick(event) {
+    const target = event.target;
+    let taskRegion = null;
+    if (target.className == "task-region") {
+        taskRegion = target;
+    } else if (target.className == "task") {
+        taskRegion = target.parentElement;
+    } else {
+        return;
+    }
+
+    const taskRegionsSelected = document.getElementsByClassName("task-region-selected");
+
+    Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
+        taskRegionSelected.className= "task-region";
+    })
+
+    const groupHeaderRegionsSelected = document.getElementsByClassName("group-header-region-selected");
+
+    Array.from(groupHeaderRegionsSelected).forEach(groupHeaderRegionSelected => {
+        groupHeaderRegionSelected.className= "group-header-region";
+    })
+
+    taskRegion.className = "task-region-selected";
+
+    menu.showHeader("Task: ");
+     menu.addButton("Remove", taskRegion.id, taskRemoveOnClick);
+}
+
+function taskRemoveOnClick(event) {
+    const taskRemoveButton = event.target;
+    const taskId = taskRemoveButton.dataset.payload;
+    const taskRegion = document.getElementById(taskId);
+    const taskPre = taskRegion.firstElementChild;
+    const taskText = taskPre.innerText;
+    const groupRegion = taskRegion.parentElement;
+    const groupId = groupRegion.id;
+    const prevTaskRegion = taskRegion.previousElementSibling;
+    let prevTaskId = null;
+
+    if (prevTaskRegion != null) {
+        prevTaskId = prevTaskRegion.id;
+    }
+
+    const eventMessage = {
+        "type": "task-delete",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": taskId,
+                "group": groupId,
+                "status": 1, // todo
+                "after": prevTaskId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function onTaksDeleteEvent(task) {
+    const taskRegion = document.getElementById(task.id);
+    taskRegion.remove();
+}
+
 
 // Generates GUID
 function guid() {

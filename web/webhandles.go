@@ -64,12 +64,6 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		}
 		defer request.Body.Close()
 
-		login, err := getCurrentLogin(*request)
-		if err != nil {
-			http.Error(responseWriter, "Failed to extract current login", http.StatusInternalServerError)
-			return
-		}
-
 		config, err := util.GetConfig()
 		if err != nil {
 			http.Error(responseWriter, "Failed to read config", http.StatusInternalServerError)
@@ -82,13 +76,10 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 			return
 		}
 
-		userId, err := store.GetUserIdByLogin(db, login)
-		if err != nil {
-			http.Error(responseWriter, "Failed to get user id", http.StatusInternalServerError)
-			return
-		}
+		projectId := request.URL.Query().Get("project_id")
+		jsonFormat := request.URL.Query().Get("json_format")
 
-		err = store.UpdateTasksFromJson(db, body, userId, "flat")
+		err = store.UpdateTasksFromJson(db, body, projectId, jsonFormat)
 		if err != nil {
 			http.Error(responseWriter, "Failed to store data: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -109,11 +100,6 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 
 	//Fetching data from the server via GET method
 	if request.Method == http.MethodGet {
-		login, err := getCurrentLogin(*request)
-		if err != nil {
-			http.Error(responseWriter, "Failed to extract current login", http.StatusInternalServerError)
-			return
-		}
 
 		config, err := util.GetConfig()
 		if err != nil {
@@ -127,13 +113,15 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 			return
 		}
 
-		userId, err := store.GetUserIdByLogin(db, login)
-		if err != nil {
-			http.Error(responseWriter, "Failed to get user id", http.StatusInternalServerError)
+		projectId := request.URL.Query().Get("project_id")
+		jsonFormat := request.URL.Query().Get("json_format")
+
+		if projectId == "" {
+			http.Error(responseWriter, "Project parameter is required to fetch tasks", http.StatusInternalServerError)
 			return
 		}
 
-		taskList, err := store.GetTasksToJson(db, userId, "flat")
+		taskList, err := store.GetTasksToJson(db, projectId, jsonFormat)
 		if err != nil {
 			http.Error(responseWriter, "Failed to get tasks", http.StatusInternalServerError)
 			return
@@ -143,4 +131,52 @@ func taskListHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		responseWriter.Header().Set("Content-Type", "application/json")
 		responseWriter.Write(taskList)
 	}
+}
+
+func projectHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	login, err := getCurrentLogin(*request)
+	if err != nil {
+		http.Error(responseWriter, "Failed to extract current login", http.StatusInternalServerError)
+		return
+	}
+
+	config, err := util.GetConfig()
+	if err != nil {
+		http.Error(responseWriter, "Failed to read config", http.StatusInternalServerError)
+		return
+	}
+
+	db, err := store.OpenDb(config.DbPath)
+	if err != nil {
+		http.Error(responseWriter, "Failed to open database", http.StatusInternalServerError)
+		return
+	}
+
+	userId, err := store.GetUserIdByLogin(db, login)
+	if err != nil {
+		http.Error(responseWriter, "Failed to get user id", http.StatusInternalServerError)
+		return
+	}
+
+	projects, err := store.GetProjects(db, userId)
+	if err != nil {
+		http.Error(responseWriter, "Failed to retrieve projects", http.StatusInternalServerError)
+		return
+	}
+
+	projectsJson, err := json.Marshal(projects)
+	if err != nil {
+		http.Error(responseWriter, "Failed to serialize projects", http.StatusInternalServerError)
+		return
+	}
+
+	responseWriter.WriteHeader(http.StatusOK)
+	responseWriter.Header().Set("Content-Type", "application/json")
+	responseWriter.Write(projectsJson)
+
 }

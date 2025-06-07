@@ -22,9 +22,12 @@ func StartServer(port string, cert string, certKey string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", getMainHandler) // index.html
 	mux.Handle("/html/", http.StripPrefix("/html/", http.FileServer(http.Dir(util.GetExecDir()+"html"))))
+
 	mux.HandleFunc("/api/task_list", taskListHandler)
 	mux.HandleFunc("/api/login", loginHandle)
 	mux.HandleFunc("/api/token_renew", tokenRenewHandler)
+	mux.HandleFunc("/api/projects", projectHandler)
+
 	mux.HandleFunc("/ws", handleEventConnections)
 	//mux.HandleFunc("/ws", handleEventConnections)
 

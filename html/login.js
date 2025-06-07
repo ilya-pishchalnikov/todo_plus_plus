@@ -32,7 +32,7 @@ function btnLoginOnClick(event) {
         window.location.href= "/";
     })
     .catch(error => {
-        console.error(error);
+        logger.error(error);
         alert(error);
     });
 }

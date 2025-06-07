@@ -40,3 +40,14 @@ func ExecScript(db *sql.DB, sqlScript string) error {
 
 	return nil
 }
+
+func IsTableFieldExists(db *sql.DB, tableName string, fieldName string) (bool, error) {
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM pragma_table_info(?) WHERE name = ? )", tableName, fieldName).Scan(&exists)
+	return exists, err
+}
+
+func dropField(db *sql.DB, tableName string, fieldName string) error {
+	_, err := db.Exec("ALTER TABLE " + tableName + " DROP COLUMN " + fieldName)
+	return err
+}

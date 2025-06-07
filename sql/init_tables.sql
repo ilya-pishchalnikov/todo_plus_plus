@@ -17,7 +17,6 @@ create table if not exists task_group (
 	task_group_id text primary key,
 	name text,
 	sequence integer,
-	is_default integer,
 	project_id text,
 	foreign key (project_id) references project(project_id)
 );

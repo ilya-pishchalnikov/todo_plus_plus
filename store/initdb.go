@@ -65,7 +65,7 @@ func InitDatabase(dbPath string) error {
 		}
 		var project Project
 		project.ProjectId = util.Uuid()
-		project.Name = ""
+		project.Name = "Project1"
 		project.Sequence = 0
 		project.UserId = userId
 		projectsToAdd = append(projectsToAdd, project)
@@ -77,43 +77,20 @@ func InitDatabase(dbPath string) error {
 			return err
 		}
 	}
-	rows.Close()
-
-	//Generate Task Groups for Projects Without Existing Task Groups
-	rows, err = db.Query(`
-		SELECT p.project_id
-		FROM project p 
-		WHERE NOT EXISTS(SELECT 1 FROM task_group g WHERE g.project_id = p.project_id);`)
+	err = rows.Close()
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	var taskGroupsToAdd []TaskGroup
-	var projectId string
-
-	for rows.Next() {
-		err = rows.Scan(&projectId)
-		if err != nil {
-			return err
-		}
-		var taskGroup TaskGroup
-		taskGroup.TaskGroupId = util.Uuid()
-		taskGroup.Name = ""
-		taskGroup.IsDefault = true
-		taskGroup.Sequence = 0
-		taskGroup.ProjectId = projectId
-		taskGroupsToAdd = append(taskGroupsToAdd, taskGroup)
-	}
-
-	for _, taskGroup := range taskGroupsToAdd {
-		err = InsertTaskGroup(db, taskGroup)
+	//Remove unused field task_group.default if exists
+	if exists, err := IsTableFieldExists(db, "task_group", "is_default"); err != nil {
+		return err
+	} else if exists {
+		err = dropField(db, "task_group", "is_default")
 		if err != nil {
 			return err
 		}
 	}
-
-	//Init task status
 
 	return err
 }
