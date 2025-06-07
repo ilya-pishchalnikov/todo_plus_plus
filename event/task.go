@@ -48,12 +48,10 @@ func upsertTask(db *sql.DB, task TaskPayload) error {
 	}
 
 	for sequence, task_i := range tasks {
-		if task_i.Sequence != sequence {
-			task_i.Sequence = sequence
-			err = store.UpsertTask(db, task_i)
-			if err != nil {
-				return err
-			}
+		task_i.Sequence = sequence
+		err = store.UpsertTask(db, task_i)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

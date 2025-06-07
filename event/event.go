@@ -144,6 +144,16 @@ func ProcessEvent(event Event) error {
 		if err != nil {
 			return err
 		}
+	case "task-update":
+		var taskPayload TaskPayload
+		err := json.Unmarshal(event.Payload, &taskPayload)
+		if err != nil {
+			return err
+		}
+		err = upsertTask(db, taskPayload)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

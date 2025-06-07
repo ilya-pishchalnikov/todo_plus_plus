@@ -8,6 +8,7 @@ class AppEvent {
     onGroupDelete;
     onTaskAdd;
     onTaskDelete;
+    onTaskUpdate;
     
     constructor() {
         this.connect();
@@ -50,6 +51,11 @@ class AppEvent {
             case "task-delete":
                 if (this.onTaskDelete != null){
                     this.onTaskDelete(parsedEvent.payload);
+                }
+                break;
+            case "task-update":
+                if (this.onTaskUpdate != null){
+                    this.onTaskUpdate(parsedEvent.payload);
                 }
                 break;
         }
