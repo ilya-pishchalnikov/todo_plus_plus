@@ -170,8 +170,11 @@ function projectAdd(projectId, projectName, previousProjectId) {
         projectName = "\u00A0"; // &nbsp;
     }
     projectRegion.innerText = projectName;
-
-    projectRegion.onclick = (event) => projectRegionOnClick(event);
+    projectRegion.contentEditable = "true";
+    projectRegion.dataset.savedtext = projectName;
+    projectRegion.onclick = projectRegionOnClick;
+    projectRegion.addEventListener('keydown', projectRegionOnKeyDown);
+    projectRegion.addEventListener('blur', projectRegionOnBlur);
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -186,6 +189,43 @@ function projectAdd(projectId, projectName, previousProjectId) {
         projectSelect(projectRegion);
     }
     return projectRegion
+}
+
+function projectRegionOnKeyDown(event) {
+    switch(true) {
+        case event.key === 'Enter':
+            event.preventDefault();
+            const groupInput = document.getElementById("group-input");
+            logger.log(groupInput);
+            groupInput.focus();
+    }
+}
+
+function projectRegionOnBlur(event) {
+    const projectRegion = event.target;
+    const projectName = projectRegion.innerText;
+    if ( projectName == projectRegion.dataset.savedtext) {
+        return;
+    }
+    const projectId = projectRegion.id;
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    let prevProjectId = null;
+    if (prevProjectRegion != null) {
+        prevProjectId = prevProjectRegion;
+    }
+
+    const eventMessage = {
+        "type": "project-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": prevProjectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
 }
 
 function projectRegionOnClick(event) {
@@ -476,7 +516,6 @@ function groupAdd(group, prevGroupId) {
     const groupRegion = document.createElement("div");
     groupRegion.className = "group-region";
     groupRegion.id = group.id;
-
     if (prevGroupId != null && prevGroupId != "") {
         const prevGroupRegion = document.getElementById(prevGroupId);
         prevGroupRegion.after(groupRegion);
@@ -488,6 +527,10 @@ function groupAdd(group, prevGroupId) {
     groupHeader.className = "group-header-region";
     groupHeader.innerText = group.name;
     groupHeader.onclick = groupHeaderOnClick;
+    groupHeader.contentEditable = true;
+    groupHeader.dataset.savedtext = group.name;    
+    groupHeader.addEventListener("blur", groupHeaderBlur);    
+    groupHeader.addEventListener('keydown', groupHeaderOnKeyDown);
     groupRegion.append(groupHeader);
 
     const taskListRegion = document.createElement("div");
@@ -517,6 +560,55 @@ function groupAdd(group, prevGroupId) {
         })
     }
     return groupRegion;
+}
+
+function groupHeaderOnKeyDown(event) {
+    switch(true) {
+        case event.key === 'Enter':
+            event.preventDefault();
+            const groupHeaderRegion = event.target;
+            const groupRegion = groupHeaderRegion.parentElement;
+            const taskListRegion = groupRegion.querySelector(".task-list-region");
+            const taskFirstRegion = taskListRegion.firstElementChild;
+            if (taskFirstRegion == null) {
+                const taskInput = groupRegion.querySelector(".task-input");
+                setTimeout(() => taskInput.focus(), 0); // preventDefault block focus
+            } else {
+                taskInlineInputActivate(taskFirstRegion);
+            }
+    }
+}
+
+function groupHeaderBlur(event){
+    const groupHeaderRegion = event.target;
+    if(groupHeaderRegion.innerText == groupHeaderRegion.dataset.savedtext) {
+        return;
+    }
+    const groupName = groupHeaderRegion.innerText;
+    groupHeaderRegion.dataset.savedtext = groupName;
+    const groupRegion = groupHeaderRegion.parentElement;
+    const groupId = groupRegion.id;
+    const projectRegion = document.querySelector(".project-region-selected");
+    const projectId = projectRegion.id;
+    const prevGroupRegion = groupRegion.previousElementSibling;
+    let prevGroupId = null;
+    if (prevGroupRegion != null) {
+        prevGroupId = prevGroupRegion.id
+    }
+
+    const eventMessage = {
+        "type": "group-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": prevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
 }
 
 function groupHeaderOnClick(event) {
@@ -931,8 +1023,21 @@ function taskInlineInputOnBlur(event) {
 function taskInputOnKeyDown (event){
     switch(true) {
         case event.key === 'Enter' && !event.shiftKey:
+            logger.log("taskInputOnKeyDown")
             event.preventDefault();
             taskNewAdd(event.target);
+            const taskInput = event.target;
+            const groupRegion = taskInput.parentElement.parentElement;
+            logger.log(groupRegion);
+            const nextGroupRegion = groupRegion.nextElementSibling;
+
+            logger.log(nextGroupRegion);
+            if (nextGroupRegion == null) {
+                return
+            }
+            const nextGroupHeaderRegion = nextGroupRegion.querySelector(".group-header-region")
+
+            setTimeout(() => nextGroupHeaderRegion.focus(), 0); // event.preventDefault() block focus()
     }    
 }
 
