@@ -1,0 +1,69 @@
+name: Build and Package Go Application
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.21'  # Укажите нужную версию Go
+
+      - name: Build
+        run: |
+          go build -v -o ./output/todopp ./todopp.go 
+          
+      - name: Copy additional files
+        run: |
+          mkdir ./output/sql
+          mkdir ./output/html/
+          mkdir ./output/doc/
+          cp -r sql/* ./output/sql/ 
+          cp -r html/* ./output/html/  
+          cp -r doc/* ./output/doc/
+          cp README.md LICENSE ./output/doc/
+          echo "${{ secrets.CONFIG }}" > ./output/config.json
+
+      - name: Create artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package-linux
+          path: ./output/
+          retention-days: 1
+
+      - name: Remove files from VPS
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: rm -rf /home/todopp/bin/
+
+      - name: Deploy to VPS
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          source: "./output/*"
+          target: "/home/todopp/bin"
+
+      - name: Reboot VPS
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cp -aT /home/todopp/bin/output/ /home/todopp/bin/
+            rm -rf /home/todopp/bin/output
+            reboot
