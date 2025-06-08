@@ -240,7 +240,7 @@ body {
     background: #a4a4a4;
   }
 
-  .task {
+  .task-pre {
     margin: 0;
     font-size: 130%;
   }
@@ -257,4 +257,17 @@ body {
 
   .task-region-selected:hover {
     background: darkred;
+  }
+
+  
+  .task-inline-input {    
+    background: white;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 130%;
+    width: calc(100% - 20px);
+    height: 1px
   }

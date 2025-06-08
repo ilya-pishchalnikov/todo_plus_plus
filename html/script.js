@@ -17,13 +17,8 @@ appEvent.onTaskDelete = onTaskDeleteEvent;
 appEvent.onTaskUpdate = taskUpdateOnEvent;
 
 setInterval(() => renewToken(), 3600000); //hourly
-renewToken()
-
-// start polling
-//setInterval(() => fetchTasksFromServer (document.getElementById('task-list')), 500);
-projectsFetch()
-//fetchTasksFromServer(document.getElementById('task-list'))
-
+renewToken();
+projectsFetch();
 
 // Fetches task list from the server 
 function taskListFetch(projectId) {
@@ -778,12 +773,12 @@ function taskAdd(task) {
     taskRegion.onclick = taskRegionOnClick;
     
     taskPre = document.createElement("pre");
-    taskPre.className = "task";  // Fixed: className instead of class
+    taskPre.className = "task-pre";  
     taskPre.innerText = task.text;
-    taskRegion.appendChild(taskPre);  // Or taskPre.appendChild(taskRegion) depending on your needs
+    taskRegion.appendChild(taskPre); 
     
     if (prevTaskRegion != null) {
-        prevTaskRegion.after(taskRegion);  // Fixed: added element to insert
+        prevTaskRegion.after(taskRegion); 
     } else {
         const groupRegion = document.getElementById(task.group);
         const taskListRegion = groupRegion.querySelector(".task-list-region");
@@ -804,6 +799,41 @@ function taskRegionOnClick(event) {
         return;
     }
 
+    const groupRegion = taskRegion.parentElement;
+    const groupId = groupRegion.id;
+
+    const taskInlineInputOld = document.getElementById("task-inline-input");
+    if (taskInlineInputOld != null) {
+        const taskTextOld = taskInlineInputOld.value;
+        const taskRegionOld = taskInlineInputOld.parentElement;
+        const taskIdOld = taskRegionOld.id
+        const groupRegionOld = taskRegionOld.parentElement;
+        const groupIdOld = groupRegionOld.id;
+        const prevTaskRegionOld = taskRegionOld.previousElementSibling;
+        let prevTaskIdOld = null;
+        if (prevTaskRegionOld != null) {
+            prevTaksIdOld = prevTaskRegionOld.id;
+        }
+        if (taskTextOld == "") {
+            taskRemove(taskIdOld);
+        } else {
+            const eventMessage = {
+                "type": "task-update",
+                "instance": instanceGuid,
+                "jwt": getCookieByName("jwtToken"),
+                "payload": {
+                        "text": taskTextOld,
+                        "id": taskIdOld,
+                        "group": groupIdOld,
+                        "status": 1, // todo
+                        "after": prevTaksIdOld
+                    }
+                };
+        
+            appEvent.send(JSON.stringify(eventMessage));
+        }
+    }
+
     const taskRegionsSelected = document.getElementsByClassName("task-region-selected");
 
     Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
@@ -818,15 +848,69 @@ function taskRegionOnClick(event) {
 
     taskRegion.className = "task-region-selected";
 
+    const taskText = taskRegion.firstElementChild.innerText;
+
+    taskRegion.innerHTML = "";
+
+    const taskInlineInput = document.createElement("textarea");
+    taskInlineInput.className = "task-inline-input";
+    taskInlineInput.id = "task-inline-input";
+    taskInlineInput.wrap = "hard";
+    taskInlineInput.value = taskText;
+    taskInlineInput.addEventListener("input", textAreaAutoResize);
+    taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
+    taskRegion.append(taskInlineInput);
+    taskInlineInput.style.height = '1px';
+    taskInlineInput.style.height = `${taskInlineInput.scrollHeight - 20}px`
+    taskInlineInput.focus();
+
     menu.showHeader("Task: ");
     menu.addButton("Remove", taskRegion.id, taskRemoveOnClick);
     menu.addButton("∧", taskRegion.id, taskUpOnClick, "50px");
     menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
 }
 
+function taskInlineInputOnBlur(event) {
+    const taskInlineInput = event.target;
+    const taskRegion = taskInlineInput.parentElement;
+    const taskText = taskInlineInput.value;
+    const taskId = taskRegion.id;
+    const groupRegion = taskRegion.parentElement.parentElement;
+    const groupId = groupRegion.id;
+    const prevTaskRegion = taskRegion.previousElementSibling;
+    let prevTaskId = null;
+    if (prevTaskRegion != null) {
+        prevTaskId = prevTaskRegion.id;
+    }
+    taskRegion.innerHTML = "";
+    taskPre = document.createElement("pre");    
+    taskPre.className = "task-pre";
+    taskPre.innerText = taskText;
+    taskRegion.appendChild(taskPre); 
+    
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": taskId,
+                "group": groupId,
+                "status": 1,
+                "after": prevTaskId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
 function taskRemoveOnClick(event) {
     const taskRemoveButton = event.target;
     const taskId = taskRemoveButton.dataset.payload;
+    taskRemove (taskId);
+}
+
+function taskRemove (taskId) {
     const taskRegion = document.getElementById(taskId);
     const taskPre = taskRegion.firstElementChild;
     const taskText = taskPre.innerText;
@@ -901,8 +985,6 @@ function taskUpOnClick(event){
             }
         };
 
-
-    logger.log (JSON.stringify(eventMessage));
     appEvent.send(JSON.stringify(eventMessage));
 }
 
@@ -939,6 +1021,12 @@ function taskDownOnClick(event){
         };
 
     appEvent.send(JSON.stringify(eventMessage));
+}
+
+function textAreaAutoResize(event) {
+    const textArea = event.target;
+    textArea.style.height = '1px';
+    textArea.style.height = `${textArea.scrollHeight - 20}px`
 }
 
 // Generates GUID
