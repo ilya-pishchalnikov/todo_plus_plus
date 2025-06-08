@@ -63,6 +63,7 @@ function taskListPopulate(taskList) {
     groupInput.placeholder = "New task group";
     groupInput.setAttribute("autocomplete", "off");
     groupInput.addEventListener('focus', groupInputOnFocus);
+    groupInput.addEventListener('keydown', groupInputOnKeyDown);
     groupInputRegion.append (groupInput);
 
     const groupListRegion = document.createElement("div");
@@ -411,6 +412,13 @@ function groupInputOnFocus(event) {
     menu.addButton("Add", null, groupNewAddOnClick);
 }
 
+function groupInputOnKeyDown (event) {
+    switch(true) {
+        case event.key === 'Enter':
+            groupNewAddOnClick();
+    }
+}
+
 function groupNewAddOnClick(event) {
     const groupInput = document.getElementById("group-input");
     const groupName = groupInput.value;
@@ -497,6 +505,9 @@ function groupAdd(group, prevGroupId) {
     taskInput.id = guid();
     taskInput.dataset.groupid = group.id
     taskInput.onfocus = taskInputOnFocus;
+    
+    taskInput.addEventListener('keydown', taskInputOnKeyDown);
+    taskInput.addEventListener("input", textAreaAutoResize);
     taskInputRegion.append(taskInput);
 
     const tasks = group.tasks;
@@ -706,6 +717,11 @@ function taskNewAddOnClick(event) {
     const addTaskButton = event.target;
     const taskInputId = addTaskButton.dataset.payload;
     const taskInput = document.getElementById(taskInputId);
+    taskNewAdd(taskInput);
+
+}
+
+function taskNewAdd (taskInput) {
     const taskInputRegion =  taskInput.parentElement;
     const groupId = taskInput.dataset.groupid;
     const taskText = taskInput.value;
@@ -793,11 +809,15 @@ function taskRegionOnClick(event) {
     let taskRegion = null;
     if (target.className == "task-region") {
         taskRegion = target;
-    } else if (target.className == "task") {
+    } else if (target.className == "task-pre") {
         taskRegion = target.parentElement;
     } else {
         return;
     }
+    taskInlineInputActivate(taskRegion);
+}
+
+function taskInlineInputActivate(taskRegion) {
 
     const groupRegion = taskRegion.parentElement;
     const groupId = groupRegion.id;
@@ -807,7 +827,7 @@ function taskRegionOnClick(event) {
         const taskTextOld = taskInlineInputOld.value;
         const taskRegionOld = taskInlineInputOld.parentElement;
         const taskIdOld = taskRegionOld.id
-        const groupRegionOld = taskRegionOld.parentElement;
+        const groupRegionOld = taskRegionOld.parentElement.parentElement;
         const groupIdOld = groupRegionOld.id;
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
         let prevTaskIdOld = null;
@@ -826,7 +846,7 @@ function taskRegionOnClick(event) {
                         "id": taskIdOld,
                         "group": groupIdOld,
                         "status": 1, // todo
-                        "after": prevTaksIdOld
+                        "after": prevTaskIdOld
                     }
                 };
         
@@ -858,6 +878,7 @@ function taskRegionOnClick(event) {
     taskInlineInput.wrap = "hard";
     taskInlineInput.value = taskText;
     taskInlineInput.addEventListener("input", textAreaAutoResize);
+    taskInlineInput.addEventListener('keydown', taskInlineInputOnKeyDown);
     taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
     taskRegion.append(taskInlineInput);
     taskInlineInput.style.height = '1px';
@@ -870,9 +891,12 @@ function taskRegionOnClick(event) {
     menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
 }
 
-function taskInlineInputOnBlur(event) {
+function taskInlineInputOnBlur(event) {   
     const taskInlineInput = event.target;
     const taskRegion = taskInlineInput.parentElement;
+    if (taskRegion == null) { // detached from DOM (removed)
+        return;
+    }
     const taskText = taskInlineInput.value;
     const taskId = taskRegion.id;
     const groupRegion = taskRegion.parentElement.parentElement;
@@ -902,6 +926,32 @@ function taskInlineInputOnBlur(event) {
         };
 
     appEvent.send(JSON.stringify(eventMessage));
+}
+
+function taskInputOnKeyDown (event){
+    switch(true) {
+        case event.key === 'Enter' && !event.shiftKey:
+            event.preventDefault();
+            taskNewAdd(event.target);
+    }    
+}
+
+function taskInlineInputOnKeyDown (event){
+    switch(true) {
+        case event.key === 'Enter' && !event.shiftKey:
+            event.preventDefault();
+            const taskInlineInput = event.target;
+            const taskRegion = taskInlineInput.parentElement;
+            const nextTaskRegion = taskRegion.nextElementSibling;
+            if (nextTaskRegion != null)  {
+                taskInlineInputActivate(nextTaskRegion);
+            } else {
+                const groupRegion = taskRegion.parentElement.parentElement;
+                const taskNewInput = groupRegion.querySelector(".task-input");
+                taskNewInput.focus();
+            }
+            taskInlineInputOnBlur(event);
+    }    
 }
 
 function taskRemoveOnClick(event) {

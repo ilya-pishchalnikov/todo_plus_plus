@@ -1,4 +1,4 @@
-name: Build and Package Go Application
+name: Build and Deploy Go Application to the Production Environment
 
 on:
   push:
