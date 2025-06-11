@@ -2,7 +2,11 @@
 const logger = {
     log: (...args) => console.log(`[${formatLocalDateTime(new Date())}] `, ...args),
     warn: (...args) => console.warn(`[${formatLocalDateTime(new Date())}] `, ...args),
-    error: (...args) => console.error(`[${formatLocalDateTime(new Date())}] `, ...args)
+    error: (...args) => console.error(`[${formatLocalDateTime(new Date())}] `, ...args),
+    trace: (...args) => {
+        console.log(`[${formatLocalDateTime(new Date())}] `);
+        console.trace();
+      }
   };
 
   function formatLocalDateTime(date) {
