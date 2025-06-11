@@ -262,7 +262,6 @@ body {
   .task-region-selected:hover {
     background: darkred;
   }
-
   
   .task-inline-input {    
     background: white;
@@ -274,4 +273,9 @@ body {
     font-size: 130%;
     width: calc(100% - 20px);
     height: 1px
+  }
+
+  .task-list-region.drop {
+    min-height: 40px;
+    border: 1px dashed red;
   }

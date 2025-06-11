@@ -20,6 +20,9 @@ setInterval(() => renewToken(), 3600000); //hourly
 renewToken();
 projectsFetch();
 
+
+document.addEventListener('wheel', (event) => {event.stopPropagation();}); // Allow the page to scroll normally 
+
 // Fetches task list from the server 
 function taskListFetch(projectId) {
     fetch(`/api/task_list?project_id=${projectId}&json_format=grouped`, {
@@ -978,6 +981,9 @@ function taskAdd(task) {
     taskPre.className = "task-pre";  
     taskPre.innerText = task.text;
     taskRegion.appendChild(taskPre); 
+    taskRegion.draggable = true;
+    taskRegion.addEventListener('dragstart', taskDragStart)
+    taskRegion.addEventListener('dragend', taskDragEnd)
     
     if (prevTaskRegion != null) {
         prevTaskRegion.after(taskRegion); 
@@ -986,8 +992,120 @@ function taskAdd(task) {
         const taskListRegion = groupRegion.querySelector(".task-list-region");
         taskListRegion.append(taskRegion);
     }
+}
+
+function taskDragStart(event) {
+    logger.log("drag start ");
+    event.stopPropagation();
+    const taskRegion = event.target;
+    const taskId = taskRegion.id;
+    let taskText = null;
+    const taskPre = taskRegion.querySelector(".task-pre");
+    if (taskPre != null) {
+        taskText = taskPre.innerText;
+    } else {
+        const taskInlineInput = taskRegion.querySelector(".task-inline-input");
+        taskText = taskInlineInput.value;
+    }
+
+    const payload = JSON.stringify({
+        id: taskId,
+        text: taskText
+    });
+
+    event.dataTransfer.setData('application/json', payload);
+
+    taskRegion.classList.add("dragging");
+    event.dataTransfer.setDragImage(taskRegion, 0, 0);
+
+    setTimeout(() => {
+        const taskLists = document.querySelectorAll('.task-list-region');
+
+        taskLists.forEach(taskList => {
+            taskList.classList.add("drop");
+            taskList.addEventListener('dragover', taskListDragOver);
+            taskList.addEventListener('dragenter', taskListDragEnter);
+            taskList.addEventListener('dragleave', taskListDragLeave);
+            taskList.addEventListener('drop', taskListDrop);
+        });
+    }, 0);    
+
+}
+
+function taskDragEnd(event) {
+    
+    const taskRegion = event.target;
+    taskRegion.classList.remove("dragging");
+
+    const taskLists = document.querySelectorAll('.task-list-region');
+
+    taskLists.forEach(taskList => {
+        taskList.classList.remove("drop");
+        taskList.removeEventListener('dragover', taskListDragOver);
+        taskList.removeEventListener('dragenter', taskListDragEnter);
+        taskList.removeEventListener('dragleave', taskListDragLeave);
+        taskList.removeEventListener('drop', taskListDrop);
+    });
+
+    const taskId = taskRegion.id;
+    const taskPre = taskRegion.querySelector(".task-pre");
+    let taskText = null
+    if (taskPre != null) {
+        taskText = taskPre.innerText;
+    } else {
+        const taskInlineInput= taskRegion.querySelector(".task-inline-input");
+        taskText = taskInlineInput.value;
+    }
+
+    const taskGroupRegion = taskRegion.parentElement.parentElement;
+    const groupId = taskGroupRegion.id;
+    const prevTaskRegion = taskRegion.previousElementSibling;
+    let prevTaskId = null;
+    if (prevTaskRegion != null) {
+        prevTaskId = prevTaskRegion.id;
+    }
+
+    
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": taskId,
+                "group": groupId,
+                "status": 1, // todo
+                "after": prevTaskId
+            }
+        };
 
 
+    appEvent.send(JSON.stringify(eventMessage));
+
+}
+
+function taskListDragOver(event) {
+    event.preventDefault();
+    const draggingTask = document.querySelector('.dragging');
+    const afterTask = getDragAfterElement(this, event.clientY);
+
+    if (afterTask) {
+        this.insertBefore(draggingTask, afterTask);
+    } else {
+        this.appendChild(draggingTask);
+    }
+}
+
+function taskListDragEnter(event) {
+    event.preventDefault();
+}
+
+function taskListDragLeave(event) {
+    event.preventDefault();
+}
+
+function taskListDrop(event) {
+    event.preventDefault();
 }
 
 function taskRegionOnClick(event) {
@@ -1432,4 +1550,19 @@ function setCursorAtEdge(editableDiv, isFirst) {
   
     // Focus the div (optional, if not already focused)
     editableDiv.focus();
-  }
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.task-region:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
