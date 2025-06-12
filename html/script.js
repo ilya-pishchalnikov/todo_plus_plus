@@ -709,18 +709,50 @@ function groupDragEnd(event) {
 function groupListDragOver(event) {
     event.preventDefault();
     const draggingGroup = document.querySelector('.dragging');
-    let overElement = getDragAfterElement(this, event.clientY);
-
-    while (overElement != null) {
-        if (overElement.className === "group-region" || overElement.className === "group-region-selected") {
-            break;
+    const container = this;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate relative Y position within container
+    const relY = event.clientY - containerRect.top;
+    
+    // Get all non-dragging group elements
+    const groupRegions = [...container.querySelectorAll('.group-region:not(.dragging), .group-region-selected:not(.dragging)')];
+    
+    // Find closest group element or determine if we're at the end
+    let closestGroupRegion = null;
+    let closestOffset = Number.NEGATIVE_INFINITY;
+    let shouldAppend = true; // Default to appending if below all elements
+    
+    groupRegions.forEach(groupRegion => {
+        const rect = groupRegion.getBoundingClientRect();
+        const groupCenter = rect.top + rect.height/2 - containerRect.top;
+        const offset = relY - groupCenter;
+        
+        if (offset < 0) {
+            // Dragging above this element's center
+            if (offset > closestOffset) {
+                closestOffset = offset;
+                closestGroupRegion = groupRegion;
+            }
+            shouldAppend = false;
+        } else if (relY > rect.bottom - containerRect.top) {
+            // Dragging below this element
+            shouldAppend = true;
+        } else {
+            shouldAppend = false;
         }
-        overElement = overElement.parentElement;
+    });
+    
+    // Insert at appropriate position
+    if (closestGroupRegion) {
+        container.insertBefore(draggingGroup, closestGroupRegion);
+    } else if (shouldAppend || groupRegions.length > 0) {
+        // If dragging below last element, append
+        container.appendChild(draggingGroup);
+    } else {
+        // Default to prepending
+        container.insertBefore(draggingGroup, container.firstChild);
     }
-
-    if (overElement) {
-        this.insertBefore(draggingGroup, overElement);
-    } 
 }
 
 function groupListDragEnter(event) {
