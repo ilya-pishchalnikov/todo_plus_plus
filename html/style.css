@@ -218,12 +218,12 @@ body {
     background: white;
     margin-bottom: 2px;
     padding: 10px;
-    display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 130%;
     height: 26px;
     width: calc(100% - 20px);
+    display: inline-block;
   }
 
   .task-region {    
@@ -243,6 +243,10 @@ body {
   .task-pre {
     margin: 0;
     font-size: 130%;
+    white-space: pre-wrap;   
+    overflow-wrap: break-word; 
+    word-break: normal;   
+    overflow-x: hidden;      
   }
 
   .task-region-selected {    
@@ -258,7 +262,6 @@ body {
   .task-region-selected:hover {
     background: darkred;
   }
-
   
   .task-inline-input {    
     background: white;
@@ -270,4 +273,9 @@ body {
     font-size: 130%;
     width: calc(100% - 20px);
     height: 1px
+  }
+
+  .task-list-region.drop {
+    min-height: 40px;
+    border: 1px dashed red;
   }

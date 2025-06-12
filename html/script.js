@@ -5,6 +5,7 @@ const instanceGuid = guid();
 const appEvent = new AppEvent();
 const menu = new Menu();
 
+appEvent.isLogEvents = true;
 appEvent.onProjectAdd = projectAddOnEvent;
 appEvent.onProjectDelete = projectRemoveOnEvent;
 appEvent.onProjectUpdate = projectUpdateOnEvent;
@@ -63,6 +64,7 @@ function taskListPopulate(taskList) {
     groupInput.placeholder = "New task group";
     groupInput.setAttribute("autocomplete", "off");
     groupInput.addEventListener('focus', groupInputOnFocus);
+    groupInput.addEventListener('keydown', groupInputOnKeyDown);
     groupInputRegion.append (groupInput);
 
     const groupListRegion = document.createElement("div");
@@ -169,8 +171,14 @@ function projectAdd(projectId, projectName, previousProjectId) {
         projectName = "\u00A0"; // &nbsp;
     }
     projectRegion.innerText = projectName;
-
-    projectRegion.onclick = (event) => projectRegionOnClick(event);
+    projectRegion.contentEditable = "true";
+    projectRegion.dataset.savedtext = projectName;
+    projectRegion.onclick = projectRegionOnClick;
+    projectRegion.draggable = true;
+    projectRegion.addEventListener('keydown', projectRegionOnKeyDown);
+    projectRegion.addEventListener('blur', projectRegionOnBlur);
+    projectRegion.addEventListener('dragstart', projectDragStart)
+    projectRegion.addEventListener('dragend', projectDragEnd)
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -182,17 +190,215 @@ function projectAdd(projectId, projectName, previousProjectId) {
     }
     const selectedProjectRegion = document.getElementsByClassName("project-region-selected");
      if (selectedProjectRegion.length == 0) {
-        projectSelect(projectRegion);
+        projectSelect(projectRegion, false);
     }
     return projectRegion
 }
 
-function projectRegionOnClick(event) {
+
+function projectDragStart(event) {
+    event.stopPropagation();
     const projectRegion = event.target;
-    projectSelect(projectRegion);
+    const projectId = projectRegion.id;
+    let projectName = projectRegion.innerText;
+
+    const payload = JSON.stringify({
+        id: projectId,
+        name: projectName
+    });
+
+    event.dataTransfer.setData('application/json', payload);
+
+    projectRegion.classList.add("dragging");
+    event.dataTransfer.setDragImage(projectRegion, 0, 0);
+
+    setTimeout(() => {
+        const projectsRegion = document.getElementById("projects-region")
+        projectsRegion.classList.add("drop");
+        projectsRegion.addEventListener('dragover', projectListDragOver);
+        projectsRegion.addEventListener('dragenter', projectListDragEnter);
+        projectsRegion.addEventListener('dragleave', projectListDragLeave);
+        projectsRegion.addEventListener('drop', projectListDrop);        
+    }, 0);
 }
 
-function projectSelect(projectRegion) {
+function projectDragEnd(event) {    
+    const projectRegion = event.target;
+    projectRegion.classList.remove("dragging");
+
+
+    const projectsRegion = document.getElementById("projects-region")
+    projectsRegion.classList.remove("drop");
+    projectsRegion.removeEventListener('dragover', projectListDragOver);
+    projectsRegion.removeEventListener('dragenter', projectListDragEnter);
+    projectsRegion.removeEventListener('dragleave', projectListDragLeave);
+    projectsRegion.removeEventListener('drop', projectListDrop);  
+
+    const projectName = projectRegion.innerText;
+    const projectId = projectRegion.id;
+
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    const prevProjectId = prevProjectRegion?.id || null;
+
+    const eventMessage = {
+        "type": "project-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": prevProjectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+
+function projectListDragOver(event) {
+    event.preventDefault();
+    const draggingProject = document.querySelector('.dragging');
+    const container = this;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate relative Y position within container
+    const relY = event.clientY - containerRect.top;
+    const relX = event.clientX - containerRect.left;
+    
+    // Get all non-dragging project elements
+    const projectRegions = [...container.querySelectorAll('.project-region:not(.dragging), .project-region-selected:not(.dragging)')];
+    
+    // Find closest project element or determine if we're at the end
+    let closestProjectRegion = null;
+    let closestOffset = Number.POSITIVE_INFINITY;
+    let shouldAppend = true; // Default to appending if below all elements
+    
+    projectRegions.forEach(projectRegion => {
+        const rect = projectRegion.getBoundingClientRect();
+        const projectCenterY = rect.top - containerRect.top;
+        const projectCenterX = rect.left - containerRect.left;
+        const offset = (relY - projectCenterY) ** 2 + (relX - projectCenterX) ** 2;        
+        if (offset < closestOffset) {
+            closestOffset = offset;
+            closestProjectRegion = projectRegion
+        }
+    });
+
+    const lastProjectRegion = projectRegions[projectRegions.length - 1];
+    const lastProjectRect = lastProjectRegion.getBoundingClientRect();    
+    const lastProjectCenterY = lastProjectRect.top + lastProjectRect.height - containerRect.top;
+    const lastProjectCenterX = lastProjectRect.left + lastProjectRect.width - containerRect.left;
+    const offset = (relY - lastProjectCenterY) ** 2 + (relX - lastProjectCenterX) ** 2;
+
+    shouldAppend = offset < closestOffset;
+    
+    if (shouldAppend) {
+        container.appendChild(draggingProject);
+    } else {
+        container.insertBefore(draggingProject, closestProjectRegion);
+    }
+}
+
+function projectListDragEnter(event) {
+    event.preventDefault();
+}
+
+function projectListDragLeave(event) {
+    event.preventDefault();
+}
+
+function projectListDrop(event) {
+    event.preventDefault();
+}
+
+function projectRegionOnKeyDown(event) {
+    const selectedProjectRegion = document.querySelector(".project-region-selected");
+    const nextProjectRegion = selectedProjectRegion.nextElementSibling;
+    const prevProjectRegion = selectedProjectRegion.previousElementSibling;
+    switch(true) {
+        case event.key === "ArrowRight" && event.altKey:
+            projectMoveRight(selectedProjectRegion);
+            event.preventDefault()
+            break;
+        case event.key === "ArrowLeft" && event.altKey:
+            projectMoveLeft(selectedProjectRegion);
+            event.preventDefault()
+            break;
+        case event.key === 'Enter':
+            const groupInput = document.getElementById("group-input");
+            groupInput.focus();
+            event.preventDefault();
+            break;
+        case event.key === "ArrowRight" && event.ctrlKey:
+            if (nextProjectRegion != null) {
+                projectSelect(nextProjectRegion, true);
+            }
+            event.preventDefault();
+            break;
+        case event.key === "ArrowRight":
+            if (nextProjectRegion != null) {
+                if (isCursorAtEndOrNotFocused(selectedProjectRegion)) {
+                    projectSelect(nextProjectRegion, true);
+                    event.preventDefault();
+                }
+            }
+            break;
+        case event.key === "ArrowLeft" && event.ctrlKey:
+            if (prevProjectRegion != null) {
+                projectSelect(prevProjectRegion, false);
+            }
+            event.preventDefault();
+            break;
+        case event.key === "ArrowLeft":
+            if (prevProjectRegion != null) {
+                if (isCursorAtStartOrNotFocused(selectedProjectRegion))
+                {
+                    projectSelect(prevProjectRegion, false);
+                    event.preventDefault();
+                }
+            }
+            break;
+        case event.key === "ArrowDown":
+            const newGroupInput = document.getElementById('group-input');
+            newGroupInput.focus();
+            event.preventDefault();
+            break;
+    }
+}
+
+function projectRegionOnBlur(event) {
+    const projectRegion = event.target;
+    const projectName = projectRegion.innerText;
+    if ( projectName == projectRegion.dataset.savedtext) {
+        return;
+    }
+    const projectId = projectRegion.id;
+    const prevProjectRegion = projectRegion.previousElementSibling;
+    let prevProjectId = null;
+    if (prevProjectRegion != null) {
+        prevProjectId = prevProjectRegion;
+    }
+
+    const eventMessage = {
+        "type": "project-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": projectName,
+                "id": projectId,
+                "after": prevProjectId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function projectRegionOnClick(event) {
+    const projectRegion = event.target;
+    projectSelect(projectRegion, false);
+}
+
+function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     const prevSelectedProjectRegion = document.getElementsByClassName("project-region-selected");
     if (prevSelectedProjectRegion.length != 0) {
         prevSelectedProjectRegion[0].className = "project-region";
@@ -205,11 +411,13 @@ function projectSelect(projectRegion) {
     menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
     menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
     taskListFetch(projectRegion.id);
+    projectRegion.focus();
+    setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition)
 }
 
 function projectAddOnEvent(project) {
     const projectRegion = projectAdd(project.id, project.name, project.after);
-    projectSelect(projectRegion);
+    projectSelect(projectRegion, false);
 }
 
 function projectRemoveOnEvent(project) {
@@ -218,11 +426,11 @@ function projectRemoveOnEvent(project) {
     const prevProjectRegion = projectRegion.previousElementSibling;
     projectRegion.remove();
     if (prevProjectRegion != null) {
-        projectSelect(prevProjectRegion);
+        projectSelect(prevProjectRegion, false);
     } else {
         const firstProject = projectsRegion.firstElementChild;
         if (firstProject!=null) {
-            projectSelect(firstProject);
+            projectSelect(firstProject, false);
         } else {
             let projectName = prompt("Project name:", "");
             while (projectName == null || projectName == "") {
@@ -249,6 +457,7 @@ function projectRemoveOnEvent(project) {
 
 function projectUpdateOnEvent(project) {
     const projectRegion = document.getElementById(project.id);
+    const isProjectRegionFocused = (projectRegion == document.activeElement);
     const projectsRegion = projectRegion.parentElement;
     const prevProjectRegion = projectRegion.previousElementSibling;
     let   prevProjectId;
@@ -269,6 +478,9 @@ function projectUpdateOnEvent(project) {
     }
 
     projectRegion.innerText = project.name;
+    if (isProjectRegionFocused) {
+        projectRegion.focus();
+    }
 }
 
 function projectAddOnClick(event) {
@@ -353,6 +565,11 @@ function projectMoveLeftOnClick(event) {
     const addProjectButton = event.target;
     const projectId = addProjectButton.dataset.payload;
     const projectRegion = document.getElementById(projectId);
+    projectMoveLeft(projectRegion);
+}
+
+function projectMoveLeft(projectRegion) {
+    const projectId = projectRegion.id;
     const projectName = projectRegion.innerText
     const prevProjectRegion = projectRegion.previousElementSibling;
     if (prevProjectRegion == null) {
@@ -378,12 +595,18 @@ function projectMoveLeftOnClick(event) {
             }
         };
 
-    appEvent.send(JSON.stringify(eventMessage));
+    appEvent.send(JSON.stringify(eventMessage));    
 }
+
 function projectMoveRightOnClick(event) {
     const addProjectButton = event.target;
     const projectId = addProjectButton.dataset.payload;
     const projectRegion = document.getElementById(projectId);
+    projectMoveRight(projectRegion);
+}
+
+function projectMoveRight(projectRegion) {
+    const projectId = projectRegion.id;
     const projectName = projectRegion.innerText
     const nextProjectRegion = projectRegion.nextElementSibling;
     if (nextProjectRegion == null) {
@@ -406,9 +629,52 @@ function projectMoveRightOnClick(event) {
     appEvent.send(JSON.stringify(eventMessage));
 }
 
+
 function groupInputOnFocus(event) {    
     menu.showHeader("New Group: ");
     menu.addButton("Add", null, groupNewAddOnClick);
+}
+
+function groupInputOnKeyDown (event) {
+    const groupInput = event.target;
+    const projectSelectedRegion = document.querySelector(".project-region-selected");
+    const groupListRegion = document.getElementById("group-list-region");
+    const firstGroupRegion = groupListRegion.firstElementChild;
+    let firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region");
+    if (firstGroupHeaderRegion == null) {
+        firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region-selected");
+    }
+    switch(true) {
+        case event.key === 'Enter':
+            groupNewAddOnClick();
+            break;
+        case event.key === 'ArrowUp':
+            projectSelect(projectSelectedRegion, false);
+            event.preventDefault();
+            break;
+        case event.key === 'ArrowDown':
+            if (firstGroupRegion == null) {
+                return;
+            }
+            groupSelect(firstGroupHeaderRegion, true);
+            event.preventDefault();
+            break;
+        case event.key === "ArrowLeft":
+            if (isCursorAtStartOrNotFocused(groupInput)) {
+                projectSelect(projectSelectedRegion, false);
+                event.preventDefault();
+            }
+            break;   
+        case event.key === "ArrowRight":
+            if (isCursorAtEndOrNotFocused(groupInput)) {
+                if (firstGroupRegion == null) {
+                    return;
+                }
+                groupSelect(firstGroupHeaderRegion, true);
+                event.preventDefault();
+            }
+            break;
+    }
 }
 
 function groupNewAddOnClick(event) {
@@ -449,7 +715,8 @@ function groupUpdateOnEvent(group) {
     let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
     if (groupHeaderRegion == null) {
         groupHeaderRegion = groupRegion.querySelector(".group-header-region");
-    }
+    }    
+    const isFocused = (groupHeaderRegion == document.activeElement);
     groupHeaderRegion.innerText = group.name;
     if (group.after != null && group.after != "") {
         prevGroupRegion = document.getElementById(group.after)
@@ -458,8 +725,9 @@ function groupUpdateOnEvent(group) {
         const groupListRegion = groupRegion.parentElement;
         groupListRegion.prepend(groupRegion);
     }
-
-
+    if (isFocused) {
+        groupHeaderRegion.focus();
+    }
 }
 
 
@@ -468,18 +736,25 @@ function groupAdd(group, prevGroupId) {
     const groupRegion = document.createElement("div");
     groupRegion.className = "group-region";
     groupRegion.id = group.id;
-
+    groupRegion.draggable = true;
     if (prevGroupId != null && prevGroupId != "") {
         const prevGroupRegion = document.getElementById(prevGroupId);
         prevGroupRegion.after(groupRegion);
     } else {
         groupListRegion.prepend(groupRegion);
     }
+    
+    groupRegion.addEventListener('dragstart', groupDragStart)
+    groupRegion.addEventListener('dragend', groupDragEnd)
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
     groupHeader.innerText = group.name;
     groupHeader.onclick = groupHeaderOnClick;
+    groupHeader.contentEditable = true;
+    groupHeader.dataset.savedtext = group.name;    
+    groupHeader.addEventListener("blur", groupHeaderBlur);    
+    groupHeader.addEventListener('keydown', groupHeaderOnKeyDown);
     groupRegion.append(groupHeader);
 
     const taskListRegion = document.createElement("div");
@@ -497,6 +772,9 @@ function groupAdd(group, prevGroupId) {
     taskInput.id = guid();
     taskInput.dataset.groupid = group.id
     taskInput.onfocus = taskInputOnFocus;
+    
+    taskInput.addEventListener('keydown', taskInputOnKeyDown);
+    taskInput.addEventListener("input", textAreaAutoResize);
     taskInputRegion.append(taskInput);
 
     const tasks = group.tasks;
@@ -508,12 +786,222 @@ function groupAdd(group, prevGroupId) {
     return groupRegion;
 }
 
-function groupHeaderOnClick(event) {
-    const groupHeaderRegion = event.target;
-    groupSelect(groupHeaderRegion);
+
+function groupDragStart(event) {
+    event.stopPropagation();
+    const groupRegion = event.target;
+    const groupId = groupRegion.id;
+    let groupName = groupRegion.innerText;
+
+    const payload = JSON.stringify({
+        id: groupId,
+        name: groupName
+    });
+
+    event.dataTransfer.setData('application/json', payload);
+
+    groupRegion.classList.add("dragging");
+    event.dataTransfer.setDragImage(groupRegion, 0, 0);
+
+    setTimeout(() => {
+        const groupListRegion = document.getElementById("group-list-region")
+        groupListRegion.classList.add("drop");
+        groupListRegion.addEventListener('dragover', groupListDragOver);
+        groupListRegion.addEventListener('dragenter', groupListDragEnter);
+        groupListRegion.addEventListener('dragleave', groupListDragLeave);
+        groupListRegion.addEventListener('drop', groupListDrop);        
+    }, 0);
 }
 
-function groupSelect(groupHeaderRegion) {
+function groupDragEnd(event) {
+    
+    const groupRegion = event.target;
+
+    if (groupRegion.className != "group-region dragging" && groupRegion.className != "group-region-selected dragging") {
+        return;
+    }
+
+    groupRegion.classList.remove("dragging");
+
+    const groupListRegion = document.getElementById("group-list-region")
+    groupListRegion.classList.remove("drop");
+    groupListRegion.removeEventListener('dragover', groupListDragOver);
+    groupListRegion.removeEventListener('dragenter', groupListDragEnter);
+    groupListRegion.removeEventListener('dragleave', groupListDragLeave);
+    groupListRegion.removeEventListener('drop', groupListDrop);  
+
+    const groupId = groupRegion.id;
+    const groupHeaderRegion = 
+        groupRegion.querySelector(".group-header-region") ??
+        groupRegion.querySelector(".group-header-region-selected");
+    const groupName = groupHeaderRegion.innerText;
+    const projectId = document.querySelector(".project-region-selected").id;
+
+    const prevGroupRegion = groupRegion.previousElementSibling;
+    const prevGroupId = prevGroupRegion?.id || null;
+
+    const eventMessage = {
+        "type": "group-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": prevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+
+function groupListDragOver(event) {
+    event.preventDefault();
+    const draggingGroup = document.querySelector('.dragging');
+    const container = this;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate relative Y position within container
+    const relY = event.clientY - containerRect.top;
+    
+    // Get all non-dragging group elements
+    const groupRegions = [...container.querySelectorAll('.group-region:not(.dragging), .group-region-selected:not(.dragging)')];
+    
+    // Find closest group element or determine if we're at the end
+    let closestGroupRegion = null;
+    let closestOffset = Number.NEGATIVE_INFINITY;
+    let shouldAppend = true; // Default to appending if below all elements
+    
+    groupRegions.forEach(groupRegion => {
+        const rect = groupRegion.getBoundingClientRect();
+        const groupCenter = rect.top + rect.height/2 - containerRect.top;
+        const offset = relY - groupCenter;
+        
+        if (offset < 0) {
+            // Dragging above this element's center
+            if (offset > closestOffset) {
+                closestOffset = offset;
+                closestGroupRegion = groupRegion;
+            }
+            shouldAppend = false;
+        } else if (relY > rect.bottom - containerRect.top) {
+            // Dragging below this element
+            shouldAppend = true;
+        } else {
+            shouldAppend = false;
+        }
+    });
+    
+    // Insert at appropriate position
+    if (closestGroupRegion) {
+        container.insertBefore(draggingGroup, closestGroupRegion);
+    } else if (shouldAppend || groupRegions.length > 0) {
+        // If dragging below last element, append
+        container.appendChild(draggingGroup);
+    } else {
+        // Default to prepending
+        container.insertBefore(draggingGroup, container.firstChild);
+    }
+}
+
+function groupListDragEnter(event) {
+    event.preventDefault();
+}
+
+function groupListDragLeave(event) {
+    event.preventDefault();
+}
+
+function groupListDrop(event) {
+    event.preventDefault();
+}
+
+
+function groupHeaderOnKeyDown(event) {
+    const groupHeaderRegion = event.target;
+    const groupRegion = groupHeaderRegion.parentElement;
+    const taskListRegion = groupRegion.querySelector(".task-list-region");
+    const taskFirstRegion = taskListRegion.firstElementChild;
+    switch(true) {
+        case event.key === 'Enter':
+            event.preventDefault();
+            if (taskFirstRegion == null) {
+                const taskInput = groupRegion.querySelector(".task-input");
+                setTimeout(() => taskInput.focus(), 0); // preventDefault block focus
+            } else {
+                taskInlineInputActivate(taskFirstRegion);
+            }
+            break;
+        case event.key === "ArrowUp" && event.altKey:
+            groupMoveUp(groupRegion);
+            event.preventDefault();
+            break;
+        case event.key === "ArrowDown" && event.altKey:
+            groupMoveDown(groupRegion);
+            event.preventDefault();
+            break;
+        case event.key === "ArrowUp" || (event.key === "ArrowLeft" && isCursorAtStartOrNotFocused(groupHeaderRegion)):
+            const prevGroupRegion = groupRegion.previousElementSibling;
+            if (prevGroupRegion == null) {
+                const groupInput = document.getElementById("group-input");
+                groupInput.focus();
+            } else {
+                const prevGroupTaskInput = prevGroupRegion.querySelector(".task-input");
+                prevGroupTaskInput.focus();
+            }
+            event.preventDefault();
+            break;
+        case event.key === "ArrowDown" || (event.key === "ArrowRight" && isCursorAtEndOrNotFocused(groupHeaderRegion)):
+            if (taskFirstRegion == null) {
+                const taskInput = groupRegion.querySelector(".task-input");
+                taskInput.focus();
+            } else {
+                taskInlineInputActivate(taskFirstRegion, true);
+            }
+            event.preventDefault();
+            break;
+    }
+}
+
+function groupHeaderBlur(event){
+    const groupHeaderRegion = event.target;
+    if(groupHeaderRegion.innerText == groupHeaderRegion.dataset.savedtext) {
+        return;
+    }
+    const groupName = groupHeaderRegion.innerText;
+    groupHeaderRegion.dataset.savedtext = groupName;
+    const groupRegion = groupHeaderRegion.parentElement;
+    const groupId = groupRegion.id;
+    const projectRegion = document.querySelector(".project-region-selected");
+    const projectId = projectRegion.id;
+    const prevGroupRegion = groupRegion.previousElementSibling;
+    let prevGroupId = null;
+    if (prevGroupRegion != null) {
+        prevGroupId = prevGroupRegion.id
+    }
+
+    const eventMessage = {
+        "type": "group-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": prevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function groupHeaderOnClick(event) {
+    const groupHeaderRegion = event.target;
+    groupSelect(groupHeaderRegion, false);
+}
+
+function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
 
     const groupHeaderSelectedList = document.getElementsByClassName("group-header-region-selected");
     const groupRegion = groupHeaderRegion.parentElement;
@@ -534,9 +1022,8 @@ function groupSelect(groupHeaderRegion) {
      menu.addButton("Remove", groupRegion.id, groupRemoveOnClick);
      menu.addButton("∧", groupRegion.id, groupUpOnClick, "50px");
      menu.addButton("∨", groupRegion.id, groupDownOnClick, "50px");
-    // menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
-    // menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
-    // menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
+     groupHeaderRegion.focus();
+     setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition)
 }
 
 function groupAddOnClick(event) {
@@ -616,6 +1103,11 @@ function groupUpOnClick(event) {
     const upButton =  event.target;
     const groupId = upButton.dataset.payload;
     const groupRegion = document.getElementById(groupId);
+    groupMoveUp(groupRegion);
+}
+
+function groupMoveUp(groupRegion) {
+    const groupId = groupRegion.id;
     const prevGroupRegion = groupRegion.previousElementSibling;
     if (prevGroupRegion == null) {
         return;
@@ -646,14 +1138,18 @@ function groupUpOnClick(event) {
             }
         };
 
-    appEvent.send(JSON.stringify(eventMessage));
-    
+    appEvent.send(JSON.stringify(eventMessage)); 
 }
 
 function groupDownOnClick(event) {
-    const upButton =  event.target;
-    const groupId = upButton.dataset.payload;
+    const downButton =  event.target;
+    const groupId = downButton.dataset.payload;
     const groupRegion = document.getElementById(groupId);
+    groupMoveDown(groupRegion);
+}
+
+function groupMoveDown(groupRegion) {
+    const groupId = groupRegion.id;
     const nextGroupRegion = groupRegion.nextElementSibling;
     if (nextGroupRegion == null) {
         return;
@@ -681,7 +1177,6 @@ function groupDownOnClick(event) {
         };
 
     appEvent.send(JSON.stringify(eventMessage));
-    
 }
 
 function taskInputOnFocus(event) {
@@ -706,6 +1201,11 @@ function taskNewAddOnClick(event) {
     const addTaskButton = event.target;
     const taskInputId = addTaskButton.dataset.payload;
     const taskInput = document.getElementById(taskInputId);
+    taskNewAdd(taskInput);
+
+}
+
+function taskNewAdd (taskInput) {
     const taskInputRegion =  taskInput.parentElement;
     const groupId = taskInput.dataset.groupid;
     const taskText = taskInput.value;
@@ -747,6 +1247,10 @@ function taskAddOnEvent(task) {
 
 function taskUpdateOnEvent(task) {
     const taskRegion = document.getElementById(task.id);
+    const textElement = taskRegion.firstElementChild;
+    if (textElement.tagName === "TEXTAREA") {
+        textElement.removeEventListener("blur", taskInlineInputOnBlur);
+    }
     if (task.after != null && task.after != "") {
         const prevTaskRegion = document.getElementById(task.after);
         prevTaskRegion.after(taskRegion);
@@ -757,6 +1261,12 @@ function taskUpdateOnEvent(task) {
     }
     
     taskRegion.firstElementChild.innerText = task.text;
+    taskRegion.firstElementChild.focus();
+    if (textElement.tagName === "TEXTAREA") {
+        textElement.addEventListener("blur", taskInlineInputOnBlur);
+    }
+
+    ensureVisible(taskRegion);
 }
 
 function taskAdd(task) {
@@ -776,6 +1286,9 @@ function taskAdd(task) {
     taskPre.className = "task-pre";  
     taskPre.innerText = task.text;
     taskRegion.appendChild(taskPre); 
+    taskRegion.draggable = true;
+    taskRegion.addEventListener('dragstart', taskDragStart)
+    taskRegion.addEventListener('dragend', taskDragEnd)
     
     if (prevTaskRegion != null) {
         prevTaskRegion.after(taskRegion); 
@@ -784,8 +1297,115 @@ function taskAdd(task) {
         const taskListRegion = groupRegion.querySelector(".task-list-region");
         taskListRegion.append(taskRegion);
     }
+}
 
+function taskDragStart(event) {
+    event.stopPropagation();
+    const taskRegion = event.target;
+    const taskId = taskRegion.id;
+    let taskText = null;
+    const taskPre = taskRegion.querySelector(".task-pre");
+    if (taskPre != null) {
+        taskText = taskPre.innerText;
+    } else {
+        const taskInlineInput = taskRegion.querySelector(".task-inline-input");
+        taskText = taskInlineInput.value;
+    }
 
+    const payload = JSON.stringify({
+        id: taskId,
+        text: taskText
+    });
+
+    event.dataTransfer.setData('application/json', payload);
+
+    taskRegion.classList.add("dragging");
+    event.dataTransfer.setDragImage(taskRegion, 0, 0);
+
+    setTimeout(() => {
+        const taskLists = document.querySelectorAll('.task-list-region');
+
+        taskLists.forEach(taskList => {
+            taskList.classList.add("drop");
+            taskList.addEventListener('dragover', taskListDragOver);
+            taskList.addEventListener('dragenter', taskListDragEnter);
+            taskList.addEventListener('dragleave', taskListDragLeave);
+            taskList.addEventListener('drop', taskListDrop);
+        });
+    }, 0);
+}
+
+function taskDragEnd(event) {
+    
+    const taskRegion = event.target;
+    taskRegion.classList.remove("dragging");
+
+    const taskLists = document.querySelectorAll('.task-list-region');
+
+    taskLists.forEach(taskList => {
+        taskList.classList.remove("drop");
+        taskList.removeEventListener('dragover', taskListDragOver);
+        taskList.removeEventListener('dragenter', taskListDragEnter);
+        taskList.removeEventListener('dragleave', taskListDragLeave);
+        taskList.removeEventListener('drop', taskListDrop);
+    });
+
+    const taskId = taskRegion.id;
+    const taskPre = taskRegion.querySelector(".task-pre");
+    let taskText = null
+    if (taskPre != null) {
+        taskText = taskPre.innerText;
+    } else {
+        const taskInlineInput= taskRegion.querySelector(".task-inline-input");
+        taskText = taskInlineInput.value;
+    }
+
+    const taskGroupRegion = taskRegion.parentElement.parentElement;
+    const groupId = taskGroupRegion.id;
+    const prevTaskRegion = taskRegion.previousElementSibling;
+    let prevTaskId = null;
+    if (prevTaskRegion != null) {
+        prevTaskId = prevTaskRegion.id;
+    }
+
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": taskId,
+                "group": groupId,
+                "status": 1, // todo
+                "after": prevTaskId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function taskListDragOver(event) {
+    event.preventDefault();
+    const draggingTask = document.querySelector('.dragging');
+    const afterTask = getDragAfterElement(this, event.clientY);
+
+    if (afterTask) {
+        this.insertBefore(draggingTask, afterTask);
+    } else {
+        this.appendChild(draggingTask);
+    }
+}
+
+function taskListDragEnter(event) {
+    event.preventDefault();
+}
+
+function taskListDragLeave(event) {
+    event.preventDefault();
+}
+
+function taskListDrop(event) {
+    event.preventDefault();
 }
 
 function taskRegionOnClick(event) {
@@ -793,11 +1413,15 @@ function taskRegionOnClick(event) {
     let taskRegion = null;
     if (target.className == "task-region") {
         taskRegion = target;
-    } else if (target.className == "task") {
+    } else if (target.className == "task-pre") {
         taskRegion = target.parentElement;
     } else {
         return;
     }
+    taskInlineInputActivate(taskRegion);
+}
+
+function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
 
     const groupRegion = taskRegion.parentElement;
     const groupId = groupRegion.id;
@@ -807,7 +1431,7 @@ function taskRegionOnClick(event) {
         const taskTextOld = taskInlineInputOld.value;
         const taskRegionOld = taskInlineInputOld.parentElement;
         const taskIdOld = taskRegionOld.id
-        const groupRegionOld = taskRegionOld.parentElement;
+        const groupRegionOld = taskRegionOld.parentElement.parentElement;
         const groupIdOld = groupRegionOld.id;
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
         let prevTaskIdOld = null;
@@ -826,7 +1450,7 @@ function taskRegionOnClick(event) {
                         "id": taskIdOld,
                         "group": groupIdOld,
                         "status": 1, // todo
-                        "after": prevTaksIdOld
+                        "after": prevTaskIdOld
                     }
                 };
         
@@ -858,11 +1482,15 @@ function taskRegionOnClick(event) {
     taskInlineInput.wrap = "hard";
     taskInlineInput.value = taskText;
     taskInlineInput.addEventListener("input", textAreaAutoResize);
+    taskInlineInput.addEventListener('keydown', taskInlineInputOnKeyDown);
     taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
     taskRegion.append(taskInlineInput);
     taskInlineInput.style.height = '1px';
     taskInlineInput.style.height = `${taskInlineInput.scrollHeight - 20}px`
     taskInlineInput.focus();
+    if (isSetCursorFirstPosition) {
+        taskInlineInput.setSelectionRange(0, 0);
+    }
 
     menu.showHeader("Task: ");
     menu.addButton("Remove", taskRegion.id, taskRemoveOnClick);
@@ -870,9 +1498,12 @@ function taskRegionOnClick(event) {
     menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
 }
 
-function taskInlineInputOnBlur(event) {
+function taskInlineInputOnBlur(event) {   
     const taskInlineInput = event.target;
     const taskRegion = taskInlineInput.parentElement;
+    if (taskRegion == null) { // detached from DOM (removed)
+        return;
+    }
     const taskText = taskInlineInput.value;
     const taskId = taskRegion.id;
     const groupRegion = taskRegion.parentElement.parentElement;
@@ -902,6 +1533,78 @@ function taskInlineInputOnBlur(event) {
         };
 
     appEvent.send(JSON.stringify(eventMessage));
+}
+
+function taskInputOnKeyDown (event){
+    const taskInput = event.target;
+    const groupRegion = taskInput.parentElement.parentElement;
+    switch(true) {
+        case event.key === 'Enter' && !event.shiftKey:
+            taskNewAdd(taskInput);
+            event.preventDefault();
+            break
+        case ((event.key === "ArrowDown" || event.key === "ArrowRight") && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInput))):
+            taskNewAdd(taskInput);
+            const nextGroupRegion = groupRegion.nextElementSibling;
+            if (nextGroupRegion == null) {
+                return;
+            }
+            const nextGroupHeaderRegion = nextGroupRegion.querySelector(".group-header-region");
+            nextGroupHeaderRegion.focus();
+            event.preventDefault();
+            break;
+        case (event.key === "ArrowUp" || event.key === "ArrowLeft") && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInput)): 
+            taskNewAdd(taskInput);
+            const taskListRegion = groupRegion.querySelector(".task-list-region");
+            const lastTaskRegion = taskListRegion.lastElementChild;
+            if (lastTaskRegion != null) {
+                taskInlineInputActivate(lastTaskRegion);
+            } else {
+                const groupHeaderRegion = groupRegion.querySelector(".group-header-region")
+                groupSelect(groupHeaderRegion, false);
+            }
+            event.preventDefault();
+            break;
+
+    }    
+}
+
+function taskInlineInputOnKeyDown (event){
+    const taskInlineInput = event.target;
+    const taskRegion = taskInlineInput.parentElement;
+    const nextTaskRegion = taskRegion.nextElementSibling;
+    switch(true) {
+        case event.key === "ArrowDown" && event.altKey: 
+            taskMoveDown(taskRegion);
+            event.preventDefault();
+            break;
+        case event.key === "ArrowUp" && event.altKey: 
+            taskMoveUp(taskRegion);
+            event.preventDefault();
+            break;
+        case (event.key === 'Enter' && !event.shiftKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight" ) && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
+            if (nextTaskRegion != null)  {
+                taskInlineInputActivate(nextTaskRegion, true);
+            } else {
+                const groupRegion = taskRegion.parentElement.parentElement;
+                const taskNewInput = groupRegion.querySelector(".task-input");
+                taskNewInput.focus();
+            }
+            taskInlineInputOnBlur(event);
+            event.preventDefault();
+            break;
+        case (event.key === "ArrowUp" || event.key === "ArrowLeft" ) && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInlineInput)):
+            const prevTaskRegion = taskRegion.previousElementSibling;
+            if (prevTaskRegion != null) {
+                taskInlineInputActivate(prevTaskRegion);
+            } else {
+                const groupRegion = taskRegion.parentElement.parentElement;
+                const groupHeaderRegion = groupRegion.querySelector(".group-header-region");
+                groupSelect(groupHeaderRegion, false);
+            }
+            event.preventDefault();
+            break;
+    }    
 }
 
 function taskRemoveOnClick(event) {
@@ -948,6 +1651,11 @@ function taskUpOnClick(event){
     const taskUpButton = event.target;
     const taskId = taskUpButton.dataset.payload;
     const taskRegion = document.getElementById(taskId);
+    taskMoveUp (taskRegion);
+}
+
+function taskMoveUp (taskRegion) {
+    const taskId = taskRegion.id;
     const taskText = taskRegion.firstElementChild.innerText;
     let groupId = taskRegion.parentElement.parentElement.id;
     const taskPrevRegion = taskRegion.previousElementSibling;
@@ -990,9 +1698,14 @@ function taskUpOnClick(event){
 
 
 function taskDownOnClick(event){
-    const taskUpButton = event.target;
-    const taskId = taskUpButton.dataset.payload;
+    const taskDownButton = event.target;
+    const taskId = taskDownButton.dataset.payload;
     const taskRegion = document.getElementById(taskId);
+    taskMoveDown(taskRegion);
+}
+
+function taskMoveDown(taskRegion) {
+    const taskId = taskRegion.id;
     const taskText = taskRegion.firstElementChild.innerText;
     let groupId = taskRegion.parentElement.parentElement.id;
     const taskNextRegion = taskRegion.nextElementSibling;
@@ -1007,6 +1720,7 @@ function taskDownOnClick(event){
     } else {
         taskNextRegionid = taskNextRegion.id;
     }
+
     const eventMessage = {
         "type": "task-update",
         "instance": instanceGuid,
@@ -1070,3 +1784,159 @@ function getCookieByName(name) {
     return null;
 }
 
+function isCursorAtEndOrNotFocused(editableElement) {
+    if (editableElement.tagName === "INPUT" || editableElement.tagName === "TEXTAREA"){
+        return editableElement.selectionStart === editableElement.value.length && editableElement.selectionStart === editableElement.selectionEnd;
+    }
+
+    const selection = window.getSelection();
+    
+    // No selection or no focus on the div
+    if (!selection.rangeCount) return true;
+    
+    const range = selection.getRangeAt(0);
+    const cursorPosition = range.startOffset;
+    const currentNode = range.startContainer;
+  
+    // Check if the cursor is inside the editable div
+    if (!editableElement.contains(currentNode)) return true;
+  
+    // Case 1: Cursor is in a text node
+    if (currentNode.nodeType === Node.TEXT_NODE) {
+      return (
+        cursorPosition === currentNode.length &&  // Cursor at end of text
+        currentNode === editableElement.lastChild &&  // Last text node in div
+        range.endOffset === cursorPosition       // No selection, just cursor
+      );
+    }
+    // Case 2: Cursor is between elements (e.g., after last <br> or <div>)
+    else {
+      const lastChild = editableElement.lastChild;
+      return (
+        lastChild && 
+        range.startContainer === editableElement && 
+        range.startOffset === editableElement.childNodes.length
+      );
+    }
+}
+
+function isCursorAtStartOrNotFocused(editableElement) {
+    if (editableElement.tagName === "INPUT" || editableElement.tagName === "TEXTAREA"){
+        return editableElement.selectionStart === 0 && editableElement.selectionEnd === 0;
+    }
+
+    const selection = window.getSelection();
+
+    
+    // No selection or no focus on the div
+    if (!selection.rangeCount) return true;
+    
+    const range = selection.getRangeAt(0);
+    const cursorPosition = range.startOffset;
+    const currentNode = range.startContainer;
+  
+    // Check if cursor is inside the editable div
+    if (!editableElement.contains(currentNode)) return true;
+  
+    // Case 1: Cursor is in a text node (first character)
+    if (currentNode.nodeType === Node.TEXT_NODE) {
+      return (
+        cursorPosition === 0 &&                  // Cursor at the start of text
+        currentNode === editableElement.firstChild && // First text node in div
+        range.endOffset === cursorPosition       // No selection, just cursor
+      );
+    }
+    // Case 2: Cursor is before the first element (e.g., at the very beginning)
+    else {
+      return (
+        range.startContainer === editableElement &&
+        range.startOffset === 0
+      );
+    }
+}
+
+function setCursorAtEdge(editableDiv, isFirst) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+  
+    // Set range at the end of the editable div
+    range.selectNodeContents(editableDiv); // Select all contents
+    range.collapse(isFirst); // Collapse to the end
+  
+    // Clear existing selections and apply the new range
+    selection.removeAllRanges();
+    selection.addRange(range);
+  
+    // Focus the div (optional, if not already focused)
+    editableDiv.focus();
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.task-region:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function ensureVisible(element, options = {}) {
+    const {
+      padding = 65,
+      scrollParent = true,
+      center = false
+    } = options;
+  
+    const rect = element.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+  
+    // Vertical check
+    if (rect.top < padding || rect.bottom > viewportHeight - padding) {
+      const scrollToY = center 
+        ? rect.top + window.scrollY - (viewportHeight / 2) + (rect.height / 2)
+        : rect.top + window.scrollY - padding;
+  
+      window.scrollTo({
+        top: scrollToY,
+        behavior: 'smooth'
+      });
+    }
+  
+    // Horizontal check (if needed)
+    if (rect.left < padding || rect.right > viewportWidth - padding) {
+      const scrollToX = center
+        ? rect.left + window.scrollX - (viewportWidth / 2) + (rect.width / 2)
+        : rect.left + window.scrollX - padding;
+  
+      window.scrollTo({
+        left: scrollToX,
+        behavior: 'smooth'
+      });
+    }
+  
+    // Handle overflow containers
+    if (scrollParent) {
+      let parent = element.parentElement;
+      while (parent && parent !== document.body) {
+        if (parent.scrollHeight > parent.clientHeight) {
+          const parentRect = parent.getBoundingClientRect();
+          const relativeTop = rect.top - parentRect.top;
+          
+          if (relativeTop < padding || relativeTop > parentRect.height - padding) {
+            parent.scrollTo({
+              top: element.offsetTop - parent.offsetTop - padding,
+              behavior: 'smooth'
+            });
+          }
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }

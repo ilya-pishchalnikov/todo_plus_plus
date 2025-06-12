@@ -1,5 +1,7 @@
 class AppEvent {
-    eventSocket
+    eventSocket;
+    
+    isLogEvents;
 
     onProjectAdd;
     onProjectDelete;
@@ -17,7 +19,9 @@ class AppEvent {
 
     eventSocketOnMessage(event) {
         var parsedEvent = JSON.parse(event.data);
-        logger.log(parsedEvent);
+        if (this.isLogEvents) {
+            logger.log(parsedEvent);
+        }
         switch(parsedEvent.type) {
             case "project-add":
                 if (this.onProjectAdd != null){
