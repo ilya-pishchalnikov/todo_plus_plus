@@ -5,6 +5,7 @@ const instanceGuid = guid();
 const appEvent = new AppEvent();
 const menu = new Menu();
 
+appEvent.isLogEvents = true;
 appEvent.onProjectAdd = projectAddOnEvent;
 appEvent.onProjectDelete = projectRemoveOnEvent;
 appEvent.onProjectUpdate = projectUpdateOnEvent;
@@ -19,9 +20,6 @@ appEvent.onTaskUpdate = taskUpdateOnEvent;
 setInterval(() => renewToken(), 3600000); //hourly
 renewToken();
 projectsFetch();
-
-
-document.addEventListener('wheel', (event) => {event.stopPropagation();}); // Allow the page to scroll normally 
 
 // Fetches task list from the server 
 function taskListFetch(projectId) {
@@ -584,7 +582,6 @@ function groupUpdateOnEvent(group) {
         groupListRegion.prepend(groupRegion);
     }
 
-
 }
 
 
@@ -593,12 +590,16 @@ function groupAdd(group, prevGroupId) {
     const groupRegion = document.createElement("div");
     groupRegion.className = "group-region";
     groupRegion.id = group.id;
+    groupRegion.draggable = true;
     if (prevGroupId != null && prevGroupId != "") {
         const prevGroupRegion = document.getElementById(prevGroupId);
         prevGroupRegion.after(groupRegion);
     } else {
         groupListRegion.prepend(groupRegion);
     }
+    
+    groupRegion.addEventListener('dragstart', groupDragStart)
+    groupRegion.addEventListener('dragend', groupDragEnd)
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
@@ -638,6 +639,99 @@ function groupAdd(group, prevGroupId) {
     }
     return groupRegion;
 }
+
+
+function groupDragStart(event) {
+    event.stopPropagation();
+    const groupRegion = event.target;
+    const groupId = groupRegion.id;
+    let groupName = groupRegion.innerText;
+
+    const payload = JSON.stringify({
+        id: groupId,
+        name: groupName
+    });
+
+    event.dataTransfer.setData('application/json', payload);
+
+    groupRegion.classList.add("dragging");
+    event.dataTransfer.setDragImage(groupRegion, 0, 0);
+
+    setTimeout(() => {
+        const groupListRegion = document.getElementById("group-list-region")
+        groupListRegion.classList.add("drop");
+        groupListRegion.addEventListener('dragover', groupListDragOver);
+        groupListRegion.addEventListener('dragenter', groupListDragEnter);
+        groupListRegion.addEventListener('dragleave', groupListDragLeave);
+        groupListRegion.addEventListener('drop', groupListDrop);        
+    }, 0);
+}
+
+function groupDragEnd(event) {
+    
+    const groupRegion = event.target;
+    groupRegion.classList.remove("dragging");
+
+
+    const groupListRegion = document.getElementById("group-list-region")
+    groupListRegion.classList.remove("drop");
+    groupListRegion.removeEventListener('dragover', groupListDragOver);
+    groupListRegion.removeEventListener('dragenter', groupListDragEnter);
+    groupListRegion.removeEventListener('dragleave', groupListDragLeave);
+    groupListRegion.removeEventListener('drop', groupListDrop);  
+
+    const groupId = groupRegion.id;
+    const groupName = groupRegion.innerText;
+    const projectId = document.querySelector(".project-region-selected").id;
+
+    const prevGroupRegion = groupRegion.previousElementSibling;
+    const prevGroupId = prevGroupRegion?.id || null;
+
+    const eventMessage = {
+        "type": "group-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "name": groupName,
+                "id": groupId,
+                "project-id": projectId,
+                "after": prevGroupId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+
+function groupListDragOver(event) {
+    event.preventDefault();
+    const draggingGroup = document.querySelector('.dragging');
+    let overElement = getDragAfterElement(this, event.clientY);
+
+    while (overElement != null) {
+        if (overElement.className === "group-region" || overElement.className === "group-region-selected") {
+            break;
+        }
+        overElement = overElement.parentElement;
+    }
+
+    if (overElement) {
+        this.insertBefore(draggingGroup, overElement);
+    } 
+}
+
+function groupListDragEnter(event) {
+    event.preventDefault();
+}
+
+function groupListDragLeave(event) {
+    event.preventDefault();
+}
+
+function groupListDrop(event) {
+    event.preventDefault();
+}
+
 
 function groupHeaderOnKeyDown(event) {
     const groupHeaderRegion = event.target;
@@ -995,7 +1089,6 @@ function taskAdd(task) {
 }
 
 function taskDragStart(event) {
-    logger.log("drag start ");
     event.stopPropagation();
     const taskRegion = event.target;
     const taskId = taskRegion.id;
@@ -1028,8 +1121,7 @@ function taskDragStart(event) {
             taskList.addEventListener('dragleave', taskListDragLeave);
             taskList.addEventListener('drop', taskListDrop);
         });
-    }, 0);    
-
+    }, 0);
 }
 
 function taskDragEnd(event) {
@@ -1065,7 +1157,6 @@ function taskDragEnd(event) {
         prevTaskId = prevTaskRegion.id;
     }
 
-    
     const eventMessage = {
         "type": "task-update",
         "instance": instanceGuid,
@@ -1079,9 +1170,7 @@ function taskDragEnd(event) {
             }
         };
 
-
     appEvent.send(JSON.stringify(eventMessage));
-
 }
 
 function taskListDragOver(event) {
