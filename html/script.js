@@ -311,13 +311,19 @@ function projectListDrop(event) {
     event.preventDefault();
 }
 
-
-
 function projectRegionOnKeyDown(event) {
     const selectedProjectRegion = document.querySelector(".project-region-selected");
     const nextProjectRegion = selectedProjectRegion.nextElementSibling;
     const prevProjectRegion = selectedProjectRegion.previousElementSibling;
     switch(true) {
+        case event.key === "ArrowRight" && event.altKey:
+            projectMoveRight(selectedProjectRegion);
+            event.preventDefault()
+            break;
+        case event.key === "ArrowLeft" && event.altKey:
+            projectMoveLeft(selectedProjectRegion);
+            event.preventDefault()
+            break;
         case event.key === 'Enter':
             const groupInput = document.getElementById("group-input");
             groupInput.focus();
@@ -451,6 +457,7 @@ function projectRemoveOnEvent(project) {
 
 function projectUpdateOnEvent(project) {
     const projectRegion = document.getElementById(project.id);
+    const isProjectRegionFocused = (projectRegion == document.activeElement);
     const projectsRegion = projectRegion.parentElement;
     const prevProjectRegion = projectRegion.previousElementSibling;
     let   prevProjectId;
@@ -471,6 +478,9 @@ function projectUpdateOnEvent(project) {
     }
 
     projectRegion.innerText = project.name;
+    if (isProjectRegionFocused) {
+        projectRegion.focus();
+    }
 }
 
 function projectAddOnClick(event) {
@@ -555,6 +565,11 @@ function projectMoveLeftOnClick(event) {
     const addProjectButton = event.target;
     const projectId = addProjectButton.dataset.payload;
     const projectRegion = document.getElementById(projectId);
+    projectMoveLeft(projectRegion);
+}
+
+function projectMoveLeft(projectRegion) {
+    const projectId = projectRegion.id;
     const projectName = projectRegion.innerText
     const prevProjectRegion = projectRegion.previousElementSibling;
     if (prevProjectRegion == null) {
@@ -580,12 +595,18 @@ function projectMoveLeftOnClick(event) {
             }
         };
 
-    appEvent.send(JSON.stringify(eventMessage));
+    appEvent.send(JSON.stringify(eventMessage));    
 }
+
 function projectMoveRightOnClick(event) {
     const addProjectButton = event.target;
     const projectId = addProjectButton.dataset.payload;
     const projectRegion = document.getElementById(projectId);
+    projectMoveRight(projectRegion);
+}
+
+function projectMoveRight(projectRegion) {
+    const projectId = projectRegion.id;
     const projectName = projectRegion.innerText
     const nextProjectRegion = projectRegion.nextElementSibling;
     if (nextProjectRegion == null) {
@@ -607,6 +628,7 @@ function projectMoveRightOnClick(event) {
 
     appEvent.send(JSON.stringify(eventMessage));
 }
+
 
 function groupInputOnFocus(event) {    
     menu.showHeader("New Group: ");
@@ -693,7 +715,8 @@ function groupUpdateOnEvent(group) {
     let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
     if (groupHeaderRegion == null) {
         groupHeaderRegion = groupRegion.querySelector(".group-header-region");
-    }
+    }    
+    const isFocused = (groupHeaderRegion == document.activeElement);
     groupHeaderRegion.innerText = group.name;
     if (group.after != null && group.after != "") {
         prevGroupRegion = document.getElementById(group.after)
@@ -702,7 +725,9 @@ function groupUpdateOnEvent(group) {
         const groupListRegion = groupRegion.parentElement;
         groupListRegion.prepend(groupRegion);
     }
-
+    if (isFocused) {
+        groupHeaderRegion.focus();
+    }
 }
 
 
@@ -908,6 +933,14 @@ function groupHeaderOnKeyDown(event) {
                 taskInlineInputActivate(taskFirstRegion);
             }
             break;
+        case event.key === "ArrowUp" && event.altKey:
+            groupMoveUp(groupRegion);
+            event.preventDefault();
+            break;
+        case event.key === "ArrowDown" && event.altKey:
+            groupMoveDown(groupRegion);
+            event.preventDefault();
+            break;
         case event.key === "ArrowUp" || (event.key === "ArrowLeft" && isCursorAtStartOrNotFocused(groupHeaderRegion)):
             const prevGroupRegion = groupRegion.previousElementSibling;
             if (prevGroupRegion == null) {
@@ -1070,6 +1103,11 @@ function groupUpOnClick(event) {
     const upButton =  event.target;
     const groupId = upButton.dataset.payload;
     const groupRegion = document.getElementById(groupId);
+    groupMoveUp(groupRegion);
+}
+
+function groupMoveUp(groupRegion) {
+    const groupId = groupRegion.id;
     const prevGroupRegion = groupRegion.previousElementSibling;
     if (prevGroupRegion == null) {
         return;
@@ -1100,14 +1138,18 @@ function groupUpOnClick(event) {
             }
         };
 
-    appEvent.send(JSON.stringify(eventMessage));
-    
+    appEvent.send(JSON.stringify(eventMessage)); 
 }
 
 function groupDownOnClick(event) {
-    const upButton =  event.target;
-    const groupId = upButton.dataset.payload;
+    const downButton =  event.target;
+    const groupId = downButton.dataset.payload;
     const groupRegion = document.getElementById(groupId);
+    groupMoveDown(groupRegion);
+}
+
+function groupMoveDown(groupRegion) {
+    const groupId = groupRegion.id;
     const nextGroupRegion = groupRegion.nextElementSibling;
     if (nextGroupRegion == null) {
         return;
@@ -1135,7 +1177,6 @@ function groupDownOnClick(event) {
         };
 
     appEvent.send(JSON.stringify(eventMessage));
-    
 }
 
 function taskInputOnFocus(event) {
@@ -1206,6 +1247,10 @@ function taskAddOnEvent(task) {
 
 function taskUpdateOnEvent(task) {
     const taskRegion = document.getElementById(task.id);
+    const textElement = taskRegion.firstElementChild;
+    if (textElement.tagName === "TEXTAREA") {
+        textElement.removeEventListener("blur", taskInlineInputOnBlur);
+    }
     if (task.after != null && task.after != "") {
         const prevTaskRegion = document.getElementById(task.after);
         prevTaskRegion.after(taskRegion);
@@ -1216,6 +1261,12 @@ function taskUpdateOnEvent(task) {
     }
     
     taskRegion.firstElementChild.innerText = task.text;
+    taskRegion.firstElementChild.focus();
+    if (textElement.tagName === "TEXTAREA") {
+        textElement.addEventListener("blur", taskInlineInputOnBlur);
+    }
+
+    ensureVisible(taskRegion);
 }
 
 function taskAdd(task) {
@@ -1523,6 +1574,14 @@ function taskInlineInputOnKeyDown (event){
     const taskRegion = taskInlineInput.parentElement;
     const nextTaskRegion = taskRegion.nextElementSibling;
     switch(true) {
+        case event.key === "ArrowDown" && event.altKey: 
+            taskMoveDown(taskRegion);
+            event.preventDefault();
+            break;
+        case event.key === "ArrowUp" && event.altKey: 
+            taskMoveUp(taskRegion);
+            event.preventDefault();
+            break;
         case (event.key === 'Enter' && !event.shiftKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight" ) && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
             if (nextTaskRegion != null)  {
                 taskInlineInputActivate(nextTaskRegion, true);
@@ -1592,6 +1651,11 @@ function taskUpOnClick(event){
     const taskUpButton = event.target;
     const taskId = taskUpButton.dataset.payload;
     const taskRegion = document.getElementById(taskId);
+    taskMoveUp (taskRegion);
+}
+
+function taskMoveUp (taskRegion) {
+    const taskId = taskRegion.id;
     const taskText = taskRegion.firstElementChild.innerText;
     let groupId = taskRegion.parentElement.parentElement.id;
     const taskPrevRegion = taskRegion.previousElementSibling;
@@ -1634,9 +1698,14 @@ function taskUpOnClick(event){
 
 
 function taskDownOnClick(event){
-    const taskUpButton = event.target;
-    const taskId = taskUpButton.dataset.payload;
+    const taskDownButton = event.target;
+    const taskId = taskDownButton.dataset.payload;
     const taskRegion = document.getElementById(taskId);
+    taskMoveDown(taskRegion);
+}
+
+function taskMoveDown(taskRegion) {
+    const taskId = taskRegion.id;
     const taskText = taskRegion.firstElementChild.innerText;
     let groupId = taskRegion.parentElement.parentElement.id;
     const taskNextRegion = taskRegion.nextElementSibling;
@@ -1651,6 +1720,7 @@ function taskDownOnClick(event){
     } else {
         taskNextRegionid = taskNextRegion.id;
     }
+
     const eventMessage = {
         "type": "task-update",
         "instance": instanceGuid,
@@ -1815,3 +1885,58 @@ function getDragAfterElement(container, y) {
         }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
+
+function ensureVisible(element, options = {}) {
+    const {
+      padding = 65,
+      scrollParent = true,
+      center = false
+    } = options;
+  
+    const rect = element.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+  
+    // Vertical check
+    if (rect.top < padding || rect.bottom > viewportHeight - padding) {
+      const scrollToY = center 
+        ? rect.top + window.scrollY - (viewportHeight / 2) + (rect.height / 2)
+        : rect.top + window.scrollY - padding;
+  
+      window.scrollTo({
+        top: scrollToY,
+        behavior: 'smooth'
+      });
+    }
+  
+    // Horizontal check (if needed)
+    if (rect.left < padding || rect.right > viewportWidth - padding) {
+      const scrollToX = center
+        ? rect.left + window.scrollX - (viewportWidth / 2) + (rect.width / 2)
+        : rect.left + window.scrollX - padding;
+  
+      window.scrollTo({
+        left: scrollToX,
+        behavior: 'smooth'
+      });
+    }
+  
+    // Handle overflow containers
+    if (scrollParent) {
+      let parent = element.parentElement;
+      while (parent && parent !== document.body) {
+        if (parent.scrollHeight > parent.clientHeight) {
+          const parentRect = parent.getBoundingClientRect();
+          const relativeTop = rect.top - parentRect.top;
+          
+          if (relativeTop < padding || relativeTop > parentRect.height - padding) {
+            parent.scrollTo({
+              top: element.offsetTop - parent.offsetTop - padding,
+              behavior: 'smooth'
+            });
+          }
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }
