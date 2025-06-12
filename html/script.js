@@ -681,7 +681,10 @@ function groupDragEnd(event) {
     groupListRegion.removeEventListener('drop', groupListDrop);  
 
     const groupId = groupRegion.id;
-    const groupName = groupRegion.innerText;
+    const groupHeaderRegion = 
+        groupRegion.querySelector(".group-header-region") ??
+        groupRegion.querySelector(".group-header-region-selected");
+    const groupName = groupHeaderRegion.innerText;
     const projectId = document.querySelector(".project-region-selected").id;
 
     const prevGroupRegion = groupRegion.previousElementSibling;
