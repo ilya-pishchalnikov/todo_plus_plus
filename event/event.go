@@ -26,10 +26,11 @@ type ErrorPayload struct {
 }
 
 type TaskPayload struct {
-	Id    string `json:"id"`
-	Text  string `json:"text"`
-	Group string `json:"group"`
-	After string `json:"after"`
+	Id     string `json:"id"`
+	Text   string `json:"text"`
+	Group  string `json:"group"`
+	Status string `json:"status"`
+	After  string `json:"after"`
 }
 
 type ProjectPayload struct {

@@ -14,6 +14,7 @@ body {
     border-color: red;
   }
   */
+
   input {
     background: white;
     margin-bottom: 2px;
@@ -40,6 +41,17 @@ body {
   }
   br {
     line-height: 0.1;
+  }
+  textarea:focus {    
+    border: 3px solid red;
+    outline: none;
+  }
+  input:focus {    
+    border: 3px solid red;
+    outline: none;
+  }
+  div:focus {
+    outline: none;
   }
   /*.header-main {
     text-align: center;
@@ -234,6 +246,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
+  }
+
+  
+  .task-region img, .task-region-pre {
+    display: inline-block;
+    vertical-align: middle;
   }
 
   .task-region:hover {
@@ -241,22 +260,17 @@ body {
   }
 
   .task-pre {
-    margin: 0;
+    margin: 0 auto 0 0;
     font-size: 130%;
     white-space: pre-wrap;   
     overflow-wrap: break-word; 
     word-break: normal;   
-    overflow-x: hidden;      
+    overflow-x: hidden;   
+    display:block; 
   }
 
-  .task-region-selected {    
-    background: red;
-    margin-bottom: 2px;
-    margin-left: 30px;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .task-region.selected {
+    border: 3px solid red;
   }
 
   .task-region-selected:hover {
@@ -278,4 +292,28 @@ body {
   .task-list-region.drop {
     min-height: 40px;
     border: 1px dashed red;
+  }
+
+  .inprogress {
+    background-color: lightyellow;
+  }
+  
+  .inprogress:hover {
+    background-color: yellow;
+  }
+
+  .done {
+    background-color: lightgreen;
+  }
+  
+  .done:hover {
+    background-color: green;
+  }
+
+  .cancelled {
+    background-color: lightpink;
+  }
+  
+  .cancelled:hover {
+    background-color: coral;
   }

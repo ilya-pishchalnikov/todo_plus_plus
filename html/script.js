@@ -512,7 +512,6 @@ function projectMoveRight(projectRegion) {
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-
 function groupInputOnFocus(event) {    
     menu.showHeader("New Group: ");
     menu.addButton("Add", null, groupNewAddOnClick);
@@ -612,7 +611,6 @@ function groupUpdateOnEvent(group) {
         groupHeaderRegion.focus();
     }
 }
-
 
 function groupAdd(group, prevGroupId) {
     const groupListRegion = document.getElementById("group-list-region");
@@ -761,10 +759,10 @@ function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
         groupHeaderSelected.className = "group-header-region";
     });
     
-    const taskRegionsSelected = document.getElementsByClassName("task-region-selected");
+    const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
 
     Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
-        taskRegionSelected.className= "task-region";
+        taskRegionSelected.classList.remove("selected");
     })
     
     groupHeaderRegion.className = "group-header-region-selected";
@@ -934,7 +932,7 @@ function taskInputOnFocus(event) {
     menu.showHeader("New Group: ");
     menu.addButton("Add", taskInput.id, taskNewAddOnClick);
 
-    const taskRegionsSelected = document.getElementsByClassName("task-region-selected");
+    const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
 
     Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
         taskRegionSelected.className= "task-region";
@@ -979,7 +977,7 @@ function taskNewAdd (taskInput) {
                 "text": taskText,
                 "id": guid(),
                 "group": groupId,
-                "status": 1, // todo
+                "status": "1", // todo
                 "after": prevTaskId
             }
         };
@@ -997,7 +995,7 @@ function taskAddOnEvent(task) {
 
 function taskUpdateOnEvent(task) {
     const taskRegion = document.getElementById(task.id);
-    const textElement = taskRegion.firstElementChild;
+    const textElement = taskRegion.querySelector(".task-inline-input,.task-pre");
     if (textElement.tagName === "TEXTAREA") {
         textElement.removeEventListener("blur", taskInlineInputOnBlur);
     }
@@ -1009,9 +1007,44 @@ function taskUpdateOnEvent(task) {
         const taskListRegion = groupRegion.querySelector(".task-list-region");
         taskListRegion.prepend(taskRegion);
     }
+
+    const classesToKeep = ["task-region", "selected"];    
+    Array.from(taskRegion.classList)
+        .filter(className => !classesToKeep.includes(className))
+        .forEach(className => taskRegion.classList.remove(className));
+
+    taskRegion.dataset.status = task.status;
+
+    taskStatusIcon = taskRegion.querySelector(".task-status-img");
+    switch (true) {
+        case task.status == 1: 
+            taskStatusIcon.src = "/html/img/todo.svg";
+            taskStatusIcon.alt = "☐";
+            taskRegion.classList.add("todo");
+            break;
+        case task.status == 2: 
+            taskStatusIcon.src = "/html/img/inprogress.svg";
+            taskStatusIcon.alt = "☐";            
+            taskRegion.classList.add("inprogress");
+            break;
+        case task.status == 3: 
+            taskStatusIcon.src = "/html/img/done.svg";
+            taskStatusIcon.alt = "✔";
+            taskRegion.classList.add("done");
+            break;
+        case task.status == 4: 
+            taskStatusIcon.src = "/html/img/cancelled.svg";
+            taskStatusIcon.alt = "✘";
+            taskRegion.classList.add("cancelled");
+            break;
+        default:
+            taskStatusIcon.src = "/html/img/question.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+    }
     
-    taskRegion.firstElementChild.innerText = task.text;
-    taskRegion.firstElementChild.focus();
+    textElement.innerText = task.text;
+    textElement.focus();
     if (textElement.tagName === "TEXTAREA") {
         textElement.addEventListener("blur", taskInlineInputOnBlur);
     }
@@ -1030,8 +1063,52 @@ function taskAdd(task) {
     taskRegion = document.createElement("div");
     taskRegion.className = "task-region";
     taskRegion.id = task.id;
+    taskRegion.dataset.status = task.status;
+    switch (true) {
+        case task.status == 1:
+            taskRegion.classList.add("todo");
+            break;
+        case task.status == 2:
+            taskRegion.classList.add("inprogress");
+            break;
+        case task.status == 3:
+            taskRegion.classList.add("done");
+            break;
+        case task.status == 4:
+            taskRegion.classList.add("cancelled");
+            break;
+    }
     taskRegion.onclick = taskRegionOnClick;
-    
+
+    taskStatusIcon = document.createElement("img");
+    switch (true) {
+        case task.status == 1: 
+            taskStatusIcon.src = "/html/img/todo.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case task.status == 2: 
+            taskStatusIcon.src = "/html/img/inprogress.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case task.status == 3: 
+            taskStatusIcon.src = "/html/img/done.svg";
+            taskStatusIcon.alt = "✔";
+            break;
+        case task.status == 4: 
+            taskStatusIcon.src = "/html/img/cancelled.svg";
+            taskStatusIcon.alt = "✘";
+            break;
+        default:
+            taskStatusIcon.src = "/html/img/question.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+    }
+    taskStatusIcon.width = 30;
+    taskStatusIcon.height = 30;
+    taskStatusIcon.className = "task-status-img";
+    taskStatusIcon.onclick = taskStatusImgOnClick;
+    taskRegion.appendChild(taskStatusIcon);
+
     taskPre = document.createElement("pre");
     taskPre.className = "task-pre";  
     taskPre.innerText = task.text;
@@ -1052,7 +1129,7 @@ function taskAdd(task) {
 function taskRegionOnClick(event) {
     const target = event.target;
     let taskRegion = null;
-    if (target.className == "task-region") {
+    if (target.classList.contains("task-region")) {
         taskRegion = target;
     } else if (target.className == "task-pre") {
         taskRegion = target.parentElement;
@@ -1072,6 +1149,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         const taskTextOld = taskInlineInputOld.value;
         const taskRegionOld = taskInlineInputOld.parentElement;
         const taskIdOld = taskRegionOld.id
+        const taskStatusOld = taskRegionOld.dataset.status;
         const groupRegionOld = taskRegionOld.parentElement.parentElement;
         const groupIdOld = groupRegionOld.id;
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
@@ -1090,7 +1168,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
                         "text": taskTextOld,
                         "id": taskIdOld,
                         "group": groupIdOld,
-                        "status": 1, // todo
+                        "status": taskStatusOld,
                         "after": prevTaskIdOld
                     }
                 };
@@ -1099,10 +1177,10 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         }
     }
 
-    const taskRegionsSelected = document.getElementsByClassName("task-region-selected");
+    const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
 
     Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
-        taskRegionSelected.className= "task-region";
+        taskRegionSelected.classList.remove("selected");
     })
 
     const groupHeaderRegionsSelected = document.getElementsByClassName("group-header-region-selected");
@@ -1111,11 +1189,42 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         groupHeaderRegionSelected.className= "group-header-region";
     })
 
-    taskRegion.className = "task-region-selected";
+    taskRegion.classList.add("selected");
 
-    const taskText = taskRegion.firstElementChild.innerText;
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
+
+    taskStatus = taskRegion.dataset.status;
 
     taskRegion.innerHTML = "";
+
+    taskStatusIcon = document.createElement("img");
+    switch (true) {
+        case taskStatus == 1: 
+            taskStatusIcon.src = "/html/img/todo.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case taskStatus == 2: 
+            taskStatusIcon.src = "/html/img/inprogress.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case taskStatus == 3: 
+            taskStatusIcon.src = "/html/img/done.svg";
+            taskStatusIcon.alt = "✔";
+            break;
+        case taskStatus == 4: 
+            taskStatusIcon.src = "/html/img/cancelled.svg";
+            taskStatusIcon.alt = "✘";
+            break;
+        default:
+            taskStatusIcon.src = "/html/img/question.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+    }
+    taskStatusIcon.width = 30;
+    taskStatusIcon.height = 30;
+    taskStatusIcon.className = "task-status-img";
+    taskStatusIcon.onclick = taskStatusImgOnClick;
+    taskRegion.append(taskStatusIcon);
 
     const taskInlineInput = document.createElement("textarea");
     taskInlineInput.className = "task-inline-input";
@@ -1147,6 +1256,7 @@ function taskInlineInputOnBlur(event) {
     }
     const taskText = taskInlineInput.value;
     const taskId = taskRegion.id;
+    const taskStatus = taskRegion.dataset.status;
     const groupRegion = taskRegion.parentElement.parentElement;
     const groupId = groupRegion.id;
     const prevTaskRegion = taskRegion.previousElementSibling;
@@ -1155,6 +1265,35 @@ function taskInlineInputOnBlur(event) {
         prevTaskId = prevTaskRegion.id;
     }
     taskRegion.innerHTML = "";
+    taskStatusIcon = document.createElement("img");
+
+    switch (true) {
+        case taskStatus == 1: 
+            taskStatusIcon.src = "/html/img/todo.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case taskStatus == 2: 
+            taskStatusIcon.src = "/html/img/inprogress.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case taskStatus == 3: 
+            taskStatusIcon.src = "/html/img/done.svg";
+            taskStatusIcon.alt = "✔";
+            break;
+        case taskStatus == 4: 
+            taskStatusIcon.src = "/html/img/cancelled.svg";
+            taskStatusIcon.alt = "✘";
+            break;
+        default:
+            taskStatusIcon.src = "/html/img/question.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+    }
+    taskStatusIcon.width = 30;
+    taskStatusIcon.height = 30;
+    taskStatusIcon.className = "task-status-img";    
+    taskStatusIcon.onclick = taskStatusImgOnClick;
+    taskRegion.append(taskStatusIcon);
     taskPre = document.createElement("pre");    
     taskPre.className = "task-pre";
     taskPre.innerText = taskText;
@@ -1168,7 +1307,7 @@ function taskInlineInputOnBlur(event) {
                 "text": taskText,
                 "id": taskId,
                 "group": groupId,
-                "status": 1,
+                "status": taskStatus,
                 "after": prevTaskId
             }
         };
@@ -1256,7 +1395,7 @@ function taskRemoveOnClick(event) {
 
 function taskRemove (taskId) {
     const taskRegion = document.getElementById(taskId);
-    const taskPre = taskRegion.firstElementChild;
+    const taskPre = taskRegion.querySelector(".task-inline-input,.task-pre");
     const taskText = taskPre.innerText;
     const groupRegion = taskRegion.parentElement;
     const groupId = groupRegion.id;
@@ -1297,7 +1436,8 @@ function taskUpOnClick(event){
 
 function taskMoveUp (taskRegion) {
     const taskId = taskRegion.id;
-    const taskText = taskRegion.firstElementChild.innerText;
+    const taskStatus = taskRegion.dataset.status;
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
     let groupId = taskRegion.parentElement.parentElement.id;
     const taskPrevRegion = taskRegion.previousElementSibling;
     let taskPrevPrevId = null;
@@ -1329,7 +1469,7 @@ function taskMoveUp (taskRegion) {
                 "text": taskText,
                 "id": taskId,
                 "group": groupId,
-                "status": 1, // todo
+                "status": taskStatus,
                 "after": taskPrevPrevId
             }
         };
@@ -1346,7 +1486,8 @@ function taskDownOnClick(event){
 
 function taskMoveDown(taskRegion) {
     const taskId = taskRegion.id;
-    const taskText = taskRegion.firstElementChild.innerText;
+    const taskStatus = taskRegion.dataset.status;
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
     let groupId = taskRegion.parentElement.parentElement.id;
     const taskNextRegion = taskRegion.nextElementSibling;
     let taskNextRegionid = null;
@@ -1369,10 +1510,50 @@ function taskMoveDown(taskRegion) {
                 "text": taskText,
                 "id": taskId,
                 "group": groupId,
-                "status": 1, // todo
+                "status": taskStatus,
                 "after": taskNextRegionid
             }
         };
 
     appEvent.send(JSON.stringify(eventMessage));
+}
+
+function taskStatusImgOnClick(event) {
+    const taskRegion = event.target.parentElement;
+    const taskId = taskRegion.id;
+    let taskStatusId = taskRegion.dataset.status;
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
+    const groupId = taskRegion.parentElement.parentElement.id;
+    const prevTaskId = taskRegion.previousElementSibling?.id||null;
+
+    switch(true) {
+        case taskStatusId == 1:
+            taskStatusId = "2";
+            break;
+        case taskStatusId == 2:
+            taskStatusId = "3";
+            break;
+        case taskStatusId == 3:
+            taskStatusId = "4";
+            break;
+        case taskStatusId == 4:
+            taskStatusId = "1";
+            break;
+    }
+
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": taskId,
+                "group": groupId,
+                "status": taskStatusId,
+                "after": prevTaskId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+
 }

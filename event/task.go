@@ -2,6 +2,7 @@ package event
 
 import (
 	"database/sql"
+	"strconv"
 	"todopp/store"
 )
 
@@ -12,8 +13,13 @@ func upsertTask(db *sql.DB, task TaskPayload) error {
 	storeTask.Name = task.Text
 	storeTask.TaskGroupId = task.Group
 	storeTask.Sequence = -2
+	taskStatusId, err := strconv.ParseInt(task.Status, 10, 32)
+	if err != nil {
+		return err
+	}
+	storeTask.TaskStatusId = int(taskStatusId)
 
-	err := store.UpsertTask(db, storeTask)
+	err = store.UpsertTask(db, storeTask)
 	if err != nil {
 		return err
 	}
