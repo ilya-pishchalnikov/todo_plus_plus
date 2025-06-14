@@ -200,4 +200,12 @@ function ensureVisible(element, options = {}) {
         parent = parent.parentElement;
       }
     }
-  }
+}
+
+function showElementUnder(referenceElement, elementToShow) {
+    const rect = referenceElement.getBoundingClientRect();
+    elementToShow.style.position = 'absolute';
+    elementToShow.style.top = `${rect.bottom + window.scrollY}px`;
+    elementToShow.style.left = `${rect.left + window.scrollX}px`;
+    elementToShow.style.zIndex = '9999';
+}

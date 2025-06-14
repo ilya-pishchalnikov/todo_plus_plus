@@ -1244,6 +1244,13 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
 
     menu.showHeader("Task: ");
     menu.addButton("Remove", taskRegion.id, taskRemoveOnClick);
+    const statusOptions = [
+        {name:"To Do", payload:{status: "1", taskid: taskRegion.id}},
+        {name:"In Progress", payload:{status: "2", taskid: taskRegion.id}},
+        {name:"Done", payload:{status: "3", taskid: taskRegion.id}},
+        {name:"Cancelled", payload:{status: "4", taskid: taskRegion.id}},
+    ];
+    menu.addDropDownButton("Status", taskRegion.id,statusOptions, dropdownStatusOnSelect)
     menu.addButton("∧", taskRegion.id, taskUpOnClick, "50px");
     menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
 }
@@ -1550,6 +1557,32 @@ function taskStatusImgOnClick(event) {
                 "id": taskId,
                 "group": groupId,
                 "status": taskStatusId,
+                "after": prevTaskId
+            }
+        };
+
+    appEvent.send(JSON.stringify(eventMessage));
+
+}
+
+function dropdownStatusOnSelect(event) {
+    const dropdownOptionRegion = event.target;
+    const payload = JSON.parse(dropdownOptionRegion.dataset.payload);
+    const taskId = payload.taskid;
+    const taskStatus = payload.status;
+    const taskRegion = document.getElementById(taskId);    
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
+    const groupId = taskRegion.parentElement.parentElement.id;
+    const prevTaskId = taskRegion.previousElementSibling?.id||null;
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+                "text": taskText,
+                "id": taskId,
+                "group": groupId,
+                "status": taskStatus,
                 "after": prevTaskId
             }
         };

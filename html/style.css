@@ -317,3 +317,27 @@ body {
   .cancelled:hover {
     background-color: coral;
   }
+
+  .dropdown-region {
+    background: #f4f4f4;
+    margin-bottom: 2px;
+    padding: 10px;
+    display: none;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  }
+
+  .dropdown-show {
+    display: block;
+  }
+
+  .dropdown-option-region {      
+    background: #f4f4f4;
+    margin-bottom: 2px;
+    font-size: 130%;
+    display: flex;
+    padding: 10px;
+  }
+
+  .dropdown-option-region:hover {
+    background: #a4a4a4;
+  }
