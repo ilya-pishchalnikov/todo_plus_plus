@@ -512,6 +512,7 @@ function projectMoveRight(projectRegion) {
     appEvent.send(JSON.stringify(eventMessage));
 }
 
+
 function groupInputOnFocus(event) {    
     menu.showHeader("New Group: ");
     menu.addButton("Add", null, groupNewAddOnClick);
@@ -666,6 +667,7 @@ function groupAdd(group, prevGroupId) {
     }
     return groupRegion;
 }
+
 
 function groupHeaderOnKeyDown(event) {
     const groupHeaderRegion = event.target;
@@ -1043,9 +1045,10 @@ function taskUpdateOnEvent(task) {
             break;
     }
     
-    textElement.innerText = task.text;
-    textElement.focus();
-    if (textElement.tagName === "TEXTAREA") {
+  textElement.innerText = task.text;
+  textElement.focus();
+
+  if (textElement.tagName === "TEXTAREA") {
         textElement.addEventListener("blur", taskInlineInputOnBlur);
     }
 
@@ -1150,6 +1153,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         const taskRegionOld = taskInlineInputOld.parentElement;
         const taskIdOld = taskRegionOld.id
         const taskStatusOld = taskRegionOld.dataset.status;
+
         const groupRegionOld = taskRegionOld.parentElement.parentElement;
         const groupIdOld = groupRegionOld.id;
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
@@ -1370,6 +1374,7 @@ function taskInlineInputOnKeyDown (event){
             event.preventDefault();
             break;
         case (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight" ) && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
+
             if (nextTaskRegion != null)  {
                 taskInlineInputActivate(nextTaskRegion, true);
             } else {
@@ -1609,3 +1614,4 @@ function taskStatusSet (taskId, taskStatus) {
 
     appEvent.send(JSON.stringify(eventMessage));
 }
+
