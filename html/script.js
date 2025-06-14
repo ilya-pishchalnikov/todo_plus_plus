@@ -1369,7 +1369,7 @@ function taskInlineInputOnKeyDown (event){
             taskMoveUp(taskRegion);
             event.preventDefault();
             break;
-        case (event.key === 'Enter' && !event.shiftKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight" ) && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
+        case (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight" ) && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
             if (nextTaskRegion != null)  {
                 taskInlineInputActivate(nextTaskRegion, true);
             } else {
@@ -1391,7 +1391,23 @@ function taskInlineInputOnKeyDown (event){
             }
             event.preventDefault();
             break;
-    }    
+        case (event.key === "Enter" && event.ctrlKey) || (event.key.toLowerCase() === "t" && event.altKey):
+            taskStatusSet (taskRegion.id, "1");
+            event.preventDefault();
+            break;
+        case event.key.toLowerCase() === "p" && event.altKey:
+            taskStatusSet (taskRegion.id, "2");
+            event.preventDefault();
+            break;
+        case event.key.toLowerCase() === "d" && event.altKey:
+            taskStatusSet (taskRegion.id, "3");
+            event.preventDefault();
+            break;
+        case event.key.toLowerCase() === "c" && event.altKey:
+            taskStatusSet (taskRegion.id, "4");
+            event.preventDefault();
+            break;
+    }
 }
 
 function taskRemoveOnClick(event) {
@@ -1570,6 +1586,10 @@ function dropdownStatusOnSelect(event) {
     const payload = JSON.parse(dropdownOptionRegion.dataset.payload);
     const taskId = payload.taskid;
     const taskStatus = payload.status;
+    taskStatusSet (taskId, taskStatus);
+}
+
+function taskStatusSet (taskId, taskStatus) {
     const taskRegion = document.getElementById(taskId);    
     const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
     const groupId = taskRegion.parentElement.parentElement.id;
@@ -1588,5 +1608,4 @@ function dropdownStatusOnSelect(event) {
         };
 
     appEvent.send(JSON.stringify(eventMessage));
-
 }
