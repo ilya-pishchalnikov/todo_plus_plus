@@ -267,6 +267,7 @@ body {
     word-break: normal;   
     overflow-x: hidden;   
     display:block; 
+
   }
 
   .task-region.selected {
