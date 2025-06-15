@@ -36,6 +36,17 @@ create table if not exists task (
 	foreign key (task_group_id) references task_group (task_group_id)
 );
 
+create table if not exists event (
+	event_id text,
+	utc_time int,
+	user_id text,
+	payload text,
+	responce text,
+	is_error int,
+	primary key (user_id, utc_time, event_id),
+	foreign key (user_id) references user(user_id)
+);
+
 insert into task_status (task_status_id, name)
 select  task_status_id, name
 from (

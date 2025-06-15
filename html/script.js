@@ -1269,7 +1269,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
 }
 
-function taskInlineInputOnBlur(event) {   
+function taskInlineInputOnBlur(event) {  
     const taskInlineInput = event.target;
     const taskRegion = taskInlineInput.parentElement;
     if (taskRegion == null) { // detached from DOM (removed)
