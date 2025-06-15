@@ -17,10 +17,12 @@ class AppEvent {
     onTaskUpdate;
 
     reconnectIntervalId;
-    
+    store;
+
     constructor() {
         this.reconnect = this.reconnect.bind(this);
         this.connect();
+        this.store = new IndexedDBEventStore();
     }
 
     eventSocketOnMessage(event) {
@@ -77,13 +79,22 @@ class AppEvent {
         }
     }
 
-    send(data) {
-        while (this.eventSocket.readyState != WebSocket.OPEN) {
-            logger.error("WebSocket connection lost");
-            alert("Connection lost - we can't reach our servers right now. Please check your internet connection and try again");
-            this.connect()
+    async send(data) {
+        if (this.isConnected()){
+            this.eventSocket.send(data);
+        } else {
+            await this.store.init();
+            const storeEvent = {eventId:guid(), utc_time:Date.now().toString(), data:data}
+            await this.store.saveEvents(storeEvent);            
         }
-        this.eventSocket.send(data);
+    }
+
+    async resendEvents() {
+        await this.store.init();
+        const events = await this.store.getEventsSince("0");
+        logger.log("resendEvents", events.length)
+        events.forEach(event => {this.eventSocket.send(event.data);});
+        await this.store.clearEventStore();
     }
 
     connect() {
@@ -126,6 +137,10 @@ class AppEvent {
                 this.connect()
                 break;
         }    
+    }
+
+    isConnected() {
+        return this.eventSocket.readyState == WebSocket.OPEN;
     }
 }
 

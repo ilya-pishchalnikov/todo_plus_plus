@@ -1734,11 +1734,15 @@ function applyPersistedState() {
 function onConnect(event) {
     menu.setOnlineIndicator(true);
     popup.showPopup("Connected");
+    appEvent.resendEvents();
+    location.reload();
 }
 
 function onDisconnect(event) {
-    menu.setOnlineIndicator(false);;
-    popup.showPopup("disconnected");
+    menu.setOnlineIndicator(false);
+    if (popup.getText() != "Disconnected") {
+        popup.showPopup("Disconnected");
+    }
 }
 
 function checkConnection() {

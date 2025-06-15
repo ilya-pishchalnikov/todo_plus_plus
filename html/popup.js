@@ -2,7 +2,6 @@ class Popup {
     timeoutId;
     
     showPopup(text) {
-        logger.log("showPopup");
         const popup = document.getElementById('popup');
         popup.textContent = text;
         popup.classList.add('active');
@@ -15,12 +14,14 @@ class Popup {
     }
 
     hidePopup() {
-        logger.log("hidePopup");
-        logger.trace();
         document.getElementById('popup').classList.remove('active');
         if (this.timeoutId != null) {
             clearTimeout(this.timeoutId);
         } 
+    }
+
+    getText() {
+        return document.getElementById('popup')?.textContent || null;
     }
 
 }
