@@ -1,5 +1,7 @@
 class Menu {
 
+    checkConnection;
+
     constructor () {
 
     }
@@ -7,6 +9,10 @@ class Menu {
     showHeader(menuHeader) {
         const menuMain = document.getElementById("menu-main");
         menuMain.innerText = menuHeader;
+        const onlineIndicator = document.createElement("div");
+        onlineIndicator.className = "online-indicator-region";
+        menuMain.append(onlineIndicator);
+        this.setOnlineIndicator(this.checkConnection());
     }
 
     addButton(name, payload, onclick, width = null) {
@@ -69,6 +75,15 @@ class Menu {
                 element.classList.remove("dropdown-show");
             }
         });
+    }
+
+    setOnlineIndicator(isOnline = false) {
+        const onlineIndicator = document.querySelector(".online-indicator-region");
+        if (isOnline) {
+            onlineIndicator.textContent = "🟢";
+        } else {
+            onlineIndicator.textContent = "🔴";
+        }
     }
 
 }

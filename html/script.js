@@ -2,7 +2,10 @@
 //let taskListJson = ""; // previous task list json for optimization reasons
 const instanceGuid = guid();
 const appEvent = new AppEvent();
-const menu = new Menu();
+const menu = new Menu()
+const popup = new Popup();
+
+menu.checkConnection = checkConnection;
 
 appEvent.isLogEvents = true;
 appEvent.onProjectAdd = projectAddOnEvent;
@@ -13,8 +16,11 @@ appEvent.onGroupDelete = groupRemoveOnEvent;
 appEvent.onGroupUpdate = groupUpdateOnEvent;
 appEvent.onTaskUpdate = groupUpdateOnEvent;
 appEvent.onTaskAdd = taskAddOnEvent;
-appEvent.onTaskDelete = onTaskDeleteEvent;
+appEvent.onTaskDelete = taskOnDeleteEvent;
 appEvent.onTaskUpdate = taskUpdateOnEvent;
+
+appEvent.onConnect = onConnect;
+appEvent.onDisconnect = onDisconnect;
 
 setInterval(() => renewToken(), 3600000); //hourly
 renewToken();
@@ -1460,7 +1466,7 @@ function taskRemove (taskId) {
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-function onTaskDeleteEvent(task) {
+function taskOnDeleteEvent(task) {
     const taskRegion = document.getElementById(task.id);
     taskRegion.remove();
 }
@@ -1722,4 +1728,19 @@ function applyPersistedState() {
             }
         }, 50);
     }
+}
+
+
+function onConnect(event) {
+    menu.setOnlineIndicator(true);
+    popup.showPopup("Connected");
+}
+
+function onDisconnect(event) {
+    menu.setOnlineIndicator(false);;
+    popup.showPopup("disconnected");
+}
+
+function checkConnection() {
+    return appEvent.eventSocket.readyState == WebSocket.OPEN;
 }

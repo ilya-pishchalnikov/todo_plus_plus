@@ -3,6 +3,9 @@ class AppEvent {
     
     isLogEvents;
 
+    onConnect;
+    onDisconnect;
+
     onProjectAdd;
     onProjectDelete;
     onProjectUpdate;
@@ -12,8 +15,11 @@ class AppEvent {
     onTaskAdd;
     onTaskDelete;
     onTaskUpdate;
+
+    reconnectIntervalId;
     
     constructor() {
+        this.reconnect = this.reconnect.bind(this);
         this.connect();
     }
 
@@ -89,22 +95,37 @@ class AppEvent {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         this.eventSocket = new WebSocket(`${protocol}//${window.location.host}/ws?token=${token}`);
         this.eventSocket.onmessage = this.eventSocketOnMessage.bind(this);
-        this.eventSocket.onclose = () => {
-            logger.error("WebSocket connection lost");
-            alert("Connection lost - we can't reach our servers right now. Please check your internet connection and try again");
-            this.connect()
-        };        
+        this.eventSocket.onclose = this.eventSocketOnClose.bind(this);
+        this.eventSocket.onopen = this.eventSocketOnConnect.bind(this);
     }
 
+    eventSocketOnClose(event) {
+        if (this.onDisconnect!= null) {
+            this.onDisconnect(event);
+        }
+        if (this.reconnectIntervalId == null) {
+            this.reconnectIntervalId = setInterval(this.reconnect, 1000);
+        }
+    }
 
+    eventSocketOnConnect(event) {  
+        if (this.onConnect!= null) {
+            this.onConnect(event);
+        }
+    }   
     
-}
-
-
-function getCookieByName(name) {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    if (match) {
-        return match[2];
+    reconnect() {
+        switch (this.eventSocket.readyState) {
+            case WebSocket.OPEN:
+                if (this.reconnectIntervalId != null) {
+                    clearInterval(this.reconnectIntervalId);
+                    this.reconnectIntervalId = null;
+                }
+                break;
+            case WebSocket.CLOSED:
+                this.connect()
+                break;
+        }    
     }
-    return null;
 }
+
