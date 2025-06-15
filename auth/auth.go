@@ -11,6 +11,8 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+var jwtKey []byte = nil
+
 func generateHmacKey() ([]byte, error) {
 
 	key := make([]byte, 32) // 32 bytes = 256-bit
@@ -41,6 +43,10 @@ func VerifyJWTToken(tokenString, hmacKey []byte) (*jwt.Token, error) {
 }
 
 func GetJwtKey() ([]byte, error) {
+	if jwtKey != nil {
+		return jwtKey, nil
+	}
+
 	config, err := util.GetConfig()
 	if err != nil {
 		return nil, err
@@ -66,8 +72,8 @@ func GetJwtKey() ([]byte, error) {
 		}
 	}
 
-	jwtKey, err := store.GetJwtKey(db)
-	return []byte(jwtKey), err
+	jwtKeyDb, err := store.GetJwtKey(db)
+	return []byte(jwtKeyDb), err
 }
 
 func VerifyJwtAndGetLogin(tokenString string) (string, error) {
