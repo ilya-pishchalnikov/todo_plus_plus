@@ -72,8 +72,8 @@ func GetJwtKey() ([]byte, error) {
 		}
 	}
 
-	jwtKeyDb, err := store.GetJwtKey(db)
-	return []byte(jwtKeyDb), err
+	jwtKey, err = store.GetJwtKey(db)
+	return []byte(jwtKey), err
 }
 
 func VerifyJwtAndGetLogin(tokenString string) (string, error) {

@@ -28,18 +28,18 @@ func InsertJwt(db *sql.DB, jwt_key string) error {
 	return err
 }
 
-func GetJwtKey(db *sql.DB) (string, error) {
+func GetJwtKey(db *sql.DB) ([]byte, error) {
 	isEmpty, err := IsEmptyjwt(db)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if isEmpty {
-		return "", errors.New("jwt key not defined")
+		return nil, errors.New("jwt key not defined")
 	}
 
 	var jwt_key string
 	err = db.QueryRow("SELECT jwt_key FROM jwt LIMIT 1;").Scan(&jwt_key)
 
-	return jwt_key, err
+	return []byte(jwt_key), err
 }
