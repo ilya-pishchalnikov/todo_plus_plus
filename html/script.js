@@ -20,6 +20,10 @@ setInterval(() => renewToken(), 3600000); //hourly
 renewToken();
 projectsFetch();
 
+//persist state
+setInterval(persistState, 1000);
+window.addEventListener('beforeunload', persistState);
+
 // Fetches task list from the server 
 function taskListFetch(projectId) {
     fetch(`/api/task_list?project_id=${projectId}&json_format=grouped`, {
@@ -157,8 +161,12 @@ function projectsFetch() {
         
             appEvent.send(JSON.stringify(eventMessage));
         }
+        setTimeout(() => {
+            applyPersistedState();
+        }, 50);
     })
     .catch(error => logger.error(error));
+    
 }
 
 function projectAdd(projectId, projectName, previousProjectId) {
@@ -169,12 +177,12 @@ function projectAdd(projectId, projectName, previousProjectId) {
     if (projectName == "") {
         projectName = "\u00A0"; // &nbsp;
     }
-    projectRegion.innerText = projectName;
+    projectRegion.textContent = projectName;
     projectRegion.contentEditable = "true";
     projectRegion.dataset.savedtext = projectName;
-    projectRegion.onclick = projectRegionOnClick;
     projectRegion.draggable = true;
     projectRegion.addEventListener('keydown', projectRegionOnKeyDown);
+    projectRegion.addEventListener('focus', projectRegionOnFocus);
     projectRegion.addEventListener('blur', projectRegionOnBlur);
     projectRegion.addEventListener('dragstart', projectDragStart)
     projectRegion.addEventListener('dragend', projectDragEnd)
@@ -189,7 +197,7 @@ function projectAdd(projectId, projectName, previousProjectId) {
     }
     const selectedProjectRegion = document.getElementsByClassName("project-region-selected");
      if (selectedProjectRegion.length == 0) {
-        projectSelect(projectRegion, false);
+        projectSelect(projectRegion, false, false);
     }
     return projectRegion
 }
@@ -249,7 +257,11 @@ function projectRegionOnKeyDown(event) {
     }
 }
 
-function projectRegionOnBlur(event) {
+function projectRegionOnFocus(event) {
+    projectSelect(event.target, false);
+}
+
+function projectRegionOnBlur(event) {    
     const projectRegion = event.target;
     const projectName = projectRegion.innerText;
     if ( projectName == projectRegion.dataset.savedtext) {
@@ -274,11 +286,7 @@ function projectRegionOnBlur(event) {
         };
 
     appEvent.send(JSON.stringify(eventMessage));
-}
-
-function projectRegionOnClick(event) {
-    const projectRegion = event.target;
-    projectSelect(projectRegion, false);
+    
 }
 
 function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
@@ -295,7 +303,7 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
     taskListFetch(projectRegion.id);
     projectRegion.focus();
-    setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition)
+    setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
 }
 
 function projectAddOnEvent(project) {
@@ -632,10 +640,11 @@ function groupAdd(group, prevGroupId) {
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
     groupHeader.innerText = group.name;
-    groupHeader.onclick = groupHeaderOnClick;
+    //groupHeader.onclick = groupHeaderOnClick;
     groupHeader.contentEditable = true;
     groupHeader.dataset.savedtext = group.name;    
-    groupHeader.addEventListener("blur", groupHeaderBlur);    
+    groupHeader.addEventListener("focus", groupHeaderOnFocus);   
+    groupHeader.addEventListener("blur", groupHeaderOnBlur);    
     groupHeader.addEventListener('keydown', groupHeaderOnKeyDown);
     groupRegion.append(groupHeader);
 
@@ -715,7 +724,12 @@ function groupHeaderOnKeyDown(event) {
     }
 }
 
-function groupHeaderBlur(event){
+function groupHeaderOnFocus(event) {
+    const groupHeaderRegion = event.target;
+    groupSelect(groupHeaderRegion, false);
+}
+
+function groupHeaderOnBlur(event){
     const groupHeaderRegion = event.target;
     if(groupHeaderRegion.innerText == groupHeaderRegion.dataset.savedtext) {
         return;
@@ -747,10 +761,6 @@ function groupHeaderBlur(event){
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-function groupHeaderOnClick(event) {
-    const groupHeaderRegion = event.target;
-    groupSelect(groupHeaderRegion, false);
-}
 
 function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
 
@@ -1615,3 +1625,101 @@ function taskStatusSet (taskId, taskStatus) {
     appEvent.send(JSON.stringify(eventMessage));
 }
 
+function persistState() {
+    const selectedProjectId = document.querySelector(".project-region-selected").id;
+    localStorage.setItem("selected-project-id", selectedProjectId);
+    const focusedElement = document.activeElement;
+    let focusedElementInfo = null;
+    let selection = null;
+    switch(true) {
+        case focusedElement.classList.contains("project-region"): 
+        case focusedElement.classList.contains("project-region-selected"):
+            selection = getEditableSelection(focusedElement);
+            focusedElementInfo = {type:"project", id:focusedElement.id, text:focusedElement.innerText, selStart:selection.start, selEnd:selection.end};
+            break;
+        case focusedElement.classList.contains("group-input"):
+            focusedElementInfo = {type:"group-input", id:"", text: focusedElement.value, selStart:focusedElement.selectionStart, selEnd:focusedElement.selectionEnd};
+            break;
+        case focusedElement.classList.contains("group-header-region"):
+        case focusedElement.classList.contains("group-header-region-selected"):
+            selection = getEditableSelection(focusedElement);
+            focusedElementInfo = {type:"group", id:focusedElement.parentElement.id, text:focusedElement.innerText, selStart:selection.start, selEnd:selection.end};
+            break;
+        case focusedElement.classList.contains("task-input"):
+            focusedElementInfo = {type:"task-input", id:focusedElement.parentElement.parentElement.id, text:focusedElement.value, selStart:focusedElement.selectionStart, selEnd:focusedElement.selectionEnd};
+            break;
+        case focusedElement.classList.contains("task-inline-input"):
+            focusedElementInfo = {type:"task-inline-input", id:focusedElement.parentElement.id, text:focusedElement.value, selStart:focusedElement.selectionStart, selEnd:focusedElement.selectionEnd};
+            break;        
+    }
+    if (focusedElementInfo != null) {
+        localStorage.setItem("focused-element", JSON.stringify(focusedElementInfo));
+    } else {
+        localStorage.removeItem("focused-element");
+    }
+    localStorage.setItem('scroll-position', window.scrollY);
+}
+
+function applyPersistedState() {
+    const selectedProjectId = localStorage.getItem("selected-project-id");
+    const focusedElementInfo = JSON.parse(localStorage.getItem("focused-element"));
+    if (selectedProjectId != null) {
+        const selectedProjectRegion = document.getElementById(selectedProjectId);
+        if (selectedProjectRegion != null) {
+            projectSelect(selectedProjectRegion);
+        }
+    }
+
+    if (focusedElementInfo) {
+        setTimeout(() => {
+            let groupRegion = null;
+
+            switch(true) {
+                case focusedElementInfo.type == "project":
+                    const projectRegion = document.getElementById(focusedElementInfo.id);
+                    projectRegion?.focus();
+                    if (projectRegion) {
+                        projectRegion.innerText = focusedElementInfo.text;
+                        setContentEditableSelection(projectRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
+                case focusedElementInfo.type == "group-input":
+                    document.querySelector(".group-input").focus();
+                    document.querySelector(".group-input").value = focusedElementInfo.text;
+                    document.querySelector(".group-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    break;
+                case focusedElementInfo.type == "group":
+                    groupRegion = document.getElementById(focusedElementInfo.id);
+                    if (groupRegion != null) {
+                        groupHeaderRegion = groupRegion.querySelector(".group-header-region,.group-header-region-selected");
+                        groupSelect(groupHeaderRegion);
+                        groupHeaderRegion.innerText = focusedElementInfo.text;
+                        setContentEditableSelection (groupHeaderRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
+                case focusedElementInfo.type == "task-input":
+                    groupRegion = document.getElementById(focusedElementInfo.id);
+                    if (groupRegion) {
+                        groupRegion.querySelector(".task-input").focus();
+                        groupRegion.querySelector(".task-input").value = focusedElementInfo.text;
+                        groupRegion.querySelector(".task-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
+                case focusedElementInfo.type == "task-inline-input":
+                    taskRegion = document.getElementById(focusedElementInfo.id);
+                    if (taskRegion) {
+                        taskInlineInputActivate(taskRegion);                    
+                        taskRegion.querySelector(".task-inline-input").value = focusedElementInfo.text;
+                        taskRegion.querySelector(".task-inline-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);                    
+                    }
+                    break;
+            }
+
+            const savedPosition = localStorage.getItem('scroll-position');
+            if (savedPosition) {
+                window.scrollTo(0, parseInt(savedPosition));
+                localStorage.removeItem('scroll-position');
+            }
+        }, 50);
+    }
+}

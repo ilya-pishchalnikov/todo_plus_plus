@@ -148,6 +148,8 @@ body {
     display: inline-block;
     align-items: center;
     min-width: 30px;
+    white-space: pre-wrap;
+    user-select: text;
   }
   
   .project-region:hover {
@@ -161,6 +163,8 @@ body {
     display: inline-block;
     align-items: center;
     min-width: 30px;
+    white-space: pre-wrap;
+    user-select: text;
   }
   .project-region-selected:hover {
     background: darkred;
