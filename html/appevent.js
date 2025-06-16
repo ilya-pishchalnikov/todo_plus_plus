@@ -92,7 +92,6 @@ class AppEvent {
     async resendEvents() {
         await this.store.init();
         const events = await this.store.getEventsSince("0");
-        logger.log("resendEvents", events.length)
         events.forEach(event => {this.eventSocket.send(event.data);});
         await this.store.clearEventStore();
     }
