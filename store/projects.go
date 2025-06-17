@@ -8,7 +8,7 @@ import (
 type Project struct {
 	ProjectId string `json:"id"`
 	Name      string `json:"name"`
-	Sequence  int
+	Sequence  int    `json:"sequence"`
 	UserId    string `json:"userid"`
 }
 

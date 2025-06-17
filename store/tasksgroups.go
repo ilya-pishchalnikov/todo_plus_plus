@@ -8,7 +8,7 @@ import (
 type TaskGroup struct {
 	TaskGroupId string `json:"id"`
 	Name        string `json:"name"`
-	Sequence    int    //`json:"sequence"`
+	Sequence    int    `json:"sequence"`
 	ProjectId   string `json:"projectid"`
 	Tasks       []Task `json:"tasks"`
 }
@@ -117,4 +117,28 @@ func DeleteTaskGroup(db *sql.DB, taskGroupId string) error {
 	}
 
 	return nil
+}
+
+func GetTaskGroupsByUser(db *sql.DB, userId string) ([]TaskGroup, error) {
+	rows, err := db.Query(`
+		SELECT g.task_group_id, g.name, g.sequence, g.project_id
+		FROM task_group g
+		INNER JOIN project p on p.project_id = g.project_id
+		WHERE p.user_id = ?
+		`, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var taskGroups []TaskGroup
+	for rows.Next() {
+		var taskGroup TaskGroup
+		err = rows.Scan(&taskGroup.TaskGroupId, &taskGroup.Name, &taskGroup.Sequence, &taskGroup.ProjectId)
+		if err != nil {
+			return nil, err
+		}
+		taskGroups = append(taskGroups, taskGroup)
+	}
+	return taskGroups, nil
 }

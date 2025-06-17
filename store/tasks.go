@@ -9,7 +9,7 @@ import (
 type Task struct {
 	TaskId       string `json:"id"`
 	Name         string `json:"text"`
-	Sequence     int    //`json:"sequence"`
+	Sequence     int    `json:"sequence"`
 	TaskStatusId int    `json:"status"`
 	TaskGroupId  string `json:"group"`
 }
@@ -122,6 +122,32 @@ func GetTasksByGroup(db *sql.DB, groupId string) ([]Task, error) {
 	for rows.Next() {
 		var task Task
 		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
+func GetTasksByUser(db *sql.DB, userId string) ([]Task, error) {
+	rows, err := db.Query(`
+		SELECT t.task_id, t.name, t.task_group_id, t.task_status_id, t.sequence
+		FROM task t 
+		INNER JOIN task_group g ON g.task_group_id = t.task_group_id
+		INNER JOIN project p ON p.project_id = g.project_id
+		WHERE p.user_id = ?
+		`, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []Task
+	for rows.Next() {
+		var task Task
+		err = rows.Scan(&task.TaskId, &task.Name, &task.TaskGroupId, &task.TaskStatusId, &task.Sequence)
 		if err != nil {
 			return nil, err
 		}

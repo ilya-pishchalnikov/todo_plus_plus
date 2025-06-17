@@ -109,7 +109,7 @@ class IndexedDBEventStore {
     async clearEventStore() {
         const storeName = "events";
         return new Promise((resolve, reject) => {
-          const request = indexedDB.open('EventStore');
+          const request = indexedDB.open(this.databaseName);
           
           request.onsuccess = (event) => {
             const db = event.target.result;

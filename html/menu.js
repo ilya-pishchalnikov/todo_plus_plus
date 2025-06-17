@@ -79,6 +79,9 @@ class Menu {
 
     setOnlineIndicator(isOnline = false) {
         const onlineIndicator = document.querySelector(".online-indicator-region");
+        if (onlineIndicator == null) {
+            return;
+        }
         if (isOnline) {
             onlineIndicator.textContent = "🟢";
         } else {

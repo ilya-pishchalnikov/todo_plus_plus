@@ -1,9 +1,8 @@
-
-//let taskListJson = ""; // previous task list json for optimization reasons
 const instanceGuid = guid();
 const appEvent = new AppEvent();
 const menu = new Menu()
 const popup = new Popup();
+const store = new IndexedDBDataStore("DataStore", 5);
 
 menu.checkConnection = checkConnection;
 
@@ -22,34 +21,46 @@ appEvent.onTaskUpdate = taskUpdateOnEvent;
 appEvent.onConnect = onConnect;
 appEvent.onDisconnect = onDisconnect;
 
+// rennew JWT token
 setInterval(() => renewToken(), 3600000); //hourly
-renewToken();
-projectsFetch();
 
 //persist state
 setInterval(persistState, 1000);
-window.addEventListener('beforeunload', persistState);
+window.addEventListener("beforeunload", persistState);
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-        .then(() => console.log('Service Worker Registered'))
-        .catch(err => console.log('Registration Failed:', err));
+
+renewToken();
+// Fetch complete user data
+allUserDataFetch();
+// apply fetched data
+userDataApply();
+
+
+//register service worker
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js");
+    });
 }
 
-// Fetches task list from the server 
-function taskListFetch(projectId) {
-    fetch(`/api/task_list?project_id=${projectId}&json_format=grouped`, {
-        method: 'GET',
+/**
+ * Fetches complete user data from the server and persists it in IndexedDB.
+ * 
+ * Retrieves the user"s full dataset including projects, groups, and tasks by making a GET request
+ * to the "/api/all_user_data" endpoint. The response data is then stored in IndexedDB for offline use.
+ */
+function allUserDataFetch() {
+    fetch("/api/all_user_data", {
+        method: "GET",
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getCookieByName("jwtToken")
         }
-    }
-    )
+    })
         .then(response => {
             if (response.status === 401) {
                 logger.error("Unauthorized - Redirect to login");
-                window.location.href = '/login.html';
+                window.location.href = "/login.html";
                 return Promise.reject("Unauthorized");
             } if (!response.ok) {
                 return response.text().then(text => {
@@ -59,27 +70,40 @@ function taskListFetch(projectId) {
                 return response.json();
             }
         })
-        .then(taskList => {
-            taskListPopulate(taskList);
-        })
+        .then(allData => {
+                store.insertProjects(allData.projects);
+                store.insertTaskGroups(allData.groups);
+                store.insertTasks(allData.tasks);
+            }
+        )
         .catch(error => logger.error(error));
+}
+
+// Fetches task list from the server 
+function taskListApply(projectId) {
+
+    store.getTaskGroupsByProjectId(projectId)
+    .then(taskList => {
+        taskListPopulate(taskList);
+    })
+    .catch(error => logger.error(error));
 }
 
 function taskListPopulate(taskList) {
     const taskListRegion = document.getElementById("groups-region");
     taskListRegion.innerHTML = "";
-    groupInputRegion = document.createElement("div");
+    const groupInputRegion = document.createElement("div");
     groupInputRegion.className = "group-input-region";
     groupInputRegion.id = "group-input-region";
     taskListRegion.append(groupInputRegion);
 
-    groupInput = document.createElement("input");
+    const groupInput = document.createElement("input");
     groupInput.className = "group-input";
     groupInput.id = "group-input";
     groupInput.placeholder = "New task group";
     groupInput.setAttribute("autocomplete", "off");
-    groupInput.addEventListener('focus', groupInputOnFocus);
-    groupInput.addEventListener('keydown', groupInputOnKeyDown);
+    groupInput.addEventListener("focus", groupInputOnFocus);
+    groupInput.addEventListener("keydown", groupInputOnKeyDown);
     groupInputRegion.append(groupInput);
 
     const groupListRegion = document.createElement("div");
@@ -99,18 +123,24 @@ function taskListPopulate(taskList) {
     }
 }
 
+/**
+ * Renews the current JWT authentication token by making a request to the server"s token renewal endpoint.
+ * 
+ * Makes a POST request to "/api/token_renew" with the current valid token in the Authorization header.
+ * On success, updates the application"s stored token with the new one received in the response.
+ */
 function renewToken() {
-    fetch('/api/token_renew', {
-        method: 'GET',
+    fetch("/api/token_renew", {
+        method: "GET",
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getCookieByName("jwtToken")
         }
     })
         .then(response => {
             if (response.status === 401) {
                 logger.error("Unauthorized - Redirect to login");
-                window.location.href = '/login.html';
+                window.location.href = "/login.html";
                 return Promise.reject("Unauthorized");
             } if (!response.ok) {
                 return response.text().then(text => {
@@ -121,35 +151,25 @@ function renewToken() {
             }
         })
         .then(tokenString => {
-            setCookie("jwtToken", tokenString, {})
+            if (tokenString) {
+                setCookie("jwtToken", tokenString, {})
+            }
         })
         .catch(error => logger.error(error));
 }
 
-function projectsFetch() {
-    fetch('/api/projects', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
-        }
-    })
-        .then(response => {
-            if (response.status === 401) {
-                logger.error("Unauthorized - Redirect to login");
-                window.location.href = '/login.html';
-                return Promise.reject("Unauthorized");
-            } if (!response.ok) {
-                return response.text().then(text => {
-                    return Promise.reject(text); // Properly reject with the error text
-                });
-            } else {
-                return response.json();
-            }
-        })
-        .then(projects => {
-            //projects = JSON.parse(json);
-            prevProjectId = null;
+/**
+ * Updates the UI to reflect the current application state by rendering data from IndexedDB.
+ * 
+ * This method performs the following operations:
+ * 1. Retrieves the latest data from IndexedDB
+ * 2. Transforms the data into UI-compatible format
+ * 3. Updates all relevant UI components (projects, tasks, etc.)
+ */
+function userDataApply() {
+    store.getProjects()
+        .then(projects => {            
+            let prevProjectId = null;
             const projectsRegion = document.getElementById("projects-region");
             projectsRegion.innerHTML = "";
             projectsRegion.innerText = "Projects: "
@@ -178,7 +198,6 @@ function projectsFetch() {
             }, 50);
         })
         .catch(error => logger.error(error));
-
 }
 
 function projectAdd(projectId, projectName, previousProjectId) {
@@ -193,11 +212,11 @@ function projectAdd(projectId, projectName, previousProjectId) {
     projectRegion.contentEditable = "true";
     projectRegion.dataset.savedtext = projectName;
     projectRegion.draggable = true;
-    projectRegion.addEventListener('keydown', projectRegionOnKeyDown);
-    projectRegion.addEventListener('focus', projectRegionOnFocus);
-    projectRegion.addEventListener('blur', projectRegionOnBlur);
-    projectRegion.addEventListener('dragstart', projectDragStart)
-    projectRegion.addEventListener('dragend', projectDragEnd)
+    projectRegion.addEventListener("keydown", projectRegionOnKeyDown);
+    projectRegion.addEventListener("focus", projectRegionOnFocus);
+    projectRegion.addEventListener("blur", projectRegionOnBlur);
+    projectRegion.addEventListener("dragstart", projectDragStart)
+    projectRegion.addEventListener("dragend", projectDragEnd)
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -227,7 +246,7 @@ function projectRegionOnKeyDown(event) {
             projectMoveLeft(selectedProjectRegion);
             event.preventDefault()
             break;
-        case event.key === 'Enter':
+        case event.key === "Enter":
             const groupInput = document.getElementById("group-input");
             groupInput.focus();
             event.preventDefault();
@@ -261,7 +280,7 @@ function projectRegionOnKeyDown(event) {
             }
             break;
         case event.key === "ArrowDown":
-            const newGroupInput = document.getElementById('group-input');
+            const newGroupInput = document.getElementById("group-input");
             newGroupInput.focus();
             event.preventDefault();
             break;
@@ -312,7 +331,7 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
     menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
     menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
-    taskListFetch(projectRegion.id);
+    taskListApply(projectRegion.id);
     projectRegion.focus();
     setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
 }
@@ -336,7 +355,7 @@ function projectRemoveOnEvent(project) {
         } else {
             let projectName = prompt("Project name:", "");
             while (projectName == null || projectName == "") {
-                alert('Working without any projects is prohibited');
+                alert("Working without any projects is prohibited");
                 projectName = prompt("Project name:", "");
             }
             const projectId = guid();
@@ -547,14 +566,14 @@ function groupInputOnKeyDown(event) {
         firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region-selected");
     }
     switch (true) {
-        case event.key === 'Enter':
+        case event.key === "Enter":
             groupNewAddOnClick();
             break;
-        case event.key === 'ArrowUp':
+        case event.key === "ArrowUp":
             projectSelect(projectSelectedRegion, false);
             event.preventDefault();
             break;
-        case event.key === 'ArrowDown':
+        case event.key === "ArrowDown":
             if (firstGroupRegion == null) {
                 return;
             }
@@ -645,8 +664,8 @@ function groupAdd(group, prevGroupId) {
         groupListRegion.prepend(groupRegion);
     }
 
-    groupRegion.addEventListener('dragstart', groupDragStart)
-    groupRegion.addEventListener('dragend', groupDragEnd)
+    groupRegion.addEventListener("dragstart", groupDragStart)
+    groupRegion.addEventListener("dragend", groupDragEnd)
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
@@ -656,7 +675,7 @@ function groupAdd(group, prevGroupId) {
     groupHeader.dataset.savedtext = group.name;
     groupHeader.addEventListener("focus", groupHeaderOnFocus);
     groupHeader.addEventListener("blur", groupHeaderOnBlur);
-    groupHeader.addEventListener('keydown', groupHeaderOnKeyDown);
+    groupHeader.addEventListener("keydown", groupHeaderOnKeyDown);
     groupRegion.append(groupHeader);
 
     const taskListRegion = document.createElement("div");
@@ -675,16 +694,20 @@ function groupAdd(group, prevGroupId) {
     taskInput.dataset.groupid = group.id
     taskInput.onfocus = taskInputOnFocus;
 
-    taskInput.addEventListener('keydown', taskInputOnKeyDown);
+    taskInput.addEventListener("keydown", taskInputOnKeyDown);
     taskInput.addEventListener("input", textAreaAutoResize);
     taskInputRegion.append(taskInput);
 
-    const tasks = group.tasks;
-    if (tasks != null) {
-        tasks.forEach(task => {
-            taskAdd(task);
-        })
-    }
+    store.getTasksByGroupId(group.id)
+    .then(tasks => {
+        if (tasks != null) {
+            tasks.forEach(task => {
+                taskAdd(task);
+            })
+        }
+    })
+    .catch(error => logger.error(error));
+
     return groupRegion;
 }
 
@@ -695,7 +718,7 @@ function groupHeaderOnKeyDown(event) {
     const taskListRegion = groupRegion.querySelector(".task-list-region");
     const taskFirstRegion = taskListRegion.firstElementChild;
     switch (true) {
-        case event.key === 'Enter':
+        case event.key === "Enter":
             event.preventDefault();
             if (taskFirstRegion == null) {
                 const taskInput = groupRegion.querySelector(".task-input");
@@ -1038,7 +1061,7 @@ function taskUpdateOnEvent(task) {
 
     taskRegion.dataset.status = task.status;
 
-    taskStatusIcon = taskRegion.querySelector(".task-status-img");
+    const taskStatusIcon = taskRegion.querySelector(".task-status-img");
     switch (true) {
         case task.status == 1:
             taskStatusIcon.src = "/html/img/todo.svg";
@@ -1084,7 +1107,7 @@ function taskAdd(task) {
         prevTaskRegion = document.getElementById(prevTaskRegionId);
     }
 
-    taskRegion = document.createElement("div");
+    const taskRegion = document.createElement("div");
     taskRegion.className = "task-region";
     taskRegion.id = task.id;
     taskRegion.dataset.status = task.status;
@@ -1104,7 +1127,7 @@ function taskAdd(task) {
     }
     taskRegion.onclick = taskRegionOnClick;
 
-    taskStatusIcon = document.createElement("img");
+    const taskStatusIcon = document.createElement("img");
     switch (true) {
         case task.status == 1:
             taskStatusIcon.src = "/html/img/todo.svg";
@@ -1133,13 +1156,13 @@ function taskAdd(task) {
     taskStatusIcon.onclick = taskStatusImgOnClick;
     taskRegion.appendChild(taskStatusIcon);
 
-    taskPre = document.createElement("pre");
+    const taskPre = document.createElement("pre");
     taskPre.className = "task-pre";
     taskPre.innerText = task.text;
     taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
-    taskRegion.addEventListener('dragstart', taskDragStart)
-    taskRegion.addEventListener('dragend', taskDragEnd)
+    taskRegion.addEventListener("dragstart", taskDragStart)
+    taskRegion.addEventListener("dragend", taskDragEnd)
 
     if (prevTaskRegion != null) {
         prevTaskRegion.after(taskRegion);
@@ -1218,11 +1241,11 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
 
     const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
 
-    taskStatus = taskRegion.dataset.status;
+    const taskStatus = taskRegion.dataset.status;
 
     taskRegion.innerHTML = "";
 
-    taskStatusIcon = document.createElement("img");
+    const taskStatusIcon = document.createElement("img");
     switch (true) {
         case taskStatus == 1:
             taskStatusIcon.src = "/html/img/todo.svg";
@@ -1257,10 +1280,10 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     taskInlineInput.wrap = "hard";
     taskInlineInput.value = taskText;
     taskInlineInput.addEventListener("input", textAreaAutoResize);
-    taskInlineInput.addEventListener('keydown', taskInlineInputOnKeyDown);
+    taskInlineInput.addEventListener("keydown", taskInlineInputOnKeyDown);
     taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
     taskRegion.append(taskInlineInput);
-    taskInlineInput.style.height = '1px';
+    taskInlineInput.style.height = "1px";
     taskInlineInput.style.height = `${taskInlineInput.scrollHeight - 20}px`
     taskInlineInput.focus();
     if (isSetCursorFirstPosition) {
@@ -1297,7 +1320,7 @@ function taskInlineInputOnBlur(event) {
         prevTaskId = prevTaskRegion.id;
     }
     taskRegion.innerHTML = "";
-    taskStatusIcon = document.createElement("img");
+    const taskStatusIcon = document.createElement("img");
 
     switch (true) {
         case taskStatus == 1:
@@ -1326,7 +1349,7 @@ function taskInlineInputOnBlur(event) {
     taskStatusIcon.className = "task-status-img";
     taskStatusIcon.onclick = taskStatusImgOnClick;
     taskRegion.append(taskStatusIcon);
-    taskPre = document.createElement("pre");
+    const taskPre = document.createElement("pre");
     taskPre.className = "task-pre";
     taskPre.innerText = taskText;
     taskRegion.appendChild(taskPre);
@@ -1351,7 +1374,7 @@ function taskInputOnKeyDown(event) {
     const taskInput = event.target;
     const groupRegion = taskInput.parentElement.parentElement;
     switch (true) {
-        case event.key === 'Enter' && !event.shiftKey:
+        case event.key === "Enter" && !event.shiftKey:
             taskNewAdd(taskInput);
             event.preventDefault();
             break
@@ -1394,7 +1417,7 @@ function taskInlineInputOnKeyDown(event) {
             taskMoveUp(taskRegion);
             event.preventDefault();
             break;
-        case (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight") && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
+        case (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight") && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
 
             if (nextTaskRegion != null) {
                 taskInlineInputActivate(nextTaskRegion, true);
@@ -1668,7 +1691,7 @@ function persistState() {
     } else {
         localStorage.removeItem("focused-element");
     }
-    localStorage.setItem('scroll-position', window.scrollY);
+    localStorage.setItem("scroll-position", window.scrollY);
 }
 
 function applyPersistedState() {
@@ -1726,10 +1749,10 @@ function applyPersistedState() {
                     break;
             }
 
-            const savedPosition = localStorage.getItem('scroll-position');
+            const savedPosition = localStorage.getItem("scroll-position");
             if (savedPosition) {
                 window.scrollTo(0, parseInt(savedPosition));
-                localStorage.removeItem('scroll-position');
+                localStorage.removeItem("scroll-position");
             }
         }, 50);
     }

@@ -27,6 +27,7 @@ func StartServer(port string, cert string, certKey string) error {
 	mux.HandleFunc("/api/login", loginHandle)
 	mux.HandleFunc("/api/token_renew", tokenRenewHandler)
 	mux.HandleFunc("/api/projects", projectHandler)
+	mux.HandleFunc("/api/all_user_data", allDataHandler)
 
 	mux.HandleFunc("/ws", handleEventConnections)
 	//mux.HandleFunc("/ws", handleEventConnections)
