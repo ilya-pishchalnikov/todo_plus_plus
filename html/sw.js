@@ -1,5 +1,5 @@
 // sw.js - Service Worker
-const CACHE_NAME = "todopp-offline-cache-v1.0.26";
+const CACHE_NAME = "todopp-offline-cache-v1.0.39";
 const OFFLINE_URL = "/index.html";
 const URLS_TO_CACHE = [
     "/"
@@ -8,6 +8,7 @@ const URLS_TO_CACHE = [
     , "/dragndrop.js"
     , "/eventstore.js"
     , "/favicon.ico"
+    , "/globals.js"
     , "/index.html"
     , "/logger.js"
     , "/login.html"
@@ -24,8 +25,6 @@ const URLS_TO_CACHE = [
     , "/img/question.svg"
     , "/img/todo.svg"
 ];
-
-console.log("Service Worker version:", CACHE_NAME);
 
 // Install - Cache essential files
 self.addEventListener("install", (event) => {

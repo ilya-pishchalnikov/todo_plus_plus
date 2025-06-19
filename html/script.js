@@ -1,5 +1,5 @@
-const instanceGuid = guid();
-const appEvent = new AppEvent();
+
+
 const menu = new Menu()
 const popup = new Popup();
 const store = new IndexedDBDataStore("DataStore", 5);
@@ -35,7 +35,6 @@ allUserDataFetch();
 // apply fetched data
 userDataApply();
 
-
 //register service worker
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -48,6 +47,7 @@ if ("serviceWorker" in navigator) {
  * 
  * Retrieves the user"s full dataset including projects, groups, and tasks by making a GET request
  * to the "/api/all_user_data" endpoint. The response data is then stored in IndexedDB for offline use.
+ * @returns {void}  
  */
 function allUserDataFetch() {
     fetch("/api/all_user_data", {
@@ -71,6 +71,7 @@ function allUserDataFetch() {
             }
         })
         .then(allData => {
+                store.clean();
                 store.insertProjects(allData.projects);
                 store.insertTaskGroups(allData.groups);
                 store.insertTasks(allData.tasks);
@@ -79,7 +80,16 @@ function allUserDataFetch() {
         .catch(error => logger.error(error));
 }
 
-// Fetches task list from the server 
+/**
+ * Fetches and displays a project's tasks and groups from IndexedDB.
+ * 
+ * Retrieves persisted task and group data for the specified project by calling 
+ * `store.getTaskGroupsByProjectId()`, then renders them in the UI using 
+ * the `taskListPopulate()` function.
+ * 
+ * @param {string} projectId - The ID of the project to fetch data for
+ * @returns {void}  
+ */
 function taskListApply(projectId) {
 
     store.getTaskGroupsByProjectId(projectId)
@@ -89,6 +99,17 @@ function taskListApply(projectId) {
     .catch(error => logger.error(error));
 }
 
+/**
+ * Renders a task list with groups and tasks in the UI.
+ * 
+ * Creates DOM elements for the task list, processes each group, and renders them
+ * using the `groupAdd` function. Tasks within each group are displayed accordingly.
+ * 
+ * @param {Object} taskList - Contains tasks and groups data in the format:  
+ *   `{ groups: Array<Group>, tasks: Array<Task> }`  
+ * @returns {void}  
+ * @sideeffects Modifies the DOM by adding task and group elements  
+ */
 function taskListPopulate(taskList) {
     const taskListRegion = document.getElementById("groups-region");
     taskListRegion.innerHTML = "";
@@ -124,10 +145,14 @@ function taskListPopulate(taskList) {
 }
 
 /**
- * Renews the current JWT authentication token by making a request to the server"s token renewal endpoint.
+ * Renews the JWT authentication token before expiration by requesting a new one from the server.
  * 
- * Makes a POST request to "/api/token_renew" with the current valid token in the Authorization header.
- * On success, updates the application"s stored token with the new one received in the response.
+ * - Sends a GET request to `/api/token_renew` with the current valid token in the `Authorization` header
+ * - On success:
+ *   - Sets the new token in an HTTP-only cookie for subsequent requests
+ * @returns {void}  
+ * @sideeffects 
+ *   - Updates `jwtToken` cookie with new token
  */
 function renewToken() {
     fetch("/api/token_renew", {
@@ -151,20 +176,32 @@ function renewToken() {
             }
         })
         .then(tokenString => {
-            if (tokenString) {
-                setCookie("jwtToken", tokenString, {})
+            if (/^[a-zA-Z0-9.\-_]+$/.test(tokenString)) {
+                setCookie("jwtToken", tokenString, {});
             }
         })
         .catch(error => logger.error(error));
 }
 
 /**
- * Updates the UI to reflect the current application state by rendering data from IndexedDB.
+ * Synchronizes the UI with the latest application state from IndexedDB.
  * 
- * This method performs the following operations:
- * 1. Retrieves the latest data from IndexedDB
- * 2. Transforms the data into UI-compatible format
- * 3. Updates all relevant UI components (projects, tasks, etc.)
+ * Performs a complete UI refresh by:
+ * 1. Fetching current data from IndexedDB (projects, tasks, and groups)
+ * 2. Normalizing data for UI consumption
+ * 3. Re-rendering all affected components
+ * 4. Restoring saved UI state
+ * 
+ * Implementation Flow:
+ * - Calls `store.getProjects()` to retrieve all projects
+ * - For each project:
+ *   - Invokes `projectAdd()` to render the project container
+ *   - Fetches and renders associated groups/tasks
+ * - Applies saved UI state via `applyPersistedState()`
+ * 
+ * @returns {void}
+ * @sideeffects
+ *   - Modifies DOM by re-rendering all project elements
  */
 function userDataApply() {
     store.getProjects()
@@ -299,10 +336,7 @@ function projectRegionOnBlur(event) {
     }
     const projectId = projectRegion.id;
     const prevProjectRegion = projectRegion.previousElementSibling;
-    let prevProjectId = null;
-    if (prevProjectRegion != null) {
-        prevProjectId = prevProjectRegion;
-    }
+    let prevProjectId = prevProjectRegion?.id;
 
     const eventMessage = {
         "type": "project-update",
@@ -336,9 +370,17 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
 }
 
+/**
+ * Adds project into UI by receiving project-add WebSocket event.
+ * 
+ * @returns {void} Resolves when the UI update completes
+ * @sideeffects
+ *   - Modifies DOM by re-rendering project element
+ */
 function projectAddOnEvent(project) {
     const projectRegion = projectAdd(project.id, project.name, project.after);
     projectSelect(projectRegion, false);
+    store.upsertProject(project);
 }
 
 function projectRemoveOnEvent(project) {
@@ -374,6 +416,7 @@ function projectRemoveOnEvent(project) {
         }
 
     }
+    store.delete("project", project.id);
 }
 
 function projectUpdateOnEvent(project) {
@@ -402,6 +445,8 @@ function projectUpdateOnEvent(project) {
     if (isProjectRegionFocused) {
         projectRegion.focus();
     }
+    
+    store.upsertProject(project);
 }
 
 function projectAddOnClick(event) {
@@ -561,7 +606,7 @@ function groupInputOnKeyDown(event) {
     const projectSelectedRegion = document.querySelector(".project-region-selected");
     const groupListRegion = document.getElementById("group-list-region");
     const firstGroupRegion = groupListRegion.firstElementChild;
-    let firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region");
+    let firstGroupHeaderRegion = firstGroupRegion?.querySelector(".group-header-region");
     if (firstGroupHeaderRegion == null) {
         firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region-selected");
     }
@@ -617,7 +662,7 @@ function groupNewAddOnClick(event) {
         "payload": {
             "name": groupName,
             "id": guid(),
-            "project-id": projectId,
+            "projectid": projectId,
             "after": null
         }
     };
@@ -629,6 +674,7 @@ function groupNewAddOnClick(event) {
 
 function groupAddOnEvent(group) {
     const groupRegion = groupAdd(group, group.after);
+    store.upsertGroup(group);
 }
 
 function groupUpdateOnEvent(group) {
@@ -640,7 +686,7 @@ function groupUpdateOnEvent(group) {
     const isFocused = (groupHeaderRegion == document.activeElement);
     groupHeaderRegion.innerText = group.name;
     if (group.after != null && group.after != "") {
-        prevGroupRegion = document.getElementById(group.after)
+        const prevGroupRegion = document.getElementById(group.after)
         prevGroupRegion.after(groupRegion);
     } else {
         const groupListRegion = groupRegion.parentElement;
@@ -649,6 +695,7 @@ function groupUpdateOnEvent(group) {
     if (isFocused) {
         groupHeaderRegion.focus();
     }
+    store.upsertGroup(group);
 }
 
 function groupAdd(group, prevGroupId) {
@@ -670,7 +717,6 @@ function groupAdd(group, prevGroupId) {
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
     groupHeader.innerText = group.name;
-    //groupHeader.onclick = groupHeaderOnClick;
     groupHeader.contentEditable = true;
     groupHeader.dataset.savedtext = group.name;
     groupHeader.addEventListener("focus", groupHeaderOnFocus);
@@ -787,7 +833,7 @@ function groupHeaderOnBlur(event) {
         "payload": {
             "name": groupName,
             "id": groupId,
-            "project-id": projectId,
+            "projectid": projectId,
             "after": prevGroupId
         }
     };
@@ -844,7 +890,7 @@ function groupAddOnClick(event) {
         "payload": {
             "name": groupName,
             "id": guid(),
-            "project-id": projectId,
+            "projectid": projectId,
             "after": prevGroupId
         }
     };
@@ -880,7 +926,7 @@ function groupRemoveOnClick(event) {
         "payload": {
             "name": groupName,
             "id": groupId,
-            "project-id": projectId,
+            "projectid": projectId,
             "after": prevGroupId
         }
     };
@@ -890,7 +936,8 @@ function groupRemoveOnClick(event) {
 
 function groupRemoveOnEvent(group) {
     const groupRegion = document.getElementById(group.id)
-    groupRegion.remove();
+    groupRegion.remove();    
+    store.delete("task_group", group.id);
 }
 
 function groupUpOnClick(event) {
@@ -927,7 +974,7 @@ function groupMoveUp(groupRegion) {
         "payload": {
             "name": groupName,
             "id": groupId,
-            "project-id": projectId,
+            "projectid": projectId,
             "after": prevPrevGroupId
         }
     };
@@ -965,7 +1012,7 @@ function groupMoveDown(groupRegion) {
         "payload": {
             "name": groupName,
             "id": groupId,
-            "project-id": projectId,
+            "projectid": projectId,
             "after": nextGroupId
         }
     };
@@ -1037,6 +1084,7 @@ function taskNewAdd(taskInput) {
 
 function taskAddOnEvent(task) {
     taskAdd(task);
+    store.upsertTask(task);
 }
 
 function taskUpdateOnEvent(task) {
@@ -1097,9 +1145,14 @@ function taskUpdateOnEvent(task) {
     }
 
     ensureVisible(taskRegion);
+
+    store.upsertTask(task);
 }
 
 function taskAdd(task) {
+    if (document.getElementById(task.id)) {
+        return;
+    }
     const prevTaskRegionId = task.after;
     let prevTaskRegion = null;
 
@@ -1486,7 +1539,7 @@ function taskRemove(taskId) {
             "text": taskText,
             "id": taskId,
             "group": groupId,
-            "status": 1, // todo
+            "status": "1", // todo
             "after": prevTaskId
         }
     };
@@ -1497,6 +1550,8 @@ function taskRemove(taskId) {
 function taskOnDeleteEvent(task) {
     const taskRegion = document.getElementById(task.id);
     taskRegion.remove();
+    
+    store.delete("task", task.id);
 }
 
 function taskUpOnClick(event) {
@@ -1725,7 +1780,7 @@ function applyPersistedState() {
                 case focusedElementInfo.type == "group":
                     groupRegion = document.getElementById(focusedElementInfo.id);
                     if (groupRegion != null) {
-                        groupHeaderRegion = groupRegion.querySelector(".group-header-region,.group-header-region-selected");
+                        const groupHeaderRegion = groupRegion.querySelector(".group-header-region,.group-header-region-selected");
                         groupSelect(groupHeaderRegion);
                         groupHeaderRegion.innerText = focusedElementInfo.text;
                         setContentEditableSelection(groupHeaderRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
@@ -1740,7 +1795,7 @@ function applyPersistedState() {
                     }
                     break;
                 case focusedElementInfo.type == "task-inline-input":
-                    taskRegion = document.getElementById(focusedElementInfo.id);
+                    const taskRegion = document.getElementById(focusedElementInfo.id);
                     if (taskRegion) {
                         taskInlineInputActivate(taskRegion);
                         taskRegion.querySelector(".task-inline-input").value = focusedElementInfo.text;
@@ -1761,15 +1816,16 @@ function applyPersistedState() {
 
 function onConnect(event) {
     menu.setOnlineIndicator(true);
-    popup.showPopup("Connected");
+    popup.showPopup("Connected", "lightgreen");
     appEvent.resendEvents();
-    //location.reload();
+    allUserDataFetch();
+    userDataApply();
 }
 
 function onDisconnect(event) {
     menu.setOnlineIndicator(false);
     if (popup.getText() != "Disconnected") {
-        popup.showPopup("Disconnected");
+        popup.showPopup("Disconnected", "red");
     }
 }
 

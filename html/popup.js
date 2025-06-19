@@ -1,10 +1,15 @@
 class Popup {
     timeoutId;
     
-    showPopup(text) {
+    showPopup(text, color = null) {
         const popup = document.getElementById('popup');
         popup.textContent = text;
+        if (color != null) {
+            popup.style.backgroundColor = color;
+        }
+        
         popup.classList.add('active');
+
 
         if (this.timeoutId != null) {
             clearTimeout(this.timeoutId);

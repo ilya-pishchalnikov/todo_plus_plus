@@ -175,7 +175,7 @@ function groupDragEnd(event) {
       "payload": {
               "name": groupName,
               "id": groupId,
-              "project-id": projectId,
+              "projectid": projectId,
               "after": prevGroupId
           }
       };
@@ -298,6 +298,7 @@ function taskDragEnd(event) {
   });
 
   const taskId = taskRegion.id;
+  const taskStatus = taskRegion.dataset.status;
   const taskPre = taskRegion.querySelector(".task-pre");
   let taskText = null
   if (taskPre != null) {
@@ -323,7 +324,7 @@ function taskDragEnd(event) {
               "text": taskText,
               "id": taskId,
               "group": groupId,
-              "status": 1, // todo
+              "status": taskStatus, 
               "after": prevTaskId
           }
       };

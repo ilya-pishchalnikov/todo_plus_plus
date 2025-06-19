@@ -26,6 +26,10 @@ class AppEvent {
     }
 
     eventSocketOnMessage(event) {
+        if (this.isLogEvents) {
+            logger.log(event.data);
+        }
+
         var parsedEvent = JSON.parse(event.data);
         switch(parsedEvent.type) {
             case "project-add":
