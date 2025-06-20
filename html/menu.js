@@ -1,5 +1,7 @@
 class Menu {
 
+    checkConnection;
+
     constructor () {
 
     }
@@ -7,10 +9,33 @@ class Menu {
     showHeader(menuHeader) {
         const menuMain = document.getElementById("menu-main");
         menuMain.innerText = menuHeader;
+        const onlineIndicator = document.createElement("div");
+        onlineIndicator.className = "online-indicator-region";
+        menuMain.append(onlineIndicator);
+        this.setOnlineIndicator(this.checkConnection());
     }
 
     addButton(name, payload, onclick, width = null) {
         const menuMain = document.getElementById("menu-main");
+        const button = document.createElement("button");
+        button.className = "menu-main-button";
+        button.innerText = name;
+        button.dataset.payload = payload;
+        if (width != null) {
+            button.style.width = width;
+        }
+        button.onclick = onclick;
+        menuMain.append(button);
+    }
+
+    addDropDownButton (name, payload, options, onOptionSelect, width = null) {
+        const menuMain = document.getElementById("menu-main");
+        const button = document.createElement("button");
+        button.className = "menu-main-button";
+        button.classList.add("dropdown");
+        button.innerText = name + "▼";
+        button.dataset.payload = payload;
+        button.id = guid();
         const button = document.createElement("button");
         button.className = "menu-main-button";
         button.innerText = name;
@@ -69,6 +94,18 @@ class Menu {
                 element.classList.remove("dropdown-show");
             }
         });
+    }
+
+    setOnlineIndicator(isOnline = false) {
+        const onlineIndicator = document.querySelector(".online-indicator-region");
+        if (onlineIndicator == null) {
+            return;
+        }
+        if (isOnline) {
+            onlineIndicator.textContent = "🟢";
+        } else {
+            onlineIndicator.textContent = "🔴";
+        }
     }
 
 }

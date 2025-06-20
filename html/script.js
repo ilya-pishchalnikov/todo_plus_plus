@@ -1,8 +1,10 @@
 
-//let taskListJson = ""; // previous task list json for optimization reasons
-const instanceGuid = guid();
-const appEvent = new AppEvent();
-const menu = new Menu();
+
+const menu = new Menu()
+const popup = new Popup();
+const store = new IndexedDBDataStore("DataStore", 5);
+
+menu.checkConnection = checkConnection;
 
 appEvent.isLogEvents = true;
 appEvent.onProjectAdd = projectAddOnEvent;
@@ -13,58 +15,117 @@ appEvent.onGroupDelete = groupRemoveOnEvent;
 appEvent.onGroupUpdate = groupUpdateOnEvent;
 appEvent.onTaskUpdate = groupUpdateOnEvent;
 appEvent.onTaskAdd = taskAddOnEvent;
-appEvent.onTaskDelete = onTaskDeleteEvent;
+appEvent.onTaskDelete = taskOnDeleteEvent;
 appEvent.onTaskUpdate = taskUpdateOnEvent;
 
-setInterval(() => renewToken(), 3600000); //hourly
-renewToken();
-projectsFetch();
+appEvent.onConnect = onConnect;
+appEvent.onDisconnect = onDisconnect;
 
-// Fetches task list from the server 
-function taskListFetch(projectId) {
-    fetch(`/api/task_list?project_id=${projectId}&json_format=grouped`, {
-        method: 'GET',
+// rennew JWT token
+setInterval(() => renewToken(), 3600000); //hourly
+
+//persist state
+setInterval(persistState, 1000);
+window.addEventListener("beforeunload", persistState);
+
+
+renewToken();
+// Fetch complete user data
+allUserDataFetch();
+// apply fetched data
+userDataApply();
+
+//register service worker
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js");
+    });
+}
+
+/**
+ * Fetches complete user data from the server and persists it in IndexedDB.
+ * 
+ * Retrieves the user"s full dataset including projects, groups, and tasks by making a GET request
+ * to the "/api/all_user_data" endpoint. The response data is then stored in IndexedDB for offline use.
+ * @returns {void}  
+ */
+function allUserDataFetch() {
+    fetch("/api/all_user_data", {
+        method: "GET",
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getCookieByName("jwtToken")
         }
-    }
-    )
+    })
         .then(response => {
             if (response.status === 401) {
                 logger.error("Unauthorized - Redirect to login");
-                window.location.href = '/login.html';
+                window.location.href = "/login.html";
                 return Promise.reject("Unauthorized");
             } if (!response.ok) {
                 return response.text().then(text => {
                     return Promise.reject(text); // Properly reject with the error text
                 });
-            } else{
+            } else {
                 return response.json();
             }
         })
-        .then(taskList => {
-            taskListPopulate(taskList);
-        })
+        .then(allData => {
+                store.clean();
+                store.insertProjects(allData.projects);
+                store.insertTaskGroups(allData.groups);
+                store.insertTasks(allData.tasks);
+            }
+        )
         .catch(error => logger.error(error));
 }
 
+/**
+ * Fetches and displays a project's tasks and groups from IndexedDB.
+ * 
+ * Retrieves persisted task and group data for the specified project by calling 
+ * `store.getTaskGroupsByProjectId()`, then renders them in the UI using 
+ * the `taskListPopulate()` function.
+ * 
+ * @param {string} projectId - The ID of the project to fetch data for
+ * @returns {void}  
+ */
+function taskListApply(projectId) {
+
+    store.getTaskGroupsByProjectId(projectId)
+    .then(taskList => {
+        taskListPopulate(taskList);
+    })
+    .catch(error => logger.error(error));
+}
+
+/**
+ * Renders a task list with groups and tasks in the UI.
+ * 
+ * Creates DOM elements for the task list, processes each group, and renders them
+ * using the `groupAdd` function. Tasks within each group are displayed accordingly.
+ * 
+ * @param {Object} taskList - Contains tasks and groups data in the format:  
+ *   `{ groups: Array<Group>, tasks: Array<Task> }`  
+ * @returns {void}  
+ * @sideeffects Modifies the DOM by adding task and group elements  
+ */
 function taskListPopulate(taskList) {
     const taskListRegion = document.getElementById("groups-region");
     taskListRegion.innerHTML = "";
-    groupInputRegion = document.createElement("div");
+    const groupInputRegion = document.createElement("div");
     groupInputRegion.className = "group-input-region";
     groupInputRegion.id = "group-input-region";
     taskListRegion.append(groupInputRegion);
-    
-    groupInput = document.createElement("input");
+
+    const groupInput = document.createElement("input");
     groupInput.className = "group-input";
     groupInput.id = "group-input";
     groupInput.placeholder = "New task group";
     groupInput.setAttribute("autocomplete", "off");
-    groupInput.addEventListener('focus', groupInputOnFocus);
-    groupInput.addEventListener('keydown', groupInputOnKeyDown);
-    groupInputRegion.append (groupInput);
+    groupInput.addEventListener("focus", groupInputOnFocus);
+    groupInput.addEventListener("keydown", groupInputOnKeyDown);
+    groupInputRegion.append(groupInput);
 
     const groupListRegion = document.createElement("div");
     groupListRegion.className = "group-list-region";
@@ -83,82 +144,97 @@ function taskListPopulate(taskList) {
     }
 }
 
+/**
+ * Renews the JWT authentication token before expiration by requesting a new one from the server.
+ * 
+ * - Sends a GET request to `/api/token_renew` with the current valid token in the `Authorization` header
+ * - On success:
+ *   - Sets the new token in an HTTP-only cookie for subsequent requests
+ * @returns {void}  
+ * @sideeffects 
+ *   - Updates `jwtToken` cookie with new token
+ */
 function renewToken() {
-    fetch('/api/token_renew', {
-        method: 'GET',
+    fetch("/api/token_renew", {
+        method: "GET",
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + getCookieByName("jwtToken")
         }
     })
         .then(response => {
             if (response.status === 401) {
                 logger.error("Unauthorized - Redirect to login");
-                window.location.href = '/login.html';
+                window.location.href = "/login.html";
                 return Promise.reject("Unauthorized");
             } if (!response.ok) {
                 return response.text().then(text => {
                     return Promise.reject(text); // Properly reject with the error text
                 });
-            } else{
+            } else {
                 return response.text();
             }
         })
-        .then (tokenString => {
-            setCookie("jwtToken", tokenString, {})
+        .then(tokenString => {
+            if (/^[a-zA-Z0-9.\-_]+$/.test(tokenString)) {
+                setCookie("jwtToken", tokenString, {});
+            }
         })
         .catch(error => logger.error(error));
 }
 
-function projectsFetch() {
-    fetch('/api/projects', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getCookieByName("jwtToken")
-        }
-    })
-    .then(response => {
-        if (response.status === 401) {
-            logger.error("Unauthorized - Redirect to login");
-            window.location.href = '/login.html';
-            return Promise.reject("Unauthorized");
-        } if (!response.ok) {
-            return response.text().then(text => {
-                return Promise.reject(text); // Properly reject with the error text
-            });
-        } else{
-            return response.json();
-        }
-    })
-    .then(projects => {
-        //projects = JSON.parse(json);
-        prevProjectId = null;
-        const projectsRegion = document.getElementById("projects-region");
-        projectsRegion.innerHTML = "";
-        projectsRegion.innerText = "Projects: "
+/**
+ * Synchronizes the UI with the latest application state from IndexedDB.
+ * 
+ * Performs a complete UI refresh by:
+ * 1. Fetching current data from IndexedDB (projects, tasks, and groups)
+ * 2. Normalizing data for UI consumption
+ * 3. Re-rendering all affected components
+ * 4. Restoring saved UI state
+ * 
+ * Implementation Flow:
+ * - Calls `store.getProjects()` to retrieve all projects
+ * - For each project:
+ *   - Invokes `projectAdd()` to render the project container
+ *   - Fetches and renders associated groups/tasks
+ * - Applies saved UI state via `applyPersistedState()`
+ * 
+ * @returns {void}
+ * @sideeffects
+ *   - Modifies DOM by re-rendering all project elements
+ */
+function userDataApply() {
+    store.getProjects()
+        .then(projects => {            
+            let prevProjectId = null;
+            const projectsRegion = document.getElementById("projects-region");
+            projectsRegion.innerHTML = "";
+            projectsRegion.innerText = "Projects: "
 
-        if (projects != null && projects.length > 0) {
-            Array.from(projects).forEach(project => {
-                projectAdd(project.id, project.name, prevProjectId);
-                prevProjectId = project.id;
-            });
-        } else {
-            const eventMessage = {
-                "type": "project-add",
-                "instance": instanceGuid,
-                "jwt": getCookieByName("jwtToken"),
-                "payload": {
+            if (projects != null && projects.length > 0) {
+                Array.from(projects).forEach(project => {
+                    projectAdd(project.id, project.name, prevProjectId);
+                    prevProjectId = project.id;
+                });
+            } else {
+                const eventMessage = {
+                    "type": "project-add",
+                    "instance": instanceGuid,
+                    "jwt": getCookieByName("jwtToken"),
+                    "payload": {
                         "name": "Project1",
                         "id": guid(),
                         "after": null
                     }
                 };
-        
-            appEvent.send(JSON.stringify(eventMessage));
-        }
-    })
-    .catch(error => logger.error(error));
+
+                appEvent.send(JSON.stringify(eventMessage));
+            }
+            setTimeout(() => {
+                applyPersistedState();
+            }, 50);
+        })
+        .catch(error => logger.error(error));
 }
 
 function projectAdd(projectId, projectName, previousProjectId) {
@@ -169,15 +245,15 @@ function projectAdd(projectId, projectName, previousProjectId) {
     if (projectName == "") {
         projectName = "\u00A0"; // &nbsp;
     }
-    projectRegion.innerText = projectName;
+    projectRegion.textContent = projectName;
     projectRegion.contentEditable = "true";
     projectRegion.dataset.savedtext = projectName;
-    projectRegion.onclick = projectRegionOnClick;
     projectRegion.draggable = true;
-    projectRegion.addEventListener('keydown', projectRegionOnKeyDown);
-    projectRegion.addEventListener('blur', projectRegionOnBlur);
-    projectRegion.addEventListener('dragstart', projectDragStart)
-    projectRegion.addEventListener('dragend', projectDragEnd)
+    projectRegion.addEventListener("keydown", projectRegionOnKeyDown);
+    projectRegion.addEventListener("focus", projectRegionOnFocus);
+    projectRegion.addEventListener("blur", projectRegionOnBlur);
+    projectRegion.addEventListener("dragstart", projectDragStart)
+    projectRegion.addEventListener("dragend", projectDragEnd)
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -188,8 +264,8 @@ function projectAdd(projectId, projectName, previousProjectId) {
         projectsRegion.append(projectRegion);
     }
     const selectedProjectRegion = document.getElementsByClassName("project-region-selected");
-     if (selectedProjectRegion.length == 0) {
-        projectSelect(projectRegion, false);
+    if (selectedProjectRegion.length == 0) {
+        projectSelect(projectRegion, false, false);
     }
     return projectRegion
 }
@@ -198,7 +274,7 @@ function projectRegionOnKeyDown(event) {
     const selectedProjectRegion = document.querySelector(".project-region-selected");
     const nextProjectRegion = selectedProjectRegion.nextElementSibling;
     const prevProjectRegion = selectedProjectRegion.previousElementSibling;
-    switch(true) {
+    switch (true) {
         case event.key === "ArrowRight" && event.altKey:
             projectMoveRight(selectedProjectRegion);
             event.preventDefault()
@@ -207,7 +283,7 @@ function projectRegionOnKeyDown(event) {
             projectMoveLeft(selectedProjectRegion);
             event.preventDefault()
             break;
-        case event.key === 'Enter':
+        case event.key === "Enter":
             const groupInput = document.getElementById("group-input");
             groupInput.focus();
             event.preventDefault();
@@ -234,51 +310,47 @@ function projectRegionOnKeyDown(event) {
             break;
         case event.key === "ArrowLeft":
             if (prevProjectRegion != null) {
-                if (isCursorAtStartOrNotFocused(selectedProjectRegion))
-                {
+                if (isCursorAtStartOrNotFocused(selectedProjectRegion)) {
                     projectSelect(prevProjectRegion, false);
                     event.preventDefault();
                 }
             }
             break;
         case event.key === "ArrowDown":
-            const newGroupInput = document.getElementById('group-input');
+            const newGroupInput = document.getElementById("group-input");
             newGroupInput.focus();
             event.preventDefault();
             break;
     }
 }
 
+function projectRegionOnFocus(event) {
+    projectSelect(event.target, false);
+}
+
 function projectRegionOnBlur(event) {
     const projectRegion = event.target;
     const projectName = projectRegion.innerText;
-    if ( projectName == projectRegion.dataset.savedtext) {
+    if (projectName == projectRegion.dataset.savedtext) {
         return;
     }
     const projectId = projectRegion.id;
     const prevProjectRegion = projectRegion.previousElementSibling;
-    let prevProjectId = null;
-    if (prevProjectRegion != null) {
-        prevProjectId = prevProjectRegion;
-    }
+    let prevProjectId = prevProjectRegion?.id;
 
     const eventMessage = {
         "type": "project-update",
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": projectName,
-                "id": projectId,
-                "after": prevProjectId
-            }
-        };
+            "name": projectName,
+            "id": projectId,
+            "after": prevProjectId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
-}
 
-function projectRegionOnClick(event) {
-    const projectRegion = event.target;
-    projectSelect(projectRegion, false);
 }
 
 function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
@@ -293,14 +365,22 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
     menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
     menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
-    taskListFetch(projectRegion.id);
+    taskListApply(projectRegion.id);
     projectRegion.focus();
-    setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition)
+    setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
 }
 
+/**
+ * Adds project into UI by receiving project-add WebSocket event.
+ * 
+ * @returns {void} Resolves when the UI update completes
+ * @sideeffects
+ *   - Modifies DOM by re-rendering project element
+ */
 function projectAddOnEvent(project) {
     const projectRegion = projectAdd(project.id, project.name, project.after);
     projectSelect(projectRegion, false);
+    store.upsertProject(project);
 }
 
 function projectRemoveOnEvent(project) {
@@ -312,12 +392,12 @@ function projectRemoveOnEvent(project) {
         projectSelect(prevProjectRegion, false);
     } else {
         const firstProject = projectsRegion.firstElementChild;
-        if (firstProject!=null) {
+        if (firstProject != null) {
             projectSelect(firstProject, false);
         } else {
             let projectName = prompt("Project name:", "");
             while (projectName == null || projectName == "") {
-                alert('Working without any projects is prohibited');
+                alert("Working without any projects is prohibited");
                 projectName = prompt("Project name:", "");
             }
             const projectId = guid();
@@ -326,16 +406,17 @@ function projectRemoveOnEvent(project) {
                 "instance": instanceGuid,
                 "jwt": getCookieByName("jwtToken"),
                 "payload": {
-                        "name": projectName,
-                        "id": projectId,
-                        "after": null
-                    }
-                };
-        
+                    "name": projectName,
+                    "id": projectId,
+                    "after": null
+                }
+            };
+
             appEvent.send(JSON.stringify(eventMessage));
         }
 
     }
+    store.delete("project", project.id);
 }
 
 function projectUpdateOnEvent(project) {
@@ -343,7 +424,7 @@ function projectUpdateOnEvent(project) {
     const isProjectRegionFocused = (projectRegion == document.activeElement);
     const projectsRegion = projectRegion.parentElement;
     const prevProjectRegion = projectRegion.previousElementSibling;
-    let   prevProjectId;
+    let prevProjectId;
     if (prevProjectRegion != null) {
         prevProjectId = prevProjectRegion.id;
     }
@@ -355,7 +436,7 @@ function projectUpdateOnEvent(project) {
         } else {
             const firstProjectRegion = projectsRegion.firstElementChild;
             if (firstProjectRegion != null) {
-                projectsRegion.insertBefore(projectRegion, firstProjectRegion )
+                projectsRegion.insertBefore(projectRegion, firstProjectRegion)
             }
         }
     }
@@ -364,6 +445,8 @@ function projectUpdateOnEvent(project) {
     if (isProjectRegionFocused) {
         projectRegion.focus();
     }
+    
+    store.upsertProject(project);
 }
 
 function projectAddOnClick(event) {
@@ -371,7 +454,7 @@ function projectAddOnClick(event) {
     const projectId = addProjectButton.dataset.payload;
     const projectRegion = document.getElementById(projectId);
     const projectName = prompt("Project name:", "");
-    if (projectName==null || projectName == "") {
+    if (projectName == null || projectName == "") {
         return;
     }
     const prevProjectRegion = projectRegion.previousElementSibling;
@@ -381,11 +464,11 @@ function projectAddOnClick(event) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": projectName,
-                "id": guid(),
-                "after": projectId
-            }
-        };
+            "name": projectName,
+            "id": guid(),
+            "after": projectId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
@@ -404,11 +487,11 @@ function projectRemoveOnClick(event) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": projectName,
-                "id": projectId,
-                "after": null
-            }
-        };
+            "name": projectName,
+            "id": projectId,
+            "after": null
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
@@ -417,7 +500,7 @@ function projectRenameOnClick(event) {
     const addProjectButton = event.target;
     const projectId = addProjectButton.dataset.payload;
     const projectRegion = document.getElementById(projectId);
-    const projectName = prompt("New project name: ",  projectRegion.innerText);
+    const projectName = prompt("New project name: ", projectRegion.innerText);
     const prevProjectRegion = projectRegion.previousElementSibling;
     let prevProjectId = null;
 
@@ -435,11 +518,11 @@ function projectRenameOnClick(event) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": projectName,
-                "id": projectId,
-                "after": prevProjectId
-            }
-        };
+            "name": projectName,
+            "id": projectId,
+            "after": prevProjectId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
@@ -465,20 +548,20 @@ function projectMoveLeft(projectRegion) {
         prevPrevProjectId = prevPrevProjectRegion.id;
     }
 
-    const prevProjectId =  prevProjectRegion.id;
+    const prevProjectId = prevProjectRegion.id;
 
     const eventMessage = {
         "type": "project-update",
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": projectName,
-                "id": projectId,
-                "after": prevPrevProjectId
-            }
-        };
+            "name": projectName,
+            "id": projectId,
+            "after": prevPrevProjectId
+        }
+    };
 
-    appEvent.send(JSON.stringify(eventMessage));    
+    appEvent.send(JSON.stringify(eventMessage));
 }
 
 function projectMoveRightOnClick(event) {
@@ -496,46 +579,46 @@ function projectMoveRight(projectRegion) {
         return;
     }
 
-    const prevProjectId =  nextProjectRegion.id;
+    const prevProjectId = nextProjectRegion.id;
 
     const eventMessage = {
         "type": "project-update",
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": projectName,
-                "id": projectId,
-                "after": prevProjectId
-            }
-        };
+            "name": projectName,
+            "id": projectId,
+            "after": prevProjectId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
 
-function groupInputOnFocus(event) {    
+function groupInputOnFocus(event) {
     menu.showHeader("New Group: ");
     menu.addButton("Add", null, groupNewAddOnClick);
 }
 
-function groupInputOnKeyDown (event) {
+function groupInputOnKeyDown(event) {
     const groupInput = event.target;
     const projectSelectedRegion = document.querySelector(".project-region-selected");
     const groupListRegion = document.getElementById("group-list-region");
     const firstGroupRegion = groupListRegion.firstElementChild;
-    let firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region");
+    let firstGroupHeaderRegion = firstGroupRegion?.querySelector(".group-header-region");
     if (firstGroupHeaderRegion == null) {
         firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region-selected");
     }
-    switch(true) {
-        case event.key === 'Enter':
+    switch (true) {
+        case event.key === "Enter":
             groupNewAddOnClick();
             break;
-        case event.key === 'ArrowUp':
+        case event.key === "ArrowUp":
             projectSelect(projectSelectedRegion, false);
             event.preventDefault();
             break;
-        case event.key === 'ArrowDown':
+        case event.key === "ArrowDown":
             if (firstGroupRegion == null) {
                 return;
             }
@@ -547,7 +630,7 @@ function groupInputOnKeyDown (event) {
                 projectSelect(projectSelectedRegion, false);
                 event.preventDefault();
             }
-            break;   
+            break;
         case event.key === "ArrowRight":
             if (isCursorAtEndOrNotFocused(groupInput)) {
                 if (firstGroupRegion == null) {
@@ -564,11 +647,11 @@ function groupNewAddOnClick(event) {
     const groupInput = document.getElementById("group-input");
     const groupName = groupInput.value;
     const selectedProjectRegions = document.getElementsByClassName("project-region-selected");
-    let   projectId = null;
+    let projectId = null;
     if (selectedProjectRegions.length != 0) {
         projectId = selectedProjectRegions[0].id;
     }
-    if (groupName==null || groupName == "") {
+    if (groupName == null || groupName == "") {
         return;
     }
 
@@ -577,12 +660,12 @@ function groupNewAddOnClick(event) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": groupName,
-                "id": guid(),
-                "project-id": projectId,
-                "after": null
-            }
-        };
+            "name": groupName,
+            "id": guid(),
+            "projectid": projectId,
+            "after": null
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 
@@ -591,18 +674,22 @@ function groupNewAddOnClick(event) {
 
 function groupAddOnEvent(group) {
     const groupRegion = groupAdd(group, group.after);
+    store.upsertGroup(group);
 }
 
 function groupUpdateOnEvent(group) {
     const groupRegion = document.getElementById(group.id);
+    if (!groupRegion) {
+        return;
+    }
     let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
     if (groupHeaderRegion == null) {
         groupHeaderRegion = groupRegion.querySelector(".group-header-region");
-    }    
+    }
     const isFocused = (groupHeaderRegion == document.activeElement);
     groupHeaderRegion.innerText = group.name;
     if (group.after != null && group.after != "") {
-        prevGroupRegion = document.getElementById(group.after)
+        const prevGroupRegion = document.getElementById(group.after)
         prevGroupRegion.after(groupRegion);
     } else {
         const groupListRegion = groupRegion.parentElement;
@@ -611,6 +698,7 @@ function groupUpdateOnEvent(group) {
     if (isFocused) {
         groupHeaderRegion.focus();
     }
+    store.upsertGroup(group);
 }
 
 function groupAdd(group, prevGroupId) {
@@ -625,18 +713,18 @@ function groupAdd(group, prevGroupId) {
     } else {
         groupListRegion.prepend(groupRegion);
     }
-    
-    groupRegion.addEventListener('dragstart', groupDragStart)
-    groupRegion.addEventListener('dragend', groupDragEnd)
+
+    groupRegion.addEventListener("dragstart", groupDragStart)
+    groupRegion.addEventListener("dragend", groupDragEnd)
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
     groupHeader.innerText = group.name;
-    groupHeader.onclick = groupHeaderOnClick;
     groupHeader.contentEditable = true;
-    groupHeader.dataset.savedtext = group.name;    
-    groupHeader.addEventListener("blur", groupHeaderBlur);    
-    groupHeader.addEventListener('keydown', groupHeaderOnKeyDown);
+    groupHeader.dataset.savedtext = group.name;
+    groupHeader.addEventListener("focus", groupHeaderOnFocus);
+    groupHeader.addEventListener("blur", groupHeaderOnBlur);
+    groupHeader.addEventListener("keydown", groupHeaderOnKeyDown);
     groupRegion.append(groupHeader);
 
     const taskListRegion = document.createElement("div");
@@ -654,17 +742,21 @@ function groupAdd(group, prevGroupId) {
     taskInput.id = guid();
     taskInput.dataset.groupid = group.id
     taskInput.onfocus = taskInputOnFocus;
-    
-    taskInput.addEventListener('keydown', taskInputOnKeyDown);
+
+    taskInput.addEventListener("keydown", taskInputOnKeyDown);
     taskInput.addEventListener("input", textAreaAutoResize);
     taskInputRegion.append(taskInput);
 
-    const tasks = group.tasks;
-    if (tasks != null) {
-        tasks.forEach(task => {
-            taskAdd(task);
-        })
-    }
+    store.getTasksByGroupId(group.id)
+    .then(tasks => {
+        if (tasks != null) {
+            tasks.forEach(task => {
+                taskAdd(task);
+            })
+        }
+    })
+    .catch(error => logger.error(error));
+
     return groupRegion;
 }
 
@@ -674,8 +766,8 @@ function groupHeaderOnKeyDown(event) {
     const groupRegion = groupHeaderRegion.parentElement;
     const taskListRegion = groupRegion.querySelector(".task-list-region");
     const taskFirstRegion = taskListRegion.firstElementChild;
-    switch(true) {
-        case event.key === 'Enter':
+    switch (true) {
+        case event.key === "Enter":
             event.preventDefault();
             if (taskFirstRegion == null) {
                 const taskInput = groupRegion.querySelector(".task-input");
@@ -715,9 +807,14 @@ function groupHeaderOnKeyDown(event) {
     }
 }
 
-function groupHeaderBlur(event){
+function groupHeaderOnFocus(event) {
     const groupHeaderRegion = event.target;
-    if(groupHeaderRegion.innerText == groupHeaderRegion.dataset.savedtext) {
+    groupSelect(groupHeaderRegion, false);
+}
+
+function groupHeaderOnBlur(event) {
+    const groupHeaderRegion = event.target;
+    if (groupHeaderRegion.innerText == groupHeaderRegion.dataset.savedtext) {
         return;
     }
     const groupName = groupHeaderRegion.innerText;
@@ -737,20 +834,16 @@ function groupHeaderBlur(event){
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": groupName,
-                "id": groupId,
-                "project-id": projectId,
-                "after": prevGroupId
-            }
-        };
+            "name": groupName,
+            "id": groupId,
+            "projectid": projectId,
+            "after": prevGroupId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-function groupHeaderOnClick(event) {
-    const groupHeaderRegion = event.target;
-    groupSelect(groupHeaderRegion, false);
-}
 
 function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
 
@@ -760,21 +853,21 @@ function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
     Array.from(groupHeaderSelectedList).forEach(groupHeaderSelected => {
         groupHeaderSelected.className = "group-header-region";
     });
-    
+
     const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
 
     Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
         taskRegionSelected.classList.remove("selected");
     })
-    
+
     groupHeaderRegion.className = "group-header-region-selected";
     menu.showHeader("Group: ");
     menu.addButton("Add", groupRegion.id, groupAddOnClick);
-     menu.addButton("Remove", groupRegion.id, groupRemoveOnClick);
-     menu.addButton("∧", groupRegion.id, groupUpOnClick, "50px");
-     menu.addButton("∨", groupRegion.id, groupDownOnClick, "50px");
-     groupHeaderRegion.focus();
-     setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition)
+    menu.addButton("Remove", groupRegion.id, groupRemoveOnClick);
+    menu.addButton("∧", groupRegion.id, groupUpOnClick, "50px");
+    menu.addButton("∨", groupRegion.id, groupDownOnClick, "50px");
+    groupHeaderRegion.focus();
+    setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition)
 }
 
 function groupAddOnClick(event) {
@@ -792,18 +885,18 @@ function groupAddOnClick(event) {
     }
 
     const projectId = projectRegionsSelected[0].id;
-    
+
     const eventMessage = {
         "type": "group-add",
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": groupName,
-                "id": guid(),
-                "project-id": projectId,
-                "after": prevGroupId
-            }
-        };
+            "name": groupName,
+            "id": guid(),
+            "projectid": projectId,
+            "after": prevGroupId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
@@ -813,7 +906,7 @@ function groupRemoveOnClick(event) {
     const groupId = button.dataset.payload;
     const groupRegion = document.getElementById(groupId);
     const prevGroupRegion = groupRegion.previousElementSibling;
-    let   prevGroupId = null;
+    let prevGroupId = null;
     const groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected").parentElement;
     const groupName = groupHeaderRegion.innerText;
 
@@ -828,29 +921,30 @@ function groupRemoveOnClick(event) {
     if (prevGroupRegion != null) {
         prevGroupId = prevGroupRegion.id;
     }
-    
+
     const eventMessage = {
         "type": "group-delete",
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": groupName,
-                "id": groupId,
-                "project-id": projectId,
-                "after": prevGroupId
-            }
-        };
+            "name": groupName,
+            "id": groupId,
+            "projectid": projectId,
+            "after": prevGroupId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
 function groupRemoveOnEvent(group) {
     const groupRegion = document.getElementById(group.id)
-    groupRegion.remove();
+    groupRegion.remove();    
+    store.delete("task_group", group.id);
 }
 
 function groupUpOnClick(event) {
-    const upButton =  event.target;
+    const upButton = event.target;
     const groupId = upButton.dataset.payload;
     const groupRegion = document.getElementById(groupId);
     groupMoveUp(groupRegion);
@@ -868,7 +962,7 @@ function groupMoveUp(groupRegion) {
         prevPrevGroupId = prevPrevGroupRegion.id;
     }
     let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
-    if (groupHeaderRegion == null ) {
+    if (groupHeaderRegion == null) {
         groupHeaderRegion = groupRegion.querySelector(".group-header-region");
     }
     const groupName = groupHeaderRegion.innerText;
@@ -881,18 +975,18 @@ function groupMoveUp(groupRegion) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": groupName,
-                "id": groupId,
-                "project-id": projectId,
-                "after": prevPrevGroupId
-            }
-        };
+            "name": groupName,
+            "id": groupId,
+            "projectid": projectId,
+            "after": prevPrevGroupId
+        }
+    };
 
-    appEvent.send(JSON.stringify(eventMessage)); 
+    appEvent.send(JSON.stringify(eventMessage));
 }
 
 function groupDownOnClick(event) {
-    const downButton =  event.target;
+    const downButton = event.target;
     const groupId = downButton.dataset.payload;
     const groupRegion = document.getElementById(groupId);
     groupMoveDown(groupRegion);
@@ -907,7 +1001,7 @@ function groupMoveDown(groupRegion) {
     const nextGroupId = nextGroupRegion.id;
 
     let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
-    if (groupHeaderRegion == null ) {
+    if (groupHeaderRegion == null) {
         groupHeaderRegion = groupRegion.querySelector(".group-header-region");
     }
     const groupName = groupHeaderRegion.innerText;
@@ -919,12 +1013,12 @@ function groupMoveDown(groupRegion) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "name": groupName,
-                "id": groupId,
-                "project-id": projectId,
-                "after": nextGroupId
-            }
-        };
+            "name": groupName,
+            "id": groupId,
+            "projectid": projectId,
+            "after": nextGroupId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
@@ -937,13 +1031,13 @@ function taskInputOnFocus(event) {
     const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
 
     Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
-        taskRegionSelected.className= "task-region";
+        taskRegionSelected.className = "task-region";
     })
 
     const groupHeaderRegionsSelected = document.getElementsByClassName("group-header-region-selected");
 
     Array.from(groupHeaderRegionsSelected).forEach(groupHeaderRegionSelected => {
-        groupHeaderRegionSelected.className= "group-header-region";
+        groupHeaderRegionSelected.className = "group-header-region";
     })
 }
 
@@ -955,8 +1049,8 @@ function taskNewAddOnClick(event) {
 
 }
 
-function taskNewAdd (taskInput) {
-    const taskInputRegion =  taskInput.parentElement;
+function taskNewAdd(taskInput) {
+    const taskInputRegion = taskInput.parentElement;
     const groupId = taskInput.dataset.groupid;
     const taskText = taskInput.value;
     if (taskText == null || taskText == "") {
@@ -976,13 +1070,13 @@ function taskNewAdd (taskInput) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "text": taskText,
-                "id": guid(),
-                "group": groupId,
-                "status": "1", // todo
-                "after": prevTaskId
-            }
-        };
+            "text": taskText,
+            "id": guid(),
+            "group": groupId,
+            "status": "1", // todo
+            "after": prevTaskId
+        }
+    };
 
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -993,6 +1087,7 @@ function taskNewAdd (taskInput) {
 
 function taskAddOnEvent(task) {
     taskAdd(task);
+    store.upsertTask(task);
 }
 
 function taskUpdateOnEvent(task) {
@@ -1004,37 +1099,37 @@ function taskUpdateOnEvent(task) {
     if (task.after != null && task.after != "") {
         const prevTaskRegion = document.getElementById(task.after);
         prevTaskRegion.after(taskRegion);
-    } else {            
+    } else {
         const groupRegion = document.getElementById(task.group);
         const taskListRegion = groupRegion.querySelector(".task-list-region");
         taskListRegion.prepend(taskRegion);
     }
 
-    const classesToKeep = ["task-region", "selected"];    
+    const classesToKeep = ["task-region", "selected"];
     Array.from(taskRegion.classList)
         .filter(className => !classesToKeep.includes(className))
         .forEach(className => taskRegion.classList.remove(className));
 
     taskRegion.dataset.status = task.status;
 
-    taskStatusIcon = taskRegion.querySelector(".task-status-img");
+    const taskStatusIcon = taskRegion.querySelector(".task-status-img");
     switch (true) {
-        case task.status == 1: 
+        case task.status == 1:
             taskStatusIcon.src = "/html/img/todo.svg";
             taskStatusIcon.alt = "☐";
             taskRegion.classList.add("todo");
             break;
-        case task.status == 2: 
+        case task.status == 2:
             taskStatusIcon.src = "/html/img/inprogress.svg";
-            taskStatusIcon.alt = "☐";            
+            taskStatusIcon.alt = "☐";
             taskRegion.classList.add("inprogress");
             break;
-        case task.status == 3: 
+        case task.status == 3:
             taskStatusIcon.src = "/html/img/done.svg";
             taskStatusIcon.alt = "✔";
             taskRegion.classList.add("done");
             break;
-        case task.status == 4: 
+        case task.status == 4:
             taskStatusIcon.src = "/html/img/cancelled.svg";
             taskStatusIcon.alt = "✘";
             taskRegion.classList.add("cancelled");
@@ -1044,26 +1139,31 @@ function taskUpdateOnEvent(task) {
             taskStatusIcon.alt = "☐";
             break;
     }
-    
-  textElement.innerText = task.text;
-  textElement.focus();
 
-  if (textElement.tagName === "TEXTAREA") {
+    textElement.innerText = task.text;
+    textElement.focus();
+
+    if (textElement.tagName === "TEXTAREA") {
         textElement.addEventListener("blur", taskInlineInputOnBlur);
     }
 
     ensureVisible(taskRegion);
+
+    store.upsertTask(task);
 }
 
 function taskAdd(task) {
+    if (document.getElementById(task.id)) {
+        return;
+    }
     const prevTaskRegionId = task.after;
     let prevTaskRegion = null;
-    
+
     if (prevTaskRegionId != null && prevTaskRegionId != "") {
         prevTaskRegion = document.getElementById(prevTaskRegionId);
     }
-    
-    taskRegion = document.createElement("div");
+
+    const taskRegion = document.createElement("div");
     taskRegion.className = "task-region";
     taskRegion.id = task.id;
     taskRegion.dataset.status = task.status;
@@ -1115,13 +1215,13 @@ function taskAdd(task) {
     taskPre = document.createElement("pre");
     taskPre.className = "task-pre";  
     taskPre.innerText = task.text;
-    taskRegion.appendChild(taskPre); 
+    taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
-    taskRegion.addEventListener('dragstart', taskDragStart)
-    taskRegion.addEventListener('dragend', taskDragEnd)
-    
+    taskRegion.addEventListener("dragstart", taskDragStart)
+    taskRegion.addEventListener("dragend", taskDragEnd)
+
     if (prevTaskRegion != null) {
-        prevTaskRegion.after(taskRegion); 
+        prevTaskRegion.after(taskRegion);
     } else {
         const groupRegion = document.getElementById(task.group);
         const taskListRegion = groupRegion.querySelector(".task-list-region");
@@ -1132,6 +1232,7 @@ function taskAdd(task) {
 function taskRegionOnClick(event) {
     const target = event.target;
     let taskRegion = null;
+    if (target.classList.contains("task-region")) {
     if (target.classList.contains("task-region")) {
         taskRegion = target;
     } else if (target.className == "task-pre") {
@@ -1154,12 +1255,14 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         const taskIdOld = taskRegionOld.id
         const taskStatusOld = taskRegionOld.dataset.status;
 
+        const taskStatusOld = taskRegionOld.dataset.status;
+
         const groupRegionOld = taskRegionOld.parentElement.parentElement;
         const groupIdOld = groupRegionOld.id;
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
         let prevTaskIdOld = null;
         if (prevTaskRegionOld != null) {
-            prevTaksIdOld = prevTaskRegionOld.id;
+            prevTaskIdOld = prevTaskRegionOld.id;
         }
         if (taskTextOld == "") {
             taskRemove(taskIdOld);
@@ -1169,14 +1272,14 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
                 "instance": instanceGuid,
                 "jwt": getCookieByName("jwtToken"),
                 "payload": {
-                        "text": taskTextOld,
-                        "id": taskIdOld,
-                        "group": groupIdOld,
-                        "status": taskStatusOld,
-                        "after": prevTaskIdOld
-                    }
-                };
-        
+                    "text": taskTextOld,
+                    "id": taskIdOld,
+                    "group": groupIdOld,
+                    "status": taskStatusOld,
+                    "after": prevTaskIdOld
+                }
+            };
+
             appEvent.send(JSON.stringify(eventMessage));
         }
     }
@@ -1190,32 +1293,32 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     const groupHeaderRegionsSelected = document.getElementsByClassName("group-header-region-selected");
 
     Array.from(groupHeaderRegionsSelected).forEach(groupHeaderRegionSelected => {
-        groupHeaderRegionSelected.className= "group-header-region";
+        groupHeaderRegionSelected.className = "group-header-region";
     })
 
     taskRegion.classList.add("selected");
 
     const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
 
-    taskStatus = taskRegion.dataset.status;
+    const taskStatus = taskRegion.dataset.status;
 
     taskRegion.innerHTML = "";
 
-    taskStatusIcon = document.createElement("img");
+    const taskStatusIcon = document.createElement("img");
     switch (true) {
-        case taskStatus == 1: 
+        case taskStatus == 1:
             taskStatusIcon.src = "/html/img/todo.svg";
             taskStatusIcon.alt = "☐";
             break;
-        case taskStatus == 2: 
+        case taskStatus == 2:
             taskStatusIcon.src = "/html/img/inprogress.svg";
             taskStatusIcon.alt = "☐";
             break;
-        case taskStatus == 3: 
+        case taskStatus == 3:
             taskStatusIcon.src = "/html/img/done.svg";
             taskStatusIcon.alt = "✔";
             break;
-        case taskStatus == 4: 
+        case taskStatus == 4:
             taskStatusIcon.src = "/html/img/cancelled.svg";
             taskStatusIcon.alt = "✘";
             break;
@@ -1236,10 +1339,10 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     taskInlineInput.wrap = "hard";
     taskInlineInput.value = taskText;
     taskInlineInput.addEventListener("input", textAreaAutoResize);
-    taskInlineInput.addEventListener('keydown', taskInlineInputOnKeyDown);
+    taskInlineInput.addEventListener("keydown", taskInlineInputOnKeyDown);
     taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
     taskRegion.append(taskInlineInput);
-    taskInlineInput.style.height = '1px';
+    taskInlineInput.style.height = "1px";
     taskInlineInput.style.height = `${taskInlineInput.scrollHeight - 20}px`
     taskInlineInput.focus();
     if (isSetCursorFirstPosition) {
@@ -1249,17 +1352,17 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     menu.showHeader("Task: ");
     menu.addButton("Remove", taskRegion.id, taskRemoveOnClick);
     const statusOptions = [
-        {name:"To Do", payload:{status: "1", taskid: taskRegion.id}},
-        {name:"In Progress", payload:{status: "2", taskid: taskRegion.id}},
-        {name:"Done", payload:{status: "3", taskid: taskRegion.id}},
-        {name:"Cancelled", payload:{status: "4", taskid: taskRegion.id}},
+        { name: "To Do", payload: { status: "1", taskid: taskRegion.id } },
+        { name: "In Progress", payload: { status: "2", taskid: taskRegion.id } },
+        { name: "Done", payload: { status: "3", taskid: taskRegion.id } },
+        { name: "Cancelled", payload: { status: "4", taskid: taskRegion.id } },
     ];
-    menu.addDropDownButton("Status", taskRegion.id,statusOptions, dropdownStatusOnSelect)
+    menu.addDropDownButton("Status", taskRegion.id, statusOptions, dropdownStatusOnSelect)
     menu.addButton("∧", taskRegion.id, taskUpOnClick, "50px");
     menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
 }
 
-function taskInlineInputOnBlur(event) {   
+function taskInlineInputOnBlur(event) {
     const taskInlineInput = event.target;
     const taskRegion = taskInlineInput.parentElement;
     if (taskRegion == null) { // detached from DOM (removed)
@@ -1306,31 +1409,61 @@ function taskInlineInputOnBlur(event) {
     taskStatusIcon.onclick = taskStatusImgOnClick;
     taskRegion.append(taskStatusIcon);
     taskPre = document.createElement("pre");    
+    const taskStatusIcon = document.createElement("img");
+
+    switch (true) {
+        case taskStatus == 1:
+            taskStatusIcon.src = "/html/img/todo.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case taskStatus == 2:
+            taskStatusIcon.src = "/html/img/inprogress.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+        case taskStatus == 3:
+            taskStatusIcon.src = "/html/img/done.svg";
+            taskStatusIcon.alt = "✔";
+            break;
+        case taskStatus == 4:
+            taskStatusIcon.src = "/html/img/cancelled.svg";
+            taskStatusIcon.alt = "✘";
+            break;
+        default:
+            taskStatusIcon.src = "/html/img/question.svg";
+            taskStatusIcon.alt = "☐";
+            break;
+    }
+    taskStatusIcon.width = 30;
+    taskStatusIcon.height = 30;
+    taskStatusIcon.className = "task-status-img";
+    taskStatusIcon.onclick = taskStatusImgOnClick;
+    taskRegion.append(taskStatusIcon);
+    const taskPre = document.createElement("pre");
     taskPre.className = "task-pre";
     taskPre.innerText = taskText;
-    taskRegion.appendChild(taskPre); 
-    
+    taskRegion.appendChild(taskPre);
+
     const eventMessage = {
         "type": "task-update",
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "text": taskText,
-                "id": taskId,
-                "group": groupId,
-                "status": taskStatus,
-                "after": prevTaskId
-            }
-        };
+            "text": taskText,
+            "id": taskId,
+            "group": groupId,
+            "status": taskStatus,
+            "after": prevTaskId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-function taskInputOnKeyDown (event){
+function taskInputOnKeyDown(event) {
     const taskInput = event.target;
     const groupRegion = taskInput.parentElement.parentElement;
-    switch(true) {
-        case event.key === 'Enter' && !event.shiftKey:
+    switch (true) {
+        case event.key === "Enter" && !event.shiftKey:
             taskNewAdd(taskInput);
             event.preventDefault();
             break
@@ -1344,7 +1477,7 @@ function taskInputOnKeyDown (event){
             nextGroupHeaderRegion.focus();
             event.preventDefault();
             break;
-        case (event.key === "ArrowUp" || event.key === "ArrowLeft") && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInput)): 
+        case (event.key === "ArrowUp" || event.key === "ArrowLeft") && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInput)):
             taskNewAdd(taskInput);
             const taskListRegion = groupRegion.querySelector(".task-list-region");
             const lastTaskRegion = taskListRegion.lastElementChild;
@@ -1357,25 +1490,25 @@ function taskInputOnKeyDown (event){
             event.preventDefault();
             break;
 
-    }    
+    }
 }
 
-function taskInlineInputOnKeyDown (event){
+function taskInlineInputOnKeyDown(event) {
     const taskInlineInput = event.target;
     const taskRegion = taskInlineInput.parentElement;
     const nextTaskRegion = taskRegion.nextElementSibling;
-    switch(true) {
-        case event.key === "ArrowDown" && event.altKey: 
+    switch (true) {
+        case event.key === "ArrowDown" && event.altKey:
             taskMoveDown(taskRegion);
             event.preventDefault();
             break;
-        case event.key === "ArrowUp" && event.altKey: 
+        case event.key === "ArrowUp" && event.altKey:
             taskMoveUp(taskRegion);
             event.preventDefault();
             break;
-        case (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight" ) && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
+        case (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight") && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
 
-            if (nextTaskRegion != null)  {
+            if (nextTaskRegion != null) {
                 taskInlineInputActivate(nextTaskRegion, true);
             } else {
                 const groupRegion = taskRegion.parentElement.parentElement;
@@ -1385,7 +1518,7 @@ function taskInlineInputOnKeyDown (event){
             taskInlineInputOnBlur(event);
             event.preventDefault();
             break;
-        case (event.key === "ArrowUp" || event.key === "ArrowLeft" ) && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInlineInput)):
+        case (event.key === "ArrowUp" || event.key === "ArrowLeft") && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInlineInput)):
             const prevTaskRegion = taskRegion.previousElementSibling;
             if (prevTaskRegion != null) {
                 taskInlineInputActivate(prevTaskRegion);
@@ -1397,19 +1530,19 @@ function taskInlineInputOnKeyDown (event){
             event.preventDefault();
             break;
         case (event.key === "Enter" && event.ctrlKey) || (event.key.toLowerCase() === "t" && event.altKey):
-            taskStatusSet (taskRegion.id, "1");
+            taskStatusSet(taskRegion.id, "1");
             event.preventDefault();
             break;
         case event.key.toLowerCase() === "p" && event.altKey:
-            taskStatusSet (taskRegion.id, "2");
+            taskStatusSet(taskRegion.id, "2");
             event.preventDefault();
             break;
         case event.key.toLowerCase() === "d" && event.altKey:
-            taskStatusSet (taskRegion.id, "3");
+            taskStatusSet(taskRegion.id, "3");
             event.preventDefault();
             break;
         case event.key.toLowerCase() === "c" && event.altKey:
-            taskStatusSet (taskRegion.id, "4");
+            taskStatusSet(taskRegion.id, "4");
             event.preventDefault();
             break;
     }
@@ -1418,11 +1551,12 @@ function taskInlineInputOnKeyDown (event){
 function taskRemoveOnClick(event) {
     const taskRemoveButton = event.target;
     const taskId = taskRemoveButton.dataset.payload;
-    taskRemove (taskId);
+    taskRemove(taskId);
 }
 
-function taskRemove (taskId) {
+function taskRemove(taskId) {
     const taskRegion = document.getElementById(taskId);
+    const taskPre = taskRegion.querySelector(".task-inline-input,.task-pre");
     const taskPre = taskRegion.querySelector(".task-inline-input,.task-pre");
     const taskText = taskPre.innerText;
     const groupRegion = taskRegion.parentElement;
@@ -1439,30 +1573,32 @@ function taskRemove (taskId) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "text": taskText,
-                "id": taskId,
-                "group": groupId,
-                "status": 1, // todo
-                "after": prevTaskId
-            }
-        };
+            "text": taskText,
+            "id": taskId,
+            "group": groupId,
+            "status": "1", // todo
+            "after": prevTaskId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-function onTaskDeleteEvent(task) {
+function taskOnDeleteEvent(task) {
     const taskRegion = document.getElementById(task.id);
     taskRegion.remove();
+    
+    store.delete("task", task.id);
 }
 
-function taskUpOnClick(event){
+function taskUpOnClick(event) {
     const taskUpButton = event.target;
     const taskId = taskUpButton.dataset.payload;
     const taskRegion = document.getElementById(taskId);
-    taskMoveUp (taskRegion);
+    taskMoveUp(taskRegion);
 }
 
-function taskMoveUp (taskRegion) {
+function taskMoveUp(taskRegion) {
     const taskId = taskRegion.id;
     const taskStatus = taskRegion.dataset.status;
     const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
@@ -1473,7 +1609,7 @@ function taskMoveUp (taskRegion) {
         const groupRegion = taskRegion.parentElement.parentElement;
         const prevGroupRegion = groupRegion.previousElementSibling;
         if (prevGroupRegion == null) {
-            return; 
+            return;
         }
         groupId = prevGroupRegion.id;
         const taskListRegion = prevGroupRegion.querySelector(".task-list-region");
@@ -1494,16 +1630,17 @@ function taskMoveUp (taskRegion) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "text": taskText,
-                "id": taskId,
-                "group": groupId,
-                "status": taskStatus,
-                "after": taskPrevPrevId
-            }
-        };
+            "text": taskText,
+            "id": taskId,
+            "group": groupId,
+            "status": taskStatus,
+            "after": taskPrevPrevId
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
+
 
 function taskDownOnClick(event){
     const taskDownButton = event.target;
@@ -1523,7 +1660,7 @@ function taskMoveDown(taskRegion) {
         const groupRegion = taskRegion.parentElement.parentElement;
         const nextGroupRegion = groupRegion.nextElementSibling;
         if (nextGroupRegion == null) {
-            return; 
+            return;
         }
         groupId = nextGroupRegion.id;
     } else {
@@ -1535,17 +1672,112 @@ function taskMoveDown(taskRegion) {
         "instance": instanceGuid,
         "jwt": getCookieByName("jwtToken"),
         "payload": {
-                "text": taskText,
-                "id": taskId,
-                "group": groupId,
-                "status": taskStatus,
-                "after": taskNextRegionid
-            }
-        };
+            "text": taskText,
+            "id": taskId,
+            "group": groupId,
+            "status": taskStatus,
+            "after": taskNextRegionid
+        }
+    };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
+function taskStatusImgOnClick(event) {
+    const taskRegion = event.target.parentElement;
+    const taskId = taskRegion.id;
+    let taskStatusId = taskRegion.dataset.status;
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
+    const groupId = taskRegion.parentElement.parentElement.id;
+    const prevTaskId = taskRegion.previousElementSibling?.id || null;
+
+    switch (true) {
+        case taskStatusId == 1:
+            taskStatusId = "2";
+            break;
+        case taskStatusId == 2:
+            taskStatusId = "3";
+            break;
+        case taskStatusId == 3:
+            taskStatusId = "4";
+            break;
+        case taskStatusId == 4:
+            taskStatusId = "1";
+            break;
+    }
+
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+            "text": taskText,
+            "id": taskId,
+            "group": groupId,
+            "status": taskStatusId,
+            "after": prevTaskId
+        }
+    };
+
+    appEvent.send(JSON.stringify(eventMessage));
+
+}
+
+function dropdownStatusOnSelect(event) {
+    const dropdownOptionRegion = event.target;
+    const payload = JSON.parse(dropdownOptionRegion.dataset.payload);
+    const taskId = payload.taskid;
+    const taskStatus = payload.status;
+    taskStatusSet(taskId, taskStatus);
+}
+
+function taskStatusSet(taskId, taskStatus) {
+    const taskRegion = document.getElementById(taskId);
+    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
+    const groupId = taskRegion.parentElement.parentElement.id;
+    const prevTaskId = taskRegion.previousElementSibling?.id || null;
+    const eventMessage = {
+        "type": "task-update",
+        "instance": instanceGuid,
+        "jwt": getCookieByName("jwtToken"),
+        "payload": {
+            "text": taskText,
+            "id": taskId,
+            "group": groupId,
+            "status": taskStatus,
+            "after": prevTaskId
+        }
+    };
+
+    appEvent.send(JSON.stringify(eventMessage));
+}
+
+function persistState() {
+    const selectedProjectId = document.querySelector(".project-region-selected").id;
+    localStorage.setItem("selected-project-id", selectedProjectId);
+    const focusedElement = document.activeElement;
+    let focusedElementInfo = null;
+    let selection = null;
+    switch (true) {
+        case focusedElement.classList.contains("project-region"):
+        case focusedElement.classList.contains("project-region-selected"):
+            selection = getEditableSelection(focusedElement);
+            focusedElementInfo = { type: "project", id: focusedElement.id, text: focusedElement.innerText, selStart: selection.start, selEnd: selection.end };
+            break;
+        case focusedElement.classList.contains("group-input"):
+            focusedElementInfo = { type: "group-input", id: "", text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
+            break;
+        case focusedElement.classList.contains("group-header-region"):
+        case focusedElement.classList.contains("group-header-region-selected"):
+            selection = getEditableSelection(focusedElement);
+            focusedElementInfo = { type: "group", id: focusedElement.parentElement.id, text: focusedElement.innerText, selStart: selection.start, selEnd: selection.end };
+            break;
+        case focusedElement.classList.contains("task-input"):
+            focusedElementInfo = { type: "task-input", id: focusedElement.parentElement.parentElement.id, text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
+            break;
+        case focusedElement.classList.contains("task-inline-input"):
+            focusedElementInfo = { type: "task-inline-input", id: focusedElement.parentElement.id, text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
+            break;
 function taskStatusImgOnClick(event) {
     const taskRegion = event.target.parentElement;
     const taskId = taskRegion.id;
@@ -1568,50 +1800,94 @@ function taskStatusImgOnClick(event) {
             taskStatusId = "1";
             break;
     }
+    if (focusedElementInfo != null) {
+        localStorage.setItem("focused-element", JSON.stringify(focusedElementInfo));
+    } else {
+        localStorage.removeItem("focused-element");
+    }
+    localStorage.setItem("scroll-position", window.scrollY);
+}
 
-    const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-                "text": taskText,
-                "id": taskId,
-                "group": groupId,
-                "status": taskStatusId,
-                "after": prevTaskId
+function applyPersistedState() {
+    const selectedProjectId = localStorage.getItem("selected-project-id");
+    const focusedElementInfo = JSON.parse(localStorage.getItem("focused-element"));
+    if (selectedProjectId != null) {
+        const selectedProjectRegion = document.getElementById(selectedProjectId);
+        if (selectedProjectRegion != null) {
+            projectSelect(selectedProjectRegion);
+        }
+    }
+
+    if (focusedElementInfo) {
+        setTimeout(() => {
+            let groupRegion = null;
+
+            switch (true) {
+                case focusedElementInfo.type == "project":
+                    const projectRegion = document.getElementById(focusedElementInfo.id);
+                    projectRegion?.focus();
+                    if (projectRegion) {
+                        projectRegion.innerText = focusedElementInfo.text;
+                        setContentEditableSelection(projectRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
+                case focusedElementInfo.type == "group-input":
+                    document.querySelector(".group-input").focus();
+                    document.querySelector(".group-input").value = focusedElementInfo.text;
+                    document.querySelector(".group-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    break;
+                case focusedElementInfo.type == "group":
+                    groupRegion = document.getElementById(focusedElementInfo.id);
+                    if (groupRegion != null) {
+                        const groupHeaderRegion = groupRegion.querySelector(".group-header-region,.group-header-region-selected");
+                        groupSelect(groupHeaderRegion);
+                        groupHeaderRegion.innerText = focusedElementInfo.text;
+                        setContentEditableSelection(groupHeaderRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
+                case focusedElementInfo.type == "task-input":
+                    groupRegion = document.getElementById(focusedElementInfo.id);
+                    if (groupRegion) {
+                        groupRegion.querySelector(".task-input").focus();
+                        groupRegion.querySelector(".task-input").value = focusedElementInfo.text;
+                        groupRegion.querySelector(".task-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
+                case focusedElementInfo.type == "task-inline-input":
+                    const taskRegion = document.getElementById(focusedElementInfo.id);
+                    if (taskRegion) {
+                        taskInlineInputActivate(taskRegion);
+                        taskRegion.querySelector(".task-inline-input").value = focusedElementInfo.text;
+                        taskRegion.querySelector(".task-inline-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    }
+                    break;
             }
-        };
 
-    appEvent.send(JSON.stringify(eventMessage));
-
-}
-
-function dropdownStatusOnSelect(event) {
-    const dropdownOptionRegion = event.target;
-    const payload = JSON.parse(dropdownOptionRegion.dataset.payload);
-    const taskId = payload.taskid;
-    const taskStatus = payload.status;
-    taskStatusSet (taskId, taskStatus);
-}
-
-function taskStatusSet (taskId, taskStatus) {
-    const taskRegion = document.getElementById(taskId);    
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
-    const groupId = taskRegion.parentElement.parentElement.id;
-    const prevTaskId = taskRegion.previousElementSibling?.id||null;
-    const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-                "text": taskText,
-                "id": taskId,
-                "group": groupId,
-                "status": taskStatus,
-                "after": prevTaskId
+            const savedPosition = localStorage.getItem("scroll-position");
+            if (savedPosition) {
+                window.scrollTo(0, parseInt(savedPosition));
+                localStorage.removeItem("scroll-position");
             }
-        };
-
-    appEvent.send(JSON.stringify(eventMessage));
+        }, 50);
+    }
 }
 
+
+function onConnect(event) {
+    menu.setOnlineIndicator(true);
+    popup.showPopup("Connected", "lightgreen");
+    appEvent.resendEvents();
+    allUserDataFetch();
+    userDataApply();
+}
+
+function onDisconnect(event) {
+    menu.setOnlineIndicator(false);
+    if (popup.getText() != "Disconnected") {
+        popup.showPopup("Disconnected", "red");
+    }
+}
+
+function checkConnection() {
+    return appEvent.eventSocket.readyState == WebSocket.OPEN;
+}

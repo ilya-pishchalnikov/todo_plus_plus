@@ -2,9 +2,14 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"time"
 	"todopp/auth"
 	"todopp/event"
+	"todopp/store"
+	"todopp/util"
 
 	"github.com/gorilla/websocket"
 )
@@ -59,21 +64,53 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 }
 
 func handleEventMessages() {
+
+	config, err := util.GetConfig()
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
+	}
+
+	db, err := store.OpenDb(config.DbPath)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
+	}
+
 	for {
 		msg := <-broadcast
 
 		var appEvent event.Event
+
+		err = json.Unmarshal(msg, &appEvent)
+		if err != nil {
+			continue
+		}
+
 		responce := msg
 
-		err := json.Unmarshal(msg, &appEvent)
+		login, err := auth.VerifyJwtAndGetLogin(appEvent.Jwt)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		userId, err := store.GetUserIdByLogin(db, login)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		err = json.Unmarshal(msg, &appEvent)
 		if err != nil {
 			continue // ignore invalid messages
 		}
 
-		login, err := auth.VerifyJwtAndGetLogin(appEvent.Jwt)
-		if err != nil {
-			continue // ignore invalid jwt
-		}
+		var eventStore store.Event
+		eventStore.EventId = util.Uuid()
+		eventStore.Payload = string(appEvent.Payload)
+		eventStore.UserId = userId
+		eventStore.UtcTime = time.Now().UTC().UnixMilli()
 
 		// process events
 		err = event.ProcessEvent(appEvent)
@@ -82,16 +119,22 @@ func handleEventMessages() {
 			if err != nil {
 				continue
 			}
+			eventStore.IsError = 1
+			eventStore.Responce = string(responce)
+			store.InsertEvent(db, eventStore)
+			continue
 		}
 
+		//exclude jwt from responce
+		appEvent.Jwt = ""
+		responce, err = json.Marshal(appEvent)
 		if err != nil {
-			//exclude jwt from responce
-			appEvent.Jwt = ""
-			responce, err = json.Marshal(appEvent)
-			if err != nil {
-				continue
-			}
+			continue
 		}
+
+		eventStore.IsError = 0
+		eventStore.Responce = string(responce)
+		store.InsertEvent(db, eventStore)
 
 		for client := range clients {
 			if client.login == login {

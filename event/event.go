@@ -41,7 +41,7 @@ type ProjectPayload struct {
 type GroupPayload struct {
 	Id        string `json:"id"`
 	Name      string `json:"name"`
-	ProjectId string `json:"project-id"`
+	ProjectId string `json:"projectid"`
 	After     string `json:"after"`
 }
 

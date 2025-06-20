@@ -180,3 +180,51 @@ func projectHandler(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Write(projectsJson)
 
 }
+
+func allDataHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	login, err := getCurrentLogin(*request)
+	if err != nil {
+		http.Error(responseWriter, "Failed to extract current login", http.StatusInternalServerError)
+		return
+	}
+
+	config, err := util.GetConfig()
+	if err != nil {
+		http.Error(responseWriter, "Failed to read config", http.StatusInternalServerError)
+		return
+	}
+
+	db, err := store.OpenDb(config.DbPath)
+	if err != nil {
+		http.Error(responseWriter, "Failed to open database", http.StatusInternalServerError)
+		return
+	}
+
+	userId, err := store.GetUserIdByLogin(db, login)
+	if err != nil {
+		http.Error(responseWriter, "Failed to get user id", http.StatusInternalServerError)
+		return
+	}
+
+	allData, err := store.GetAllUserData(db, userId)
+	if err != nil {
+		http.Error(responseWriter, "Failed to retrieve all user data", http.StatusInternalServerError)
+		return
+	}
+
+	allUserDataJson, err := json.Marshal(allData)
+	if err != nil {
+		http.Error(responseWriter, "Failed to serialize all user data", http.StatusInternalServerError)
+		return
+	}
+
+	responseWriter.WriteHeader(http.StatusOK)
+	responseWriter.Header().Set("Content-Type", "application/json")
+	responseWriter.Write(allUserDataJson)
+
+}
