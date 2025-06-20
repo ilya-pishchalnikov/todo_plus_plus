@@ -679,6 +679,9 @@ function groupAddOnEvent(group) {
 
 function groupUpdateOnEvent(group) {
     const groupRegion = document.getElementById(group.id);
+    if (!groupRegion) {
+        return;
+    }
     let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
     if (groupHeaderRegion == null) {
         groupHeaderRegion = groupRegion.querySelector(".group-header-region");

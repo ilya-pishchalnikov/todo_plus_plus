@@ -1,5 +1,5 @@
 // sw.js - Service Worker
-const CACHE_NAME = "todopp-offline-cache-v1.0.44";
+const CACHE_NAME = "todopp-offline-cache-v1.0.48";
 const OFFLINE_URL = "/index.html";
 const URLS_TO_CACHE = [
     "/"
@@ -13,6 +13,7 @@ const URLS_TO_CACHE = [
     , "/logger.js"
     , "/login.html"
     , "/login.js"
+    , "/manifest.json"
     , "/menu.js"
     , "/popup.js"
     , "/html/script.js"

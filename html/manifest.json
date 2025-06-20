@@ -1,0 +1,20 @@
+{
+    "name": "ToDo++ task tracker",
+    "short_name": "ToDo++",
+    "description": "Task management application with offline support",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#e53935",
+    "icons": [
+      {
+        "src": "/html/img/icon192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any maskable"
+      }
+    ],
+    "scope": "/",
+    "orientation": "portrait-primary",
+    "categories": ["productivity"]
+  }
