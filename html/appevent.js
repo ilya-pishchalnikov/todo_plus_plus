@@ -86,7 +86,10 @@ class AppEvent {
         } else {
             await this.store.init();
             const storeEvent = {eventId:guid(), utc_time:Date.now().toString(), data:data}
-            await this.store.saveEvents(storeEvent);            
+            await this.store.saveEvents(storeEvent);  
+            const eventData = JSON.parse(data);
+            const receiveMessage = {data:JSON.stringify(eventData)};            
+            this.eventSocketOnMessage(receiveMessage);          
         }
     }
 

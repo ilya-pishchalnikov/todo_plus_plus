@@ -375,8 +375,6 @@ class IndexedDBDataStore {
         const afterTask = afterTaskId ? await this.getObject("task", afterTaskId) : null;
         const sequence = (afterTask?.sequence + 1) || 0;
 
-        logger.log(sequence);
-
         if (sequence != storeTask?.sequence) {
             const sequenceRange = IDBKeyRange.bound(
                 [groupId, sequence],       
@@ -392,7 +390,7 @@ class IndexedDBDataStore {
             }
         }
 
-        const newTask = {id:taskId, name:taskName, sequence:sequence, group:groupId, status:status}
+        const newTask = {id:taskId, text:taskName, sequence:sequence, group:groupId, status:status}
         await this.upsert("task", newTask);
     }
 

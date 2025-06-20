@@ -1,5 +1,5 @@
 // sw.js - Service Worker
-const CACHE_NAME = "todopp-offline-cache-v1.0.39";
+const CACHE_NAME = "todopp-offline-cache-v1.0.44";
 const OFFLINE_URL = "/index.html";
 const URLS_TO_CACHE = [
     "/"
@@ -19,11 +19,11 @@ const URLS_TO_CACHE = [
     , "/script.js"
     , "/style.css"
     , "/utils.js"
-    , "/img/cancelled.svg"
-    , "/img/done.svg"
-    , "/img/inprogress.svg"
-    , "/img/question.svg"
-    , "/img/todo.svg"
+    , "/html/img/cancelled.svg"
+    , "/html/img/done.svg"
+    , "/html/img/inprogress.svg"
+    , "/html/img/question.svg"
+    , "/html/img/todo.svg"
 ];
 
 // Install - Cache essential files

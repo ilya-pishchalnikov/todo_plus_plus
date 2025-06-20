@@ -1256,7 +1256,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
         let prevTaskIdOld = null;
         if (prevTaskRegionOld != null) {
-            prevTaksIdOld = prevTaskRegionOld.id;
+            prevTaskIdOld = prevTaskRegionOld.id;
         }
         if (taskTextOld == "") {
             taskRemove(taskIdOld);
