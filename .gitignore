@@ -39,3 +39,6 @@ config.json
 
 #vscode files
 .vscode/*
+
+#log files
+*.log
