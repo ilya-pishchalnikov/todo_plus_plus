@@ -36,25 +36,6 @@ class Menu {
         button.innerText = name + "▼";
         button.dataset.payload = payload;
         button.id = guid();
-        const button = document.createElement("button");
-        button.className = "menu-main-button";
-        button.innerText = name;
-        button.dataset.payload = payload;
-        if (width != null) {
-            button.style.width = width;
-        }
-        button.onclick = onclick;
-        menuMain.append(button);
-    }
-
-    addDropDownButton (name, payload, options, onOptionSelect, width = null) {
-        const menuMain = document.getElementById("menu-main");
-        const button = document.createElement("button");
-        button.className = "menu-main-button";
-        button.classList.add("dropdown");
-        button.innerText = name + "▼";
-        button.dataset.payload = payload;
-        button.id = guid();
         if (width != null) {
             button.style.width = width;
         }

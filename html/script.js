@@ -1183,21 +1183,21 @@ function taskAdd(task) {
     }
     taskRegion.onclick = taskRegionOnClick;
 
-    taskStatusIcon = document.createElement("img");
+    const taskStatusIcon = document.createElement("img");
     switch (true) {
-        case task.status == 1: 
+        case task.status == 1:
             taskStatusIcon.src = "/html/img/todo.svg";
             taskStatusIcon.alt = "☐";
             break;
-        case task.status == 2: 
+        case task.status == 2:
             taskStatusIcon.src = "/html/img/inprogress.svg";
             taskStatusIcon.alt = "☐";
             break;
-        case task.status == 3: 
+        case task.status == 3:
             taskStatusIcon.src = "/html/img/done.svg";
             taskStatusIcon.alt = "✔";
             break;
-        case task.status == 4: 
+        case task.status == 4:
             taskStatusIcon.src = "/html/img/cancelled.svg";
             taskStatusIcon.alt = "✘";
             break;
@@ -1212,8 +1212,8 @@ function taskAdd(task) {
     taskStatusIcon.onclick = taskStatusImgOnClick;
     taskRegion.appendChild(taskStatusIcon);
 
-    taskPre = document.createElement("pre");
-    taskPre.className = "task-pre";  
+    const taskPre = document.createElement("pre");
+    taskPre.className = "task-pre";
     taskPre.innerText = task.text;
     taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
@@ -1232,7 +1232,6 @@ function taskAdd(task) {
 function taskRegionOnClick(event) {
     const target = event.target;
     let taskRegion = null;
-    if (target.classList.contains("task-region")) {
     if (target.classList.contains("task-region")) {
         taskRegion = target;
     } else if (target.className == "task-pre") {
@@ -1253,8 +1252,6 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
         const taskTextOld = taskInlineInputOld.value;
         const taskRegionOld = taskInlineInputOld.parentElement;
         const taskIdOld = taskRegionOld.id
-        const taskStatusOld = taskRegionOld.dataset.status;
-
         const taskStatusOld = taskRegionOld.dataset.status;
 
         const groupRegionOld = taskRegionOld.parentElement.parentElement;
@@ -1379,36 +1376,6 @@ function taskInlineInputOnBlur(event) {
         prevTaskId = prevTaskRegion.id;
     }
     taskRegion.innerHTML = "";
-    taskStatusIcon = document.createElement("img");
-
-    switch (true) {
-        case taskStatus == 1: 
-            taskStatusIcon.src = "/html/img/todo.svg";
-            taskStatusIcon.alt = "☐";
-            break;
-        case taskStatus == 2: 
-            taskStatusIcon.src = "/html/img/inprogress.svg";
-            taskStatusIcon.alt = "☐";
-            break;
-        case taskStatus == 3: 
-            taskStatusIcon.src = "/html/img/done.svg";
-            taskStatusIcon.alt = "✔";
-            break;
-        case taskStatus == 4: 
-            taskStatusIcon.src = "/html/img/cancelled.svg";
-            taskStatusIcon.alt = "✘";
-            break;
-        default:
-            taskStatusIcon.src = "/html/img/question.svg";
-            taskStatusIcon.alt = "☐";
-            break;
-    }
-    taskStatusIcon.width = 30;
-    taskStatusIcon.height = 30;
-    taskStatusIcon.className = "task-status-img";    
-    taskStatusIcon.onclick = taskStatusImgOnClick;
-    taskRegion.append(taskStatusIcon);
-    taskPre = document.createElement("pre");    
     const taskStatusIcon = document.createElement("img");
 
     switch (true) {
@@ -1557,7 +1524,6 @@ function taskRemoveOnClick(event) {
 function taskRemove(taskId) {
     const taskRegion = document.getElementById(taskId);
     const taskPre = taskRegion.querySelector(".task-inline-input,.task-pre");
-    const taskPre = taskRegion.querySelector(".task-inline-input,.task-pre");
     const taskText = taskPre.innerText;
     const groupRegion = taskRegion.parentElement;
     const groupId = groupRegion.id;
@@ -1641,8 +1607,7 @@ function taskMoveUp(taskRegion) {
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-
-function taskDownOnClick(event){
+function taskDownOnClick(event) {
     const taskDownButton = event.target;
     const taskId = taskDownButton.dataset.payload;
     const taskRegion = document.getElementById(taskId);
@@ -1777,27 +1742,6 @@ function persistState() {
             break;
         case focusedElement.classList.contains("task-inline-input"):
             focusedElementInfo = { type: "task-inline-input", id: focusedElement.parentElement.id, text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
-            break;
-function taskStatusImgOnClick(event) {
-    const taskRegion = event.target.parentElement;
-    const taskId = taskRegion.id;
-    let taskStatusId = taskRegion.dataset.status;
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
-    const groupId = taskRegion.parentElement.parentElement.id;
-    const prevTaskId = taskRegion.previousElementSibling?.id||null;
-
-    switch(true) {
-        case taskStatusId == 1:
-            taskStatusId = "2";
-            break;
-        case taskStatusId == 2:
-            taskStatusId = "3";
-            break;
-        case taskStatusId == 3:
-            taskStatusId = "4";
-            break;
-        case taskStatusId == 4:
-            taskStatusId = "1";
             break;
     }
     if (focusedElementInfo != null) {

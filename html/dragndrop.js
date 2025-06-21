@@ -1,18 +1,104 @@
-///////// DRAG-N-DROP /////////
-let dragSrcEl = null;
 
-function handleDragStart(e) {
-    dragSrcEl = this;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.innerHTML);
-    this.classList.add('dragging');
-    dragging = true;
-  }
+function projectDragStart(event) {
+  event.stopPropagation();
+  const projectRegion = event.target;
+  const projectId = projectRegion.id;
+  let projectName = projectRegion.innerText;
+
+  const payload = JSON.stringify({
+      id: projectId,
+      name: projectName
+  });
+
+  event.dataTransfer.setData('application/json', payload);
+
+  projectRegion.classList.add("dragging");
+  event.dataTransfer.setDragImage(projectRegion, 0, 0);
+
+  setTimeout(() => {
+      const projectsRegion = document.getElementById("projects-region")
+      projectsRegion.classList.add("drop");
+      projectsRegion.addEventListener('dragover', projectListDragOver);
+      projectsRegion.addEventListener('dragenter', projectListDragEnter);
+      projectsRegion.addEventListener('dragleave', projectListDragLeave);
+      projectsRegion.addEventListener('drop', projectListDrop);        
+  }, 0);
+}
+
+function projectDragEnd(event) {    
+  const projectRegion = event.target;
+  projectRegion.classList.remove("dragging");
+
+
+  const projectsRegion = document.getElementById("projects-region")
+  projectsRegion.classList.remove("drop");
+  projectsRegion.removeEventListener('dragover', projectListDragOver);
+  projectsRegion.removeEventListener('dragenter', projectListDragEnter);
+  projectsRegion.removeEventListener('dragleave', projectListDragLeave);
+  projectsRegion.removeEventListener('drop', projectListDrop);  
+
+  const projectName = projectRegion.innerText;
+  const projectId = projectRegion.id;
+
+  const prevProjectRegion = projectRegion.previousElementSibling;
+  const prevProjectId = prevProjectRegion?.id || null;
+
+  const eventMessage = {
+      "type": "project-update",
+      "instance": instanceGuid,
+      "jwt": getCookieByName("jwtToken"),
+      "payload": {
+              "name": projectName,
+              "id": projectId,
+              "after": prevProjectId
+          }
+      };
+
+  appEvent.send(JSON.stringify(eventMessage));
+}
+
+
+function projectListDragOver(event) {
+  event.preventDefault();
+  const draggingProject = document.querySelector('.dragging');
+  const container = this;
+  const containerRect = container.getBoundingClientRect();
   
-  function handleDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    return false;
+  // Calculate relative Y position within container
+  const relY = event.clientY - containerRect.top;
+  const relX = event.clientX - containerRect.left;
+  
+  // Get all non-dragging project elements
+  const projectRegions = [...container.querySelectorAll('.project-region:not(.dragging), .project-region-selected:not(.dragging)')];
+  
+  // Find closest project element or determine if we're at the end
+  let closestProjectRegion = null;
+  let closestOffset = Number.POSITIVE_INFINITY;
+  let shouldAppend = true; // Default to appending if below all elements
+  
+  projectRegions.forEach(projectRegion => {
+      const rect = projectRegion.getBoundingClientRect();
+      const projectCenterY = rect.top - containerRect.top;
+      const projectCenterX = rect.left - containerRect.left;
+      const offset = (relY - projectCenterY) ** 2 + (relX - projectCenterX) ** 2;        
+      if (offset < closestOffset) {
+          closestOffset = offset;
+          closestProjectRegion = projectRegion
+      }
+  });
+
+  const lastProjectRegion = projectRegions[projectRegions.length - 1];
+  const lastProjectRect = lastProjectRegion.getBoundingClientRect();    
+  const lastProjectCenterY = lastProjectRect.top + lastProjectRect.height - containerRect.top;
+  const lastProjectCenterX = lastProjectRect.left + lastProjectRect.width - containerRect.left;
+  const offset = (relY - lastProjectCenterY) ** 2 + (relX - lastProjectCenterX) ** 2;
+
+  shouldAppend = offset < closestOffset;
+  
+  if (shouldAppend) {
+      container.appendChild(draggingProject);
+  } else {
+      container.insertBefore(draggingProject, closestProjectRegion);
   }
 }
 

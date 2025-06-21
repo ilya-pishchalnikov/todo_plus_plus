@@ -209,3 +209,61 @@ function showElementUnder(referenceElement, elementToShow) {
     elementToShow.style.left = `${rect.left + window.scrollX}px`;
     elementToShow.style.zIndex = '9999';
 }
+
+function getEditableSelection(element) {
+  const selection = window.getSelection();
+  if (selection.rangeCount === 0) return { start: 0, end: 0 };
+
+  const range = selection.getRangeAt(0);
+  const preCaretRange = range.cloneRange();
+  preCaretRange.selectNodeContents(element);
+  preCaretRange.setEnd(range.startContainer, range.startOffset);
+
+  return {
+    start: preCaretRange.toString().length,
+    end: preCaretRange.toString().length + range.toString().length
+  };
+}
+
+function setContentEditableSelection(element, start, end = start) {
+  const selection = window.getSelection();
+  const range = document.createRange();
+  const startNode = getTextNodeAtPosition(element, start);
+  const endNode = end !== start 
+    ? getTextNodeAtPosition(element, end) 
+    : startNode;
+
+  range.setStart(startNode.node, startNode.offset);
+  range.setEnd(endNode.node, endNode.offset);
+  
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function getTextNodeAtPosition(root, position) {
+  const treeWalker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+  
+  let currentPosition = 0;
+  let currentNode;
+  
+  while (currentNode = treeWalker.nextNode()) {
+    const nodeLength = currentNode.length;
+    if (position >= currentPosition && position <= currentPosition + nodeLength) {
+      return { 
+        node: currentNode, 
+        offset: position - currentPosition 
+      };
+    }
+    currentPosition += nodeLength;
+  }
+  
+  return { 
+    node: currentNode || document.createTextNode(''), 
+    offset: currentNode?.length || 0 
+  };
+}
