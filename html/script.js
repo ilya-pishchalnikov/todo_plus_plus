@@ -608,7 +608,7 @@ function groupInputOnKeyDown(event) {
     const firstGroupRegion = groupListRegion.firstElementChild;
     let firstGroupHeaderRegion = firstGroupRegion?.querySelector(".group-header-region");
     if (firstGroupHeaderRegion == null) {
-        firstGroupHeaderRegion = firstGroupRegion.querySelector(".group-header-region-selected");
+        firstGroupHeaderRegion = firstGroupRegion?.querySelector(".group-header-region-selected");
     }
     switch (true) {
         case event.key === "Enter":

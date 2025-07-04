@@ -12,10 +12,15 @@ import (
 )
 
 type Config struct {
-	Port    string `json:"port"`
-	Cert    string `json:"cert"`
-	CertKey string `json:"certKey"`
-	DbPath  string `json:"dbPath"`
+	Port         string `json:"port"`
+	Cert         string `json:"cert"`
+	CertKey      string `json:"certKey"`
+	DbPath       string `json:"dbPath"`
+	SmtpHost     string `json:"smtpHost"`
+	SmtpPort     string `json:"smtpPort"`
+	SmtpUserName string `json:"smtpUserName"`
+	SmptPassword string `json:"smtpPassword"`
+	SmtpFrom     string `json:"smtpFrom"`
 }
 
 var appConfig *Config = nil
