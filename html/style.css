@@ -53,82 +53,6 @@ body {
   div:focus {
     outline: none;
   }
-  /*.header-main {
-    text-align: center;
-  }*/
-  /*
-  .add-btn {
-    background: red;
-    color: white;
-    border: none;
-    height: 45px;
-    cursor: pointer;
-    width: 130px;
-    font-size: 130%;
-  }
-  .update-btn {
-    background: red;
-    color: white;
-    border: none;
-    height: 40px;
-    cursor: pointer;
-    width: 130px;
-    font-size: 130%;
-  }
-  .task-list-region {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
-  }
-  .task {
-    background: #f4f4f4;
-    margin-bottom: 2px;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .task:hover {
-    background: #a4a4a4;
-  }
-  .input-task {
-    background: #f4f4f4;
-    margin-bottom: 2px;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .new-task {
-    width: calc(100% - 160px);
-    background: white;
-    margin-bottom: 2px;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 130%;
-  }
-  .update-task {    
-    width: calc(100% - 160px);
-    background: white;
-    margin-bottom: 2px;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 130%;
-  }
-  .remove-btn {
-    background: red;
-    color: white;
-    border: none;
-    height: 45px;
-    cursor: pointer;
-    width: 130px;
-    font-size: 130%;
-  }
-  */
   .button-login {
     margin-top: 20px;
   }
@@ -175,15 +99,35 @@ body {
     top: 10px;
     z-index: 100;
     background: #f4f4f4;;
-    /*height: 50px;*/
-    align-items: center;
+    align-items: left;
     display: flex;
+    flex-direction: column;
     padding: 10px;
     margin-top: 0;
   }
 
   .menu-main-button {
     margin-left: 2px;
+  }
+  
+  .menu-upper {
+    display: flex;
+    justify-content: flex-end; 
+    gap: 10px;
+  }
+
+  .menu-upper-item-right {
+    font-size: 50%;
+  }
+
+  .menu-main {
+    flex-direction: row;
+  }
+
+  .hyperlink-style {
+    color: #0066cc; /* Classic link blue */
+    text-decoration: underline; 
+    cursor: pointer; 
   }
 
   .group-list-region {

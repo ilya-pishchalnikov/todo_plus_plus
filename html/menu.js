@@ -1,17 +1,17 @@
 class Menu {
 
     checkConnection;
+    signOut;
 
-    constructor () {
-
+    constructor (signOut) {
+        this.signOut = signOut;
+        const signOutRegion = document.getElementById("menu-upper-item-signout");
+        signOutRegion.onclick = signOut;
     }
 
     showHeader(menuHeader) {
         const menuMain = document.getElementById("menu-main");
         menuMain.innerText = menuHeader;
-        const onlineIndicator = document.createElement("div");
-        onlineIndicator.className = "online-indicator-region";
-        menuMain.append(onlineIndicator);
         this.setOnlineIndicator(this.checkConnection());
     }
 
@@ -78,7 +78,7 @@ class Menu {
     }
 
     setOnlineIndicator(isOnline = false) {
-        const onlineIndicator = document.querySelector(".online-indicator-region");
+        const onlineIndicator = document.getElementById("menu-upper-item-online-indicator");
         if (onlineIndicator == null) {
             return;
         }

@@ -1,6 +1,6 @@
 
 
-const menu = new Menu()
+const menu = new Menu(signout)
 const popup = new Popup();
 const store = new IndexedDBDataStore("DataStore", 5);
 
@@ -1814,6 +1814,11 @@ function applyPersistedState() {
             }
         }, 50);
     }
+}
+
+function signout() {
+    deleteCookie("jwtToken");
+    window.location.assign("/login.html");
 }
 
 
