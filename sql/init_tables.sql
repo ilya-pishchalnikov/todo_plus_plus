@@ -2,7 +2,9 @@ create table if not exists user (
 	user_id text primary key,
 	name text,
 	login text unique,
-	password_hash text
+	password_hash text,
+	email text,
+	is_active int 
 );
 
 create table if not exists project (
@@ -69,4 +71,12 @@ where not exists (
 
 create table if not exists jwt (
 	jwt_key text
+);
+
+create table if not exists user_secret (
+	user_id text,
+	secret text primary key,
+	expire int,
+	target text,
+	foreign key (user_id) references user(user_id)
 );

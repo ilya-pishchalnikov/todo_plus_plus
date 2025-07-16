@@ -51,3 +51,8 @@ func dropField(db *sql.DB, tableName string, fieldName string) error {
 	_, err := db.Exec("ALTER TABLE " + tableName + " DROP COLUMN " + fieldName)
 	return err
 }
+
+func addField(db *sql.DB, tableName string, fieldName string, fieldType string) error {
+	_, err := db.Exec("ALTER TABLE " + tableName + " ADD " + fieldName + " " + fieldType)
+	return err
+}

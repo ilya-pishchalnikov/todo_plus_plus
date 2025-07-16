@@ -92,5 +92,25 @@ func InitDatabase(dbPath string) error {
 		}
 	}
 
+	//Add user.email field if not exists
+	if exists, err := IsTableFieldExists(db, "user", "email"); err != nil {
+		return err
+	} else if !exists {
+		err = addField(db, "user", "email", "text")
+		if err != nil {
+			return err
+		}
+	}
+
+	//Add user.is_active field if not exists
+	if exists, err := IsTableFieldExists(db, "user", "is_active"); err != nil {
+		return err
+	} else if !exists {
+		err = addField(db, "user", "is_active", "int")
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }

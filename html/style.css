@@ -7,13 +7,12 @@ body {
     padding: 20px;
     font-size: 130%;
   }  
-  /*
+  
   div {    
-    border-width:thin;
-    border-style: inset;
-    border-color: red;
+    border-radius: 4px;
+    transition: background 0.3s;
   }
-  */
+  
 
   input {
     background: white;
@@ -23,8 +22,15 @@ body {
     justify-content: space-between;
     align-items: center;
     font-size: 130%;
+    border-radius: 4px;
+    transition: border 0.3s;
   }
-  button {
+
+  textarea {
+    border-radius: 4px;
+    transition: border 0.3s;
+  }
+  /*button {
     background: red;
     color: white;
     border: none;
@@ -32,15 +38,22 @@ body {
     cursor: pointer;
     width: 130px;
     font-size: 130%;
+  }*/
+
+  button {
+    background: #ff4444;
+    margin-top: 10px;
+    color: white;
+    border: none;
+    height: 45px;
+    cursor: pointer;
+    width: 130px;
+    font-size: 16px;
+    border-radius: 4px;
+    transition: background 0.3s;
   }
   button:hover {
     background: darkred;
-  }
-  p {
-    line-height: 0.1;
-  }
-  br {
-    line-height: 0.1;
   }
   textarea:focus {    
     border: 3px solid red;
@@ -313,3 +326,219 @@ body {
   .popup.active {
     transform: translateX(0); /* Slide in */
   }
+
+  .login-body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .auth-container {
+    background-color: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 450px;
+    transition: all 0.3s ease;
+  }
+
+  .header-main {
+    color: #333;
+    text-align: center;
+    margin-bottom: 30px;
+    font-weight: 500;
+  }
+
+  .login-input {
+    background: white;
+    margin-bottom: 15px;
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border 0.3s;
+  }
+
+  .login-input:focus {
+    outline: none;
+    border-color: #ff4444;
+  }
+
+  .label {
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+
+  .button-login {
+    width: 100%;
+  }
+
+  .button-register {
+    width: 100%;
+  }
+
+  .button-info {
+    width: 100%;
+  }
+
+  .div-button-login {
+    margin: auto;
+    width: 100%;
+  }
+
+  .div-login {
+    margin: auto;
+    width: 100%;
+  }
+
+  .div-register-link {
+    text-align: center;
+    margin-top: 20px;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .div-register-link a {
+    color: #4285f4;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .div-register-link a:hover {
+    text-decoration: underline;
+  }
+
+  /* Dialog Styles */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialog-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  animation: dialogFadeIn 0.3s ease-out;
+}
+
+@keyframes dialogFadeIn {
+  from {
+      opacity: 0;
+      transform: translateY(-20px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0);
+  }
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.dialog-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #888;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.dialog-close:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.dialog-content {
+  padding: 20px;
+  color: #555;
+  flex: 1; 
+  word-break: break-word; 
+  overflow-wrap: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dialog-actions {
+  padding: 15px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #eee;
+}
+/*
+#captchaModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+*/
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  /* Remove position/transform if previously set */
+  position: unset;
+  transform: unset;
+  transition: transform 0.3s ease;
+  transform: scale(0.95); 
+  display: flex;
+}
+
+.h-captcha {
+  display: inline-block;
+  margin: 0 auto; /* Centers the CAPTCHA widget */
+}
+
+.modal-content button {
+  margin: 10px 5px;
+  padding: 8px 16px;
+  cursor: pointer;
+}

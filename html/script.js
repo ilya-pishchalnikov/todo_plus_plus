@@ -1821,7 +1821,6 @@ function signout() {
     window.location.assign("/login.html");
 }
 
-
 function onConnect(event) {
     menu.setOnlineIndicator(true);
     popup.showPopup("Connected", "lightgreen");
