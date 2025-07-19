@@ -5,23 +5,87 @@
     <meta charset="UTF-8" />
     <title>ToDo++</title>
     <link rel="stylesheet" href="/html/style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body class="login-body">
 
-    <h1 class="header-main">Login</h1>
-    <div class="div-login">
-        <form id="loginForm">
-            <p class="label">login</p>
-            <input type="text" id="input-login" placeholder="login" required autocomplete="username"/> 
-            <p class="label">password</p>
-            <input type="password" id="input-password" placeholder="password" required autocomplete="current-password"/>
-            <div class="div-button-login">
-                <button type="submit" class="button-login" id="button-login">Login</button>
-            </div>
-        </form>
+    <div class="auth-container" id="auth-container">
+        <h1 class="header-main">Login</h1>
+        <div class="div-login">
+            <form id="loginForm">
+                <p class="label">login</p>
+                <input class="login-input" type="text" id="input-login" placeholder="login" required autocomplete="username"/> 
+                <p class="label">password</p>
+                <input class="login-input" type="password" id="input-password" placeholder="password" required autocomplete="current-password"/>
+                <div class="div-button-login">
+                    <button type="submit" class="button-login" id="button-login">Login</button>
+                </div>
+                <div class="div-register-link">
+                    <p>Don't have an account? <a href="#" id="register-link">Register here</a></p>
+                </div>
+            </form>
+        </div>
     </div>
 
+    <!-- Registration Form (initially hidden) -->
+    <div class="auth-container" id="registration-container" style="display: none;">
+        <h1 class="header-main">Register</h1>
+        <div class="div-login">
+            <form id="registrationForm">
+                <p class="label">username</p>
+                <input class="login-input" type="text" id="input-username" placeholder="username" required/>
+                <p class="label">login</p>
+                <input class="login-input" type="login" id="input-register-login" placeholder="login" required autocomplete="username"/>
+                <p class="label">email</p>
+                <input class="login-input" type="email" id="input-email" placeholder="email" required autocomplete="email"/>
+                <p class="label">password</p>
+                <input class="login-input" type="password" id="input-register-password" placeholder="password" required autocomplete="new-password"/>
+                <p class="label">confirm password</p>
+                <input class="login-input" type="password" id="input-confirm-password" placeholder="confirm password" required autocomplete="new-password"/>
+                <div class="div-button-login">
+                    <button type="submit" class="button-register" id="button-register">Register</button>
+                </div>
+                <div class="div-register-link">
+                    <p>Already have an account? <a href="#" id="login-link">Login here</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Information window (initially hidden) -->
+    <div class="auth-container" id="information-container" style="display: none;">
+        <h1 class="header-main" id="info-header">INFO</h1>
+        <div class="div-info">
+            <p id="info-message"></p>
+        </div>
+        <button class="button-info" id="button-info">OK</button>
+    </div>
+
+    <!-- hCaptcha Modal (hidden by default) -->
+    <div id="captchaModal" class="dialog-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="h-captcha" id="h-captcha" data-sitekey="f1d8ae8c-549a-43dc-a636-8a82ae0aaed8" data-callback="onCaptchaSuccess"></div>
+        </div>
+    </div>
+
+    <!-- Error Dialog (hidden by default) -->
+    <div class="dialog-overlay" id="dialog-overlay" style="display: none;">
+        <div class="dialog-container">
+            <div class="dialog-header">
+                <h3 id="dialog-title">Error</h3>
+                <button class="dialog-close" id="dialog-close">&times;</button>
+            </div>
+            <div class="dialog-content">
+                <p id="dialog-message">Invalid username or password. Please try again.</p>
+            </div>
+            <div class="dialog-actions">
+                <button class="button-dialog" id="dialog-confirm">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
     <script src="/html/logger.js"></script>
     <script src="/html/login.js"></script>
 </body>

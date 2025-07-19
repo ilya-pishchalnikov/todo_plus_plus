@@ -45,6 +45,10 @@ function getCookieByName(name) {
     return null;
 }
 
+function deleteCookie(name) {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
 function isCursorAtEndOrNotFocused(editableElement) {
     if (editableElement.tagName === "INPUT" || editableElement.tagName === "TEXTAREA"){
         return editableElement.selectionStart === editableElement.value.length && editableElement.selectionStart === editableElement.selectionEnd;
