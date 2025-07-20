@@ -238,7 +238,7 @@ button:active {
 }
 
 .project-region:hover {
-  background: var(--color-very-light-red);
+  background: var(--color-background-grey-light);
   border-color: var(--color-light-red);
 }
 
@@ -401,30 +401,18 @@ button:active {
 
 /* Status Specific Colors */
 .inprogress {
-  background-color: var(--status-inprogress-bg);
-  border-left: 6px solid var(--status-inprogress-border); /* Thicker border */
-}
-
-.inprogress:hover {
-  background-color: var(--status-inprogress-hover);
+  border-left: 6px solid var(--status-inprogress-border); 
+  font-weight: bold;
 }
 
 .done {
-  background-color: var(--status-done-bg);
   border-left: 6px solid var(--status-done-border);
-}
-
-.done:hover {
-  background-color: var(--status-done-hover);
+  text-decoration: line-through;
 }
 
 .cancelled {
-  background-color: var(--status-cancelled-bg);
   border-left: 6px solid var(--status-cancelled-border);
-}
-
-.cancelled:hover {
-  background-color: var(--status-cancelled-hover);
+  text-decoration: line-through;
 }
 
 /* Dropdown */
