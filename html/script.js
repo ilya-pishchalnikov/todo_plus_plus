@@ -209,7 +209,6 @@ function userDataApply() {
             let prevProjectId = null;
             const projectsRegion = document.getElementById("projects-region");
             projectsRegion.innerHTML = "";
-            projectsRegion.innerText = "Projects: "
 
             if (projects != null && projects.length > 0) {
                 Array.from(projects).forEach(project => {
@@ -295,12 +294,11 @@ function projectRegionOnKeyDown(event) {
             event.preventDefault();
             break;
         case event.key === "ArrowRight":
-            if (nextProjectRegion != null) {
-                if (isCursorAtEndOrNotFocused(selectedProjectRegion)) {
-                    projectSelect(nextProjectRegion, true);
+            if (isCursorAtEndOrNotFocused(selectedProjectRegion)) {
+                const newGroupInput = document.getElementById("group-input");
+                newGroupInput.focus();
                     event.preventDefault();
                 }
-            }
             break;
         case event.key === "ArrowLeft" && event.ctrlKey:
             if (prevProjectRegion != null) {
@@ -317,8 +315,15 @@ function projectRegionOnKeyDown(event) {
             }
             break;
         case event.key === "ArrowDown":
-            const newGroupInput = document.getElementById("group-input");
-            newGroupInput.focus();
+            if (nextProjectRegion != null) {
+                projectSelect(nextProjectRegion, true);
+            }
+            event.preventDefault();
+            break;
+        case event.key === "ArrowUp":
+            if (prevProjectRegion != null) {
+                projectSelect(prevProjectRegion, false);
+            }
             event.preventDefault();
             break;
     }

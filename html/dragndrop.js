@@ -1,4 +1,3 @@
-
 function projectDragStart(event) {
   event.stopPropagation();
   const projectRegion = event.target;
@@ -60,45 +59,26 @@ function projectDragEnd(event) {
 
 function projectListDragOver(event) {
   event.preventDefault();
-  const draggingProject = document.querySelector('.dragging');
   const container = this;
-  const containerRect = container.getBoundingClientRect();
+  const draggingProject = document.querySelector('.dragging');
+
+  const draggableElements = [...container.querySelectorAll('.project-region:not(.dragging), .project-region-selected:not(.dragging)')];
   
-  // Calculate relative Y position within container
-  const relY = event.clientY - containerRect.top;
-  const relX = event.clientX - containerRect.left;
-  
-  // Get all non-dragging project elements
-  const projectRegions = [...container.querySelectorAll('.project-region:not(.dragging), .project-region-selected:not(.dragging)')];
-  
-  // Find closest project element or determine if we're at the end
-  let closestProjectRegion = null;
-  let closestOffset = Number.POSITIVE_INFINITY;
-  let shouldAppend = true; // Default to appending if below all elements
-  
-  projectRegions.forEach(projectRegion => {
-      const rect = projectRegion.getBoundingClientRect();
-      const projectCenterY = rect.top - containerRect.top;
-      const projectCenterX = rect.left - containerRect.left;
-      const offset = (relY - projectCenterY) ** 2 + (relX - projectCenterX) ** 2;        
-      if (offset < closestOffset) {
-          closestOffset = offset;
-          closestProjectRegion = projectRegion
+  const afterElement = draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = event.clientY - box.top - box.height / 2;
+      
+      if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+      } else {
+          return closest;
       }
-  });
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
 
-  const lastProjectRegion = projectRegions[projectRegions.length - 1];
-  const lastProjectRect = lastProjectRegion.getBoundingClientRect();    
-  const lastProjectCenterY = lastProjectRect.top + lastProjectRect.height - containerRect.top;
-  const lastProjectCenterX = lastProjectRect.left + lastProjectRect.width - containerRect.left;
-  const offset = (relY - lastProjectCenterY) ** 2 + (relX - lastProjectCenterX) ** 2;
-
-  shouldAppend = offset < closestOffset;
-  
-  if (shouldAppend) {
+  if (afterElement == null) {
       container.appendChild(draggingProject);
   } else {
-      container.insertBefore(draggingProject, closestProjectRegion);
+      container.insertBefore(draggingProject, afterElement);
   }
 }
 
