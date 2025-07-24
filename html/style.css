@@ -246,6 +246,7 @@ button:active {
     user-select: text;
     cursor: pointer;
     border: 1px solid var(--color-border-light);
+    border-radius: var(--border-radius);
     box-shadow: var(--shadow-subtle);
 }
 
@@ -265,6 +266,7 @@ button:active {
     white-space: pre-wrap;
     user-select: text;
     border: 1px solid var(--color-dark-red);
+    border-radius: var(--border-radius);
     box-shadow: var(--shadow-medium);
 }
 .project-region-selected:hover {
@@ -491,7 +493,6 @@ button:active {
 /* Login Page Styles */
 .login-body {
     font-family: "Inter", sans-serif;
-    background-color: var(--color-light-red);
     margin: 0;
     padding: 0;
     display: flex;
@@ -512,7 +513,7 @@ button:active {
 }
 
 .header-main {
-    color: var(--color-primary-red);
+    color: var(--color-black);
     text-align: center;
     margin-bottom: 40px; /* More space */
     font-weight: 600;
