@@ -272,13 +272,12 @@ button:active {
 }
 
 /* Group Region */
-.group-list-region {
-    padding: 15px; /* Increased padding */
-}
 
 .group-input {
-    width: calc(100% - 30px); /* Adjusted for new padding */
+    position: relative; /* Establishes positioning context */
+    display: flex;
     margin-bottom: 20px; /* More space below group input */
+    width: 100%;
 }
 
 .group-region {
