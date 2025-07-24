@@ -77,7 +77,6 @@ div {
     width: 280px;
     flex-shrink: 0;
     background-color: var(--color-background-light);
-    border-right: 1px solid var(--color-light-red);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -86,16 +85,12 @@ div {
 
 .sidebar-header {
     padding: 15px 20px; /* Increased padding */
-    margin: 0;
+    margin-top: 20px;
+    margin-bottom: 0;
     font-size: 1.2rem; /* Slightly larger font */
     font-weight: 600;
-    background-color: var(--color-primary-red); /* Stronger header color */
-    color: var(--color-white);
-    border-bottom: 1px solid var(--color-dark-red);
+    color: var(--color-black);
     position: sticky;
-    top: 0;
-    z-index: 10;
-    box-shadow: var(--shadow-medium);
 }
 
 .main-content {
@@ -178,7 +173,6 @@ button:active {
     flex-direction: column;
     padding: 15px 25px; /* Increased padding */
     margin-top: 0;
-    border-bottom: 1px solid var(--color-primary-red);
     height: var(--menu-bar-height);
     box-sizing: border-box;
     width: 100%;
@@ -205,12 +199,16 @@ button:active {
 }
 
 .menu-upper-item-right {
-    font-size: 0.9em;
+    font-size: 0.7em;
     color: var(--color-white); /* White for better contrast */
     opacity: 0.8;
 }
 .menu-upper-item-right:hover {
     opacity: 1;
+}
+
+.online-indicator {
+    font-size: 0.6em;
 }
 
 .menu-main {

@@ -1069,7 +1069,7 @@ function groupMoveDown(groupRegion) {
 
 function taskInputOnFocus(event) {
     const taskInput = event.target;
-    menu.showHeader("New Group: ");
+    menu.showHeader("New Task: ");
     menu.addButton("Add", taskInput.id, taskNewAddOnClick);
 
     const taskRegionsSelected = document.querySelectorAll(

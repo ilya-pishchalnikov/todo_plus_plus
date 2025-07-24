@@ -1,11 +1,12 @@
 class Menu {
-
     checkConnection;
     signOut;
 
-    constructor (signOut) {
+    constructor(signOut) {
         this.signOut = signOut;
-        const signOutRegion = document.getElementById("menu-upper-item-signout");
+        const signOutRegion = document.getElementById(
+            "menu-upper-item-signout"
+        );
         signOutRegion.onclick = signOut;
     }
 
@@ -28,7 +29,7 @@ class Menu {
         menuMain.append(button);
     }
 
-    addDropDownButton (name, payload, options, onOptionSelect, width = null) {
+    addDropDownButton(name, payload, options, onOptionSelect, width = null) {
         const menuMain = document.getElementById("menu-main");
         const button = document.createElement("button");
         button.className = "menu-main-button";
@@ -43,10 +44,10 @@ class Menu {
         menuMain.append(button);
 
         const dropdownContent = document.createElement("div");
-        dropdownContent.className= "dropdown-region";
+        dropdownContent.className = "dropdown-region";
         dropdownContent.id = "content-" + button.id;
 
-        options.forEach(option => {
+        options.forEach((option) => {
             const optionRegion = document.createElement("div");
             optionRegion.className = "dropdown-option-region";
             optionRegion.dataset.payload = JSON.stringify(option.payload);
@@ -58,7 +59,7 @@ class Menu {
         menuMain.appendChild(dropdownContent);
         showElementUnder(button, dropdownContent);
 
-        window.addEventListener('click', this.windowOnClick);
+        window.addEventListener("click", this.windowOnClick);
     }
 
     dropdownButtonOnClick(event) {
@@ -69,24 +70,27 @@ class Menu {
 
     windowOnClick(event) {
         const elementId = event.target.id;
-        const dropdownShown = document.querySelectorAll (".dropdown-show");
-        dropdownShown.forEach(element => {
-            if (element.id != "content-" + elementId) { 
+        const dropdownShown = document.querySelectorAll(".dropdown-show");
+        dropdownShown.forEach((element) => {
+            if (element.id != "content-" + elementId) {
                 element.classList.remove("dropdown-show");
             }
         });
     }
 
     setOnlineIndicator(isOnline = false) {
-        const onlineIndicator = document.getElementById("menu-upper-item-online-indicator");
+        const onlineIndicator = document.getElementById(
+            "menu-upper-item-online-indicator"
+        );
         if (onlineIndicator == null) {
             return;
         }
         if (isOnline) {
-            onlineIndicator.textContent = "🟢";
+            onlineIndicator.textContent = "online 🟢";
+            onlineIndicator.style.color = "green";
         } else {
-            onlineIndicator.textContent = "🔴";
+            onlineIndicator.textContent = "offline 🔴";
+            onlineIndicator.style.color = "red";
         }
     }
-
 }
