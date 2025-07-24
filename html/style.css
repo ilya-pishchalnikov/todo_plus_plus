@@ -123,6 +123,7 @@ textarea {
     resize: vertical;
     overflow: hidden;
     min-height: 40px; /* Increased min-height */
+    resize: none;
 }
 
 input:focus {
@@ -135,6 +136,7 @@ textarea:focus {
     outline: none;
     border: none;
     box-shadow: none;
+    background: none;
 }
 
 div:focus {
@@ -299,8 +301,7 @@ button:active {
 }
 
 .group-header-region:hover {
-    background: var(--color-background-grey-light);
-    color: var(--color-black);
+    background: var(--color-background-light);
 }
 
 .collapse-icon {
@@ -341,17 +342,17 @@ button:active {
     border-radius: 0 0 var(--border-radius) var(--border-radius); /* Round bottom corners only */
 }
 
+.task-input:focus {
+    border-top: 1px solid var(--color-border-light);
+}
+
 .task-region {
-    background: var(--color-background-light);
     margin-bottom: 8px; /* More space */
-    margin-left: 40px;
     padding: 12px 15px; /* More padding */
     display: flex;
     align-items: center;
     gap: 15px; /* More space between elements */
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-subtle);
-    border: 1px solid var(--color-border-light);
 }
 
 .task-region img,
@@ -361,7 +362,7 @@ button:active {
 }
 
 .task-region:hover {
-    background: var(--color-background-grey-light);
+    background: var(--color-background-light);
 }
 
 .task-pre {
@@ -377,12 +378,9 @@ button:active {
 }
 
 .task-region.selected {
-    border: 2px solid var(--color-primary-red);
+    border-left: 2px solid var(--color-primary-red);
+    border-right: 2px solid var(--color-primary-red);
     box-shadow: 0 0 0 3px rgba(var(--color-primary-red), 0.3); /* Softer glow */
-}
-
-.task-region-selected:hover {
-    background: var(--color-background-grey-light);
 }
 
 .task-inline-input {
