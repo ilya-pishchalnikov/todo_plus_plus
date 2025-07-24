@@ -1,6 +1,4 @@
-
-
-const menu = new Menu(signout)
+const menu = new Menu(signout);
 const popup = new Popup();
 const store = new IndexedDBDataStore("DataStore", 5);
 
@@ -28,7 +26,6 @@ setInterval(() => renewToken(), 3600000); //hourly
 setInterval(persistState, 1000);
 window.addEventListener("beforeunload", persistState);
 
-
 renewToken();
 // Fetch complete user data
 allUserDataFetch();
@@ -44,71 +41,71 @@ if ("serviceWorker" in navigator) {
 
 /**
  * Fetches complete user data from the server and persists it in IndexedDB.
- * 
+ *
  * Retrieves the user"s full dataset including projects, groups, and tasks by making a GET request
  * to the "/api/all_user_data" endpoint. The response data is then stored in IndexedDB for offline use.
- * @returns {void}  
+ * @returns {void}
  */
 function allUserDataFetch() {
     fetch("/api/all_user_data", {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer " + getCookieByName("jwtToken")
-        }
+            Authorization: "Bearer " + getCookieByName("jwtToken"),
+        },
     })
-        .then(response => {
+        .then((response) => {
             if (response.status === 401) {
                 logger.error("Unauthorized - Redirect to login");
                 window.location.href = "/login.html";
                 return Promise.reject("Unauthorized");
-            } if (!response.ok) {
-                return response.text().then(text => {
+            }
+            if (!response.ok) {
+                return response.text().then((text) => {
                     return Promise.reject(text); // Properly reject with the error text
                 });
             } else {
                 return response.json();
             }
         })
-        .then(allData => {
-                store.clean();
-                store.insertProjects(allData.projects);
-                store.insertTaskGroups(allData.groups);
-                store.insertTasks(allData.tasks);
-            }
-        )
-        .catch(error => logger.error(error));
+        .then((allData) => {
+            store.clean();
+            store.insertProjects(allData.projects);
+            store.insertTaskGroups(allData.groups);
+            store.insertTasks(allData.tasks);
+        })
+        .catch((error) => logger.error(error));
 }
 
 /**
  * Fetches and displays a project's tasks and groups from IndexedDB.
- * 
- * Retrieves persisted task and group data for the specified project by calling 
- * `store.getTaskGroupsByProjectId()`, then renders them in the UI using 
+ *
+ * Retrieves persisted task and group data for the specified project by calling
+ * `store.getTaskGroupsByProjectId()`, then renders them in the UI using
  * the `taskListPopulate()` function.
- * 
+ *
  * @param {string} projectId - The ID of the project to fetch data for
- * @returns {void}  
+ * @returns {void}
  */
 function taskListApply(projectId) {
-
-    store.getTaskGroupsByProjectId(projectId)
-    .then(taskList => {
-        taskListPopulate(taskList);
-    })
-    .catch(error => logger.error(error));
+    store
+        .getTaskGroupsByProjectId(projectId)
+        .then((taskList) => {
+            taskListPopulate(taskList);
+        })
+        .catch((error) => logger.error(error));
 }
 
 /**
  * Renders a task list with groups and tasks in the UI.
- * 
+ *
  * Creates DOM elements for the task list, processes each group, and renders them
  * using the `groupAdd` function. Tasks within each group are displayed accordingly.
- * 
- * @param {Object} taskList - Contains tasks and groups data in the format:  
- *   `{ groups: Array<Group>, tasks: Array<Task> }`  
- * @returns {void}  
- * @sideeffects Modifies the DOM by adding task and group elements  
+ *
+ * @param {Object} taskList - Contains tasks and groups data in the format:
+ *   `{ groups: Array<Group>, tasks: Array<Task> }`
+ * @returns {void}
+ * @sideeffects Modifies the DOM by adding task and group elements
  */
 function taskListPopulate(taskList) {
     const taskListRegion = document.getElementById("groups-region");
@@ -134,10 +131,10 @@ function taskListPopulate(taskList) {
 
     let currentGroupRegion = null;
     if (taskList != null) {
-        taskList.forEach(group => {
-            let currentGroupRegionId = null
+        taskList.forEach((group) => {
+            let currentGroupRegionId = null;
             if (currentGroupRegion != null) {
-                currentGroupRegionId = currentGroupRegion.id
+                currentGroupRegionId = currentGroupRegion.id;
             }
             currentGroupRegion = groupAdd(group, currentGroupRegionId);
         });
@@ -146,12 +143,12 @@ function taskListPopulate(taskList) {
 
 /**
  * Renews the JWT authentication token before expiration by requesting a new one from the server.
- * 
+ *
  * - Sends a GET request to `/api/token_renew` with the current valid token in the `Authorization` header
  * - On success:
  *   - Sets the new token in an HTTP-only cookie for subsequent requests
- * @returns {void}  
- * @sideeffects 
+ * @returns {void}
+ * @sideeffects
  *   - Updates `jwtToken` cookie with new token
  */
 function renewToken() {
@@ -159,73 +156,74 @@ function renewToken() {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer " + getCookieByName("jwtToken")
-        }
+            Authorization: "Bearer " + getCookieByName("jwtToken"),
+        },
     })
-        .then(response => {
+        .then((response) => {
             if (response.status === 401) {
                 logger.error("Unauthorized - Redirect to login");
                 window.location.href = "/login.html";
                 return Promise.reject("Unauthorized");
-            } if (!response.ok) {
-                return response.text().then(text => {
+            }
+            if (!response.ok) {
+                return response.text().then((text) => {
                     return Promise.reject(text); // Properly reject with the error text
                 });
             } else {
                 return response.text();
             }
         })
-        .then(tokenString => {
+        .then((tokenString) => {
             if (/^[a-zA-Z0-9.\-_]+$/.test(tokenString)) {
                 setCookie("jwtToken", tokenString, {});
             }
         })
-        .catch(error => logger.error(error));
+        .catch((error) => logger.error(error));
 }
 
 /**
  * Synchronizes the UI with the latest application state from IndexedDB.
- * 
+ *
  * Performs a complete UI refresh by:
  * 1. Fetching current data from IndexedDB (projects, tasks, and groups)
  * 2. Normalizing data for UI consumption
  * 3. Re-rendering all affected components
  * 4. Restoring saved UI state
- * 
+ *
  * Implementation Flow:
  * - Calls `store.getProjects()` to retrieve all projects
  * - For each project:
  *   - Invokes `projectAdd()` to render the project container
  *   - Fetches and renders associated groups/tasks
  * - Applies saved UI state via `applyPersistedState()`
- * 
+ *
  * @returns {void}
  * @sideeffects
  *   - Modifies DOM by re-rendering all project elements
  */
 function userDataApply() {
-    store.getProjects()
-        .then(projects => {            
+    store
+        .getProjects()
+        .then((projects) => {
             let prevProjectId = null;
             const projectsRegion = document.getElementById("projects-region");
             projectsRegion.innerHTML = "";
-            projectsRegion.innerText = "Projects: "
 
             if (projects != null && projects.length > 0) {
-                Array.from(projects).forEach(project => {
+                Array.from(projects).forEach((project) => {
                     projectAdd(project.id, project.name, prevProjectId);
                     prevProjectId = project.id;
                 });
             } else {
                 const eventMessage = {
-                    "type": "project-add",
-                    "instance": instanceGuid,
-                    "jwt": getCookieByName("jwtToken"),
-                    "payload": {
-                        "name": "Project1",
-                        "id": guid(),
-                        "after": null
-                    }
+                    type: "project-add",
+                    instance: instanceGuid,
+                    jwt: getCookieByName("jwtToken"),
+                    payload: {
+                        name: "Project1",
+                        id: guid(),
+                        after: null,
+                    },
                 };
 
                 appEvent.send(JSON.stringify(eventMessage));
@@ -234,7 +232,7 @@ function userDataApply() {
                 applyPersistedState();
             }, 50);
         })
-        .catch(error => logger.error(error));
+        .catch((error) => logger.error(error));
 }
 
 function projectAdd(projectId, projectName, previousProjectId) {
@@ -252,8 +250,8 @@ function projectAdd(projectId, projectName, previousProjectId) {
     projectRegion.addEventListener("keydown", projectRegionOnKeyDown);
     projectRegion.addEventListener("focus", projectRegionOnFocus);
     projectRegion.addEventListener("blur", projectRegionOnBlur);
-    projectRegion.addEventListener("dragstart", projectDragStart)
-    projectRegion.addEventListener("dragend", projectDragEnd)
+    projectRegion.addEventListener("dragstart", projectDragStart);
+    projectRegion.addEventListener("dragend", projectDragEnd);
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -263,25 +261,29 @@ function projectAdd(projectId, projectName, previousProjectId) {
     if (!document.contains(projectRegion)) {
         projectsRegion.append(projectRegion);
     }
-    const selectedProjectRegion = document.getElementsByClassName("project-region-selected");
+    const selectedProjectRegion = document.getElementsByClassName(
+        "project-region-selected"
+    );
     if (selectedProjectRegion.length == 0) {
         projectSelect(projectRegion, false, false);
     }
-    return projectRegion
+    return projectRegion;
 }
 
 function projectRegionOnKeyDown(event) {
-    const selectedProjectRegion = document.querySelector(".project-region-selected");
+    const selectedProjectRegion = document.querySelector(
+        ".project-region-selected"
+    );
     const nextProjectRegion = selectedProjectRegion.nextElementSibling;
     const prevProjectRegion = selectedProjectRegion.previousElementSibling;
     switch (true) {
         case event.key === "ArrowRight" && event.altKey:
             projectMoveRight(selectedProjectRegion);
-            event.preventDefault()
+            event.preventDefault();
             break;
         case event.key === "ArrowLeft" && event.altKey:
             projectMoveLeft(selectedProjectRegion);
-            event.preventDefault()
+            event.preventDefault();
             break;
         case event.key === "Enter":
             const groupInput = document.getElementById("group-input");
@@ -295,11 +297,10 @@ function projectRegionOnKeyDown(event) {
             event.preventDefault();
             break;
         case event.key === "ArrowRight":
-            if (nextProjectRegion != null) {
-                if (isCursorAtEndOrNotFocused(selectedProjectRegion)) {
-                    projectSelect(nextProjectRegion, true);
-                    event.preventDefault();
-                }
+            if (isCursorAtEndOrNotFocused(selectedProjectRegion)) {
+                const newGroupInput = document.getElementById("group-input");
+                newGroupInput.focus();
+                event.preventDefault();
             }
             break;
         case event.key === "ArrowLeft" && event.ctrlKey:
@@ -317,8 +318,15 @@ function projectRegionOnKeyDown(event) {
             }
             break;
         case event.key === "ArrowDown":
-            const newGroupInput = document.getElementById("group-input");
-            newGroupInput.focus();
+            if (nextProjectRegion != null) {
+                projectSelect(nextProjectRegion, true);
+            }
+            event.preventDefault();
+            break;
+        case event.key === "ArrowUp":
+            if (prevProjectRegion != null) {
+                projectSelect(prevProjectRegion, false);
+            }
             event.preventDefault();
             break;
     }
@@ -339,22 +347,23 @@ function projectRegionOnBlur(event) {
     let prevProjectId = prevProjectRegion?.id;
 
     const eventMessage = {
-        "type": "project-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": projectName,
-            "id": projectId,
-            "after": prevProjectId
-        }
+        type: "project-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: projectName,
+            id: projectId,
+            after: prevProjectId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
-
 }
 
 function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
-    const prevSelectedProjectRegion = document.getElementsByClassName("project-region-selected");
+    const prevSelectedProjectRegion = document.getElementsByClassName(
+        "project-region-selected"
+    );
     if (prevSelectedProjectRegion.length != 0) {
         prevSelectedProjectRegion[0].className = "project-region";
     }
@@ -363,8 +372,8 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     menu.addButton("Add", projectRegion.id, projectAddOnClick);
     menu.addButton("Remove", projectRegion.id, projectRemoveOnClick);
     menu.addButton("Rename", projectRegion.id, projectRenameOnClick);
-    menu.addButton("〈", projectRegion.id, projectMoveLeftOnClick, "50px");
-    menu.addButton("〉", projectRegion.id, projectMoveRightOnClick, "50px");
+    menu.addButton("▲", projectRegion.id, projectMoveLeftOnClick, "50px");
+    menu.addButton("▼", projectRegion.id, projectMoveRightOnClick, "50px");
     taskListApply(projectRegion.id);
     projectRegion.focus();
     setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
@@ -372,7 +381,7 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
 
 /**
  * Adds project into UI by receiving project-add WebSocket event.
- * 
+ *
  * @returns {void} Resolves when the UI update completes
  * @sideeffects
  *   - Modifies DOM by re-rendering project element
@@ -402,26 +411,25 @@ function projectRemoveOnEvent(project) {
             }
             const projectId = guid();
             const eventMessage = {
-                "type": "project-add",
-                "instance": instanceGuid,
-                "jwt": getCookieByName("jwtToken"),
-                "payload": {
-                    "name": projectName,
-                    "id": projectId,
-                    "after": null
-                }
+                type: "project-add",
+                instance: instanceGuid,
+                jwt: getCookieByName("jwtToken"),
+                payload: {
+                    name: projectName,
+                    id: projectId,
+                    after: null,
+                },
             };
 
             appEvent.send(JSON.stringify(eventMessage));
         }
-
     }
     store.delete("project", project.id);
 }
 
 function projectUpdateOnEvent(project) {
     const projectRegion = document.getElementById(project.id);
-    const isProjectRegionFocused = (projectRegion == document.activeElement);
+    const isProjectRegionFocused = projectRegion == document.activeElement;
     const projectsRegion = projectRegion.parentElement;
     const prevProjectRegion = projectRegion.previousElementSibling;
     let prevProjectId;
@@ -436,7 +444,7 @@ function projectUpdateOnEvent(project) {
         } else {
             const firstProjectRegion = projectsRegion.firstElementChild;
             if (firstProjectRegion != null) {
-                projectsRegion.insertBefore(projectRegion, firstProjectRegion)
+                projectsRegion.insertBefore(projectRegion, firstProjectRegion);
             }
         }
     }
@@ -445,7 +453,7 @@ function projectUpdateOnEvent(project) {
     if (isProjectRegionFocused) {
         projectRegion.focus();
     }
-    
+
     store.upsertProject(project);
 }
 
@@ -460,22 +468,26 @@ function projectAddOnClick(event) {
     const prevProjectRegion = projectRegion.previousElementSibling;
 
     const eventMessage = {
-        "type": "project-add",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": projectName,
-            "id": guid(),
-            "after": projectId
-        }
+        type: "project-add",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: projectName,
+            id: guid(),
+            after: projectId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
 function projectRemoveOnClick(event) {
-    if (!confirm("Warning: This will permanently delete the project and all its contents, including task groups and tasks. This action cannot be undone. Are you sure you want to proceed?")) {
-        return
+    if (
+        !confirm(
+            "Warning: This will permanently delete the project and all its contents, including task groups and tasks. This action cannot be undone. Are you sure you want to proceed?"
+        )
+    ) {
+        return;
     }
     const addProjectButton = event.target;
     const projectId = addProjectButton.dataset.payload;
@@ -483,14 +495,14 @@ function projectRemoveOnClick(event) {
     const projectName = projectRegion.innerText;
 
     const eventMessage = {
-        "type": "project-delete",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": projectName,
-            "id": projectId,
-            "after": null
-        }
+        type: "project-delete",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: projectName,
+            id: projectId,
+            after: null,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -512,16 +524,15 @@ function projectRenameOnClick(event) {
         prevProjectId = prevProjectRegion.id;
     }
 
-
     const eventMessage = {
-        "type": "project-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": projectName,
-            "id": projectId,
-            "after": prevProjectId
-        }
+        type: "project-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: projectName,
+            id: projectId,
+            after: prevProjectId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -536,7 +547,7 @@ function projectMoveLeftOnClick(event) {
 
 function projectMoveLeft(projectRegion) {
     const projectId = projectRegion.id;
-    const projectName = projectRegion.innerText
+    const projectName = projectRegion.innerText;
     const prevProjectRegion = projectRegion.previousElementSibling;
     if (prevProjectRegion == null) {
         return;
@@ -551,14 +562,14 @@ function projectMoveLeft(projectRegion) {
     const prevProjectId = prevProjectRegion.id;
 
     const eventMessage = {
-        "type": "project-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": projectName,
-            "id": projectId,
-            "after": prevPrevProjectId
-        }
+        type: "project-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: projectName,
+            id: projectId,
+            after: prevPrevProjectId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -573,7 +584,7 @@ function projectMoveRightOnClick(event) {
 
 function projectMoveRight(projectRegion) {
     const projectId = projectRegion.id;
-    const projectName = projectRegion.innerText
+    const projectName = projectRegion.innerText;
     const nextProjectRegion = projectRegion.nextElementSibling;
     if (nextProjectRegion == null) {
         return;
@@ -582,19 +593,18 @@ function projectMoveRight(projectRegion) {
     const prevProjectId = nextProjectRegion.id;
 
     const eventMessage = {
-        "type": "project-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": projectName,
-            "id": projectId,
-            "after": prevProjectId
-        }
+        type: "project-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: projectName,
+            id: projectId,
+            after: prevProjectId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
-
 
 function groupInputOnFocus(event) {
     menu.showHeader("New Group: ");
@@ -603,13 +613,14 @@ function groupInputOnFocus(event) {
 
 function groupInputOnKeyDown(event) {
     const groupInput = event.target;
-    const projectSelectedRegion = document.querySelector(".project-region-selected");
+    const projectSelectedRegion = document.querySelector(
+        ".project-region-selected"
+    );
     const groupListRegion = document.getElementById("group-list-region");
     const firstGroupRegion = groupListRegion.firstElementChild;
-    let firstGroupHeaderRegion = firstGroupRegion?.querySelector(".group-header-region");
-    if (firstGroupHeaderRegion == null) {
-        firstGroupHeaderRegion = firstGroupRegion?.querySelector(".group-header-region-selected");
-    }
+    let firstGroupHeaderRegion = firstGroupRegion?.querySelector(
+        ".group-header-region"
+    );
     switch (true) {
         case event.key === "Enter":
             groupNewAddOnClick();
@@ -646,7 +657,9 @@ function groupInputOnKeyDown(event) {
 function groupNewAddOnClick(event) {
     const groupInput = document.getElementById("group-input");
     const groupName = groupInput.value;
-    const selectedProjectRegions = document.getElementsByClassName("project-region-selected");
+    const selectedProjectRegions = document.getElementsByClassName(
+        "project-region-selected"
+    );
     let projectId = null;
     if (selectedProjectRegions.length != 0) {
         projectId = selectedProjectRegions[0].id;
@@ -656,15 +669,15 @@ function groupNewAddOnClick(event) {
     }
 
     const eventMessage = {
-        "type": "group-add",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": groupName,
-            "id": guid(),
-            "projectid": projectId,
-            "after": null
-        }
+        type: "group-add",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: groupName,
+            id: guid(),
+            projectid: projectId,
+            after: null,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -682,14 +695,11 @@ function groupUpdateOnEvent(group) {
     if (!groupRegion) {
         return;
     }
-    let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
-    if (groupHeaderRegion == null) {
-        groupHeaderRegion = groupRegion.querySelector(".group-header-region");
-    }
-    const isFocused = (groupHeaderRegion == document.activeElement);
-    groupHeaderRegion.innerText = group.name;
+    let groupHeaderText = groupRegion.querySelector(".group-header-text");
+    const isFocused = groupHeaderText == document.activeElement;
+    groupHeaderText.textContent = group.name;
     if (group.after != null && group.after != "") {
-        const prevGroupRegion = document.getElementById(group.after)
+        const prevGroupRegion = document.getElementById(group.after);
         prevGroupRegion.after(groupRegion);
     } else {
         const groupListRegion = groupRegion.parentElement;
@@ -714,55 +724,88 @@ function groupAdd(group, prevGroupId) {
         groupListRegion.prepend(groupRegion);
     }
 
-    groupRegion.addEventListener("dragstart", groupDragStart)
-    groupRegion.addEventListener("dragend", groupDragEnd)
+    groupRegion.addEventListener("dragstart", groupDragStart);
+    groupRegion.addEventListener("dragend", groupDragEnd);
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
-    groupHeader.innerText = group.name;
-    groupHeader.contentEditable = true;
+    const collapseIcon = document.createElement("span");
+    collapseIcon.className = "collapse-icon";
+    collapseIcon.textContent = "▼";
+    collapseIcon.addEventListener("click", groupCollapseIconOnClick);
+    groupHeader.append(collapseIcon);
+    const groupHeaderText = document.createElement("span");
+    groupHeaderText.contentEditable = true;
+    groupHeaderText.className = "group-header-text";
+    groupHeaderText.textContent = group.name;
+    groupHeaderText.addEventListener("focus", groupHeaderTextOnFocus);
+    groupHeaderText.addEventListener("blur", groupHeaderTextOnBlur);
+    groupHeaderText.addEventListener("keydown", groupHeaderTextOnKeyDown);
+    groupHeader.append(groupHeaderText);
     groupHeader.dataset.savedtext = group.name;
-    groupHeader.addEventListener("focus", groupHeaderOnFocus);
-    groupHeader.addEventListener("blur", groupHeaderOnBlur);
-    groupHeader.addEventListener("keydown", groupHeaderOnKeyDown);
     groupRegion.append(groupHeader);
+
+    const groupContentRegion = document.createElement("div");
+    groupContentRegion.className = "group-content-region";
+    groupRegion.append(groupContentRegion);
 
     const taskListRegion = document.createElement("div");
     taskListRegion.className = "task-list-region";
-    groupRegion.append(taskListRegion);
+    groupContentRegion.append(taskListRegion);
 
     const taskInputRegion = document.createElement("div");
     taskInputRegion.className = "task-input-region";
-    groupRegion.append(taskInputRegion);
+    groupContentRegion.append(taskInputRegion);
 
-    const taskInput = document.createElement("textarea")
+    const taskInput = document.createElement("textarea");
     taskInput.className = "task-input";
     taskInput.placeholder = "New task text";
     taskInput.wrap = "hard";
     taskInput.id = guid();
-    taskInput.dataset.groupid = group.id
+    taskInput.dataset.groupid = group.id;
     taskInput.onfocus = taskInputOnFocus;
 
     taskInput.addEventListener("keydown", taskInputOnKeyDown);
     taskInput.addEventListener("input", textAreaAutoResize);
     taskInputRegion.append(taskInput);
 
-    store.getTasksByGroupId(group.id)
-    .then(tasks => {
-        if (tasks != null) {
-            tasks.forEach(task => {
-                taskAdd(task);
-            })
-        }
-    })
-    .catch(error => logger.error(error));
+    store
+        .getTasksByGroupId(group.id)
+        .then((tasks) => {
+            if (tasks != null) {
+                tasks.forEach((task) => {
+                    taskAdd(task);
+                });
+            }
+        })
+        .catch((error) => logger.error(error));
 
     return groupRegion;
 }
 
+function groupCollapseIconOnClick(event) {
+    const collapseIcon = event.target;
+    const groupId = collapseIcon.closest(".group-region").id;
+    groupCollapse(groupId);
+}
 
-function groupHeaderOnKeyDown(event) {
-    const groupHeaderRegion = event.target;
+function groupCollapse(groupId, onlyCollapse = false) {
+    const groupRegion = document.getElementById(groupId);
+    const groupHeaderRegion = groupRegion.querySelector(".group-header-region");
+    const groupContentRegion = groupRegion.querySelector(
+        ".group-content-region"
+    );
+    if (groupHeaderRegion.classList.contains("collapsed") && onlyCollapse) {
+        return;
+    }
+    logger.log("groupId", groupId);
+    groupContentRegion.classList.toggle("collapsed");
+    groupHeaderRegion.classList.toggle("collapsed");
+}
+
+function groupHeaderTextOnKeyDown(event) {
+    const groupHeaderText = event.target;
+    const groupHeaderRegion = groupHeaderText.parentElement;
     const groupRegion = groupHeaderRegion.parentElement;
     const taskListRegion = groupRegion.querySelector(".task-list-region");
     const taskFirstRegion = taskListRegion.firstElementChild;
@@ -784,18 +827,23 @@ function groupHeaderOnKeyDown(event) {
             groupMoveDown(groupRegion);
             event.preventDefault();
             break;
-        case event.key === "ArrowUp" || (event.key === "ArrowLeft" && isCursorAtStartOrNotFocused(groupHeaderRegion)):
+        case event.key === "ArrowUp" ||
+            (event.key === "ArrowLeft" &&
+                isCursorAtStartOrNotFocused(groupHeaderRegion)):
             const prevGroupRegion = groupRegion.previousElementSibling;
             if (prevGroupRegion == null) {
                 const groupInput = document.getElementById("group-input");
                 groupInput.focus();
             } else {
-                const prevGroupTaskInput = prevGroupRegion.querySelector(".task-input");
+                const prevGroupTaskInput =
+                    prevGroupRegion.querySelector(".task-input");
                 prevGroupTaskInput.focus();
             }
             event.preventDefault();
             break;
-        case event.key === "ArrowDown" || (event.key === "ArrowRight" && isCursorAtEndOrNotFocused(groupHeaderRegion)):
+        case event.key === "ArrowDown" ||
+            (event.key === "ArrowRight" &&
+                isCursorAtEndOrNotFocused(groupHeaderRegion)):
             if (taskFirstRegion == null) {
                 const taskInput = groupRegion.querySelector(".task-input");
                 taskInput.focus();
@@ -807,17 +855,18 @@ function groupHeaderOnKeyDown(event) {
     }
 }
 
-function groupHeaderOnFocus(event) {
-    const groupHeaderRegion = event.target;
-    groupSelect(groupHeaderRegion, false);
+function groupHeaderTextOnFocus(event) {
+    const groupHeaderText = event.target;
+    groupSelect(groupHeaderText.parentElement, false);
 }
 
-function groupHeaderOnBlur(event) {
-    const groupHeaderRegion = event.target;
-    if (groupHeaderRegion.innerText == groupHeaderRegion.dataset.savedtext) {
+function groupHeaderTextOnBlur(event) {
+    const groupHeaderText = event.target;
+    const groupHeaderRegion = groupHeaderText.parentElement;
+    if (groupHeaderText.textContent == groupHeaderRegion.dataset.savedtext) {
         return;
     }
-    const groupName = groupHeaderRegion.innerText;
+    const groupName = groupHeaderText.textContent;
     groupHeaderRegion.dataset.savedtext = groupName;
     const groupRegion = groupHeaderRegion.parentElement;
     const groupId = groupRegion.id;
@@ -826,55 +875,52 @@ function groupHeaderOnBlur(event) {
     const prevGroupRegion = groupRegion.previousElementSibling;
     let prevGroupId = null;
     if (prevGroupRegion != null) {
-        prevGroupId = prevGroupRegion.id
+        prevGroupId = prevGroupRegion.id;
     }
 
     const eventMessage = {
-        "type": "group-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": groupName,
-            "id": groupId,
-            "projectid": projectId,
-            "after": prevGroupId
-        }
+        type: "group-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: groupName,
+            id: groupId,
+            projectid: projectId,
+            after: prevGroupId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
-
 function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
-
-    const groupHeaderSelectedList = document.getElementsByClassName("group-header-region-selected");
+    logger.log("groupHeaderRegion", groupHeaderRegion);
     const groupRegion = groupHeaderRegion.parentElement;
 
-    Array.from(groupHeaderSelectedList).forEach(groupHeaderSelected => {
-        groupHeaderSelected.className = "group-header-region";
+    const taskRegionsSelected = document.querySelectorAll(
+        ".task-region.selected"
+    );
+
+    Array.from(taskRegionsSelected).forEach((taskRegionSelected) => {
+        taskRegionSelected.classList.remove("selected");
     });
 
-    const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
-
-    Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
-        taskRegionSelected.classList.remove("selected");
-    })
-
-    groupHeaderRegion.className = "group-header-region-selected";
     menu.showHeader("Group: ");
     menu.addButton("Add", groupRegion.id, groupAddOnClick);
     menu.addButton("Remove", groupRegion.id, groupRemoveOnClick);
-    menu.addButton("∧", groupRegion.id, groupUpOnClick, "50px");
-    menu.addButton("∨", groupRegion.id, groupDownOnClick, "50px");
+    menu.addButton("▲", groupRegion.id, groupUpOnClick, "50px");
+    menu.addButton("▼", groupRegion.id, groupDownOnClick, "50px");
     groupHeaderRegion.focus();
-    setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition)
+    setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition);
 }
 
 function groupAddOnClick(event) {
     const button = event.target;
     const prevGroupId = button.dataset.payload;
     const groupName = prompt("New group name: ", "");
-    const projectRegionsSelected = document.getElementsByClassName("project-region-selected")
+    const projectRegionsSelected = document.getElementsByClassName(
+        "project-region-selected"
+    );
 
     if (groupName == null || groupName == "") {
         return;
@@ -887,15 +933,15 @@ function groupAddOnClick(event) {
     const projectId = projectRegionsSelected[0].id;
 
     const eventMessage = {
-        "type": "group-add",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": groupName,
-            "id": guid(),
-            "projectid": projectId,
-            "after": prevGroupId
-        }
+        type: "group-add",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: groupName,
+            id: guid(),
+            projectid: projectId,
+            after: prevGroupId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -904,13 +950,18 @@ function groupAddOnClick(event) {
 function groupRemoveOnClick(event) {
     const button = event.target;
     const groupId = button.dataset.payload;
+    logger.log("groupid", groupId);
     const groupRegion = document.getElementById(groupId);
     const prevGroupRegion = groupRegion.previousElementSibling;
     let prevGroupId = null;
-    const groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected").parentElement;
+    const groupHeaderRegion = groupRegion.querySelector(
+        ".group-header-region"
+    ).parentElement;
     const groupName = groupHeaderRegion.innerText;
 
-    const projectRegionsSelected = document.getElementsByClassName("project-region-selected")
+    const projectRegionsSelected = document.getElementsByClassName(
+        "project-region-selected"
+    );
 
     if (projectRegionsSelected == null || projectRegionsSelected.length == 0) {
         return;
@@ -923,23 +974,23 @@ function groupRemoveOnClick(event) {
     }
 
     const eventMessage = {
-        "type": "group-delete",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": groupName,
-            "id": groupId,
-            "projectid": projectId,
-            "after": prevGroupId
-        }
+        type: "group-delete",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: groupName,
+            id: groupId,
+            projectid: projectId,
+            after: prevGroupId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
 function groupRemoveOnEvent(group) {
-    const groupRegion = document.getElementById(group.id)
-    groupRegion.remove();    
+    const groupRegion = document.getElementById(group.id);
+    groupRegion.remove();
     store.delete("task_group", group.id);
 }
 
@@ -961,25 +1012,21 @@ function groupMoveUp(groupRegion) {
     if (prevPrevGroupRegion != null) {
         prevPrevGroupId = prevPrevGroupRegion.id;
     }
-    let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
-    if (groupHeaderRegion == null) {
-        groupHeaderRegion = groupRegion.querySelector(".group-header-region");
-    }
-    const groupName = groupHeaderRegion.innerText;
+    let groupHeaderRegionText = groupRegion.querySelector(".group-header-text");
+    const groupName = groupHeaderRegionText.textContent;
     const projectRegion = document.querySelector(".project-region-selected");
     const projectId = projectRegion.id;
 
-
     const eventMessage = {
-        "type": "group-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": groupName,
-            "id": groupId,
-            "projectid": projectId,
-            "after": prevPrevGroupId
-        }
+        type: "group-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: groupName,
+            id: groupId,
+            projectid: projectId,
+            after: prevPrevGroupId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -1000,24 +1047,21 @@ function groupMoveDown(groupRegion) {
     }
     const nextGroupId = nextGroupRegion.id;
 
-    let groupHeaderRegion = groupRegion.querySelector(".group-header-region-selected");
-    if (groupHeaderRegion == null) {
-        groupHeaderRegion = groupRegion.querySelector(".group-header-region");
-    }
-    const groupName = groupHeaderRegion.innerText;
+    let groupHeaderText = groupRegion.querySelector(".group-header-text");
+    const groupName = groupHeaderText.textContent;
     const projectRegion = document.querySelector(".project-region-selected");
     const projectId = projectRegion.id;
 
     const eventMessage = {
-        "type": "group-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "name": groupName,
-            "id": groupId,
-            "projectid": projectId,
-            "after": nextGroupId
-        }
+        type: "group-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            name: groupName,
+            id: groupId,
+            projectid: projectId,
+            after: nextGroupId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -1025,20 +1069,16 @@ function groupMoveDown(groupRegion) {
 
 function taskInputOnFocus(event) {
     const taskInput = event.target;
-    menu.showHeader("New Group: ");
+    menu.showHeader("New Task: ");
     menu.addButton("Add", taskInput.id, taskNewAddOnClick);
 
-    const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
+    const taskRegionsSelected = document.querySelectorAll(
+        ".task-region.selected"
+    );
 
-    Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
+    Array.from(taskRegionsSelected).forEach((taskRegionSelected) => {
         taskRegionSelected.className = "task-region";
-    })
-
-    const groupHeaderRegionsSelected = document.getElementsByClassName("group-header-region-selected");
-
-    Array.from(groupHeaderRegionsSelected).forEach(groupHeaderRegionSelected => {
-        groupHeaderRegionSelected.className = "group-header-region";
-    })
+    });
 }
 
 function taskNewAddOnClick(event) {
@@ -1046,7 +1086,6 @@ function taskNewAddOnClick(event) {
     const taskInputId = addTaskButton.dataset.payload;
     const taskInput = document.getElementById(taskInputId);
     taskNewAdd(taskInput);
-
 }
 
 function taskNewAdd(taskInput) {
@@ -1054,7 +1093,7 @@ function taskNewAdd(taskInput) {
     const groupId = taskInput.dataset.groupid;
     const taskText = taskInput.value;
     if (taskText == null || taskText == "") {
-        return
+        return;
     }
 
     const groupRegion = document.getElementById(groupId);
@@ -1066,18 +1105,17 @@ function taskNewAdd(taskInput) {
     }
 
     const eventMessage = {
-        "type": "task-add",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": guid(),
-            "group": groupId,
-            "status": "1", // todo
-            "after": prevTaskId
-        }
+        type: "task-add",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: guid(),
+            group: groupId,
+            status: "1", // todo
+            after: prevTaskId,
+        },
     };
-
 
     appEvent.send(JSON.stringify(eventMessage));
 
@@ -1092,7 +1130,9 @@ function taskAddOnEvent(task) {
 
 function taskUpdateOnEvent(task) {
     const taskRegion = document.getElementById(task.id);
-    const textElement = taskRegion.querySelector(".task-inline-input,.task-pre");
+    const textElement = taskRegion.querySelector(
+        ".task-inline-input,.task-pre"
+    );
     if (textElement.tagName === "TEXTAREA") {
         textElement.removeEventListener("blur", taskInlineInputOnBlur);
     }
@@ -1107,8 +1147,8 @@ function taskUpdateOnEvent(task) {
 
     const classesToKeep = ["task-region", "selected"];
     Array.from(taskRegion.classList)
-        .filter(className => !classesToKeep.includes(className))
-        .forEach(className => taskRegion.classList.remove(className));
+        .filter((className) => !classesToKeep.includes(className))
+        .forEach((className) => taskRegion.classList.remove(className));
 
     taskRegion.dataset.status = task.status;
 
@@ -1217,8 +1257,8 @@ function taskAdd(task) {
     taskPre.innerText = task.text;
     taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
-    taskRegion.addEventListener("dragstart", taskDragStart)
-    taskRegion.addEventListener("dragend", taskDragEnd)
+    taskRegion.addEventListener("dragstart", taskDragStart);
+    taskRegion.addEventListener("dragend", taskDragEnd);
 
     if (prevTaskRegion != null) {
         prevTaskRegion.after(taskRegion);
@@ -1243,18 +1283,18 @@ function taskRegionOnClick(event) {
 }
 
 function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
-
-    const groupRegion = taskRegion.parentElement;
+    const groupRegion = taskRegion.parentElement.parentElement;
     const groupId = groupRegion.id;
 
     const taskInlineInputOld = document.getElementById("task-inline-input");
     if (taskInlineInputOld != null) {
         const taskTextOld = taskInlineInputOld.value;
         const taskRegionOld = taskInlineInputOld.parentElement;
-        const taskIdOld = taskRegionOld.id
+        const taskIdOld = taskRegionOld.id;
         const taskStatusOld = taskRegionOld.dataset.status;
 
-        const groupRegionOld = taskRegionOld.parentElement.parentElement;
+        const groupRegionOld =
+            taskRegionOld.parentElement.parentElement.parentElement;
         const groupIdOld = groupRegionOld.id;
         const prevTaskRegionOld = taskRegionOld.previousElementSibling;
         let prevTaskIdOld = null;
@@ -1265,37 +1305,35 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
             taskRemove(taskIdOld);
         } else {
             const eventMessage = {
-                "type": "task-update",
-                "instance": instanceGuid,
-                "jwt": getCookieByName("jwtToken"),
-                "payload": {
-                    "text": taskTextOld,
-                    "id": taskIdOld,
-                    "group": groupIdOld,
-                    "status": taskStatusOld,
-                    "after": prevTaskIdOld
-                }
+                type: "task-update",
+                instance: instanceGuid,
+                jwt: getCookieByName("jwtToken"),
+                payload: {
+                    text: taskTextOld,
+                    id: taskIdOld,
+                    group: groupIdOld,
+                    status: taskStatusOld,
+                    after: prevTaskIdOld,
+                },
             };
 
             appEvent.send(JSON.stringify(eventMessage));
         }
     }
 
-    const taskRegionsSelected = document.querySelectorAll(".task-region.selected");
+    const taskRegionsSelected = document.querySelectorAll(
+        ".task-region.selected"
+    );
 
-    Array.from(taskRegionsSelected).forEach(taskRegionSelected => {
+    Array.from(taskRegionsSelected).forEach((taskRegionSelected) => {
         taskRegionSelected.classList.remove("selected");
-    })
-
-    const groupHeaderRegionsSelected = document.getElementsByClassName("group-header-region-selected");
-
-    Array.from(groupHeaderRegionsSelected).forEach(groupHeaderRegionSelected => {
-        groupHeaderRegionSelected.className = "group-header-region";
-    })
+    });
 
     taskRegion.classList.add("selected");
 
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
+    const taskText = taskRegion.querySelector(
+        ".task-inline-input,.task-pre"
+    ).innerText;
 
     const taskStatus = taskRegion.dataset.status;
 
@@ -1340,7 +1378,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
     taskRegion.append(taskInlineInput);
     taskInlineInput.style.height = "1px";
-    taskInlineInput.style.height = `${taskInlineInput.scrollHeight - 20}px`
+    taskInlineInput.style.height = `${taskInlineInput.scrollHeight - 20}px`;
     taskInlineInput.focus();
     if (isSetCursorFirstPosition) {
         taskInlineInput.setSelectionRange(0, 0);
@@ -1350,25 +1388,34 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     menu.addButton("Remove", taskRegion.id, taskRemoveOnClick);
     const statusOptions = [
         { name: "To Do", payload: { status: "1", taskid: taskRegion.id } },
-        { name: "In Progress", payload: { status: "2", taskid: taskRegion.id } },
+        {
+            name: "In Progress",
+            payload: { status: "2", taskid: taskRegion.id },
+        },
         { name: "Done", payload: { status: "3", taskid: taskRegion.id } },
         { name: "Cancelled", payload: { status: "4", taskid: taskRegion.id } },
     ];
-    menu.addDropDownButton("Status", taskRegion.id, statusOptions, dropdownStatusOnSelect)
-    menu.addButton("∧", taskRegion.id, taskUpOnClick, "50px");
-    menu.addButton("∨", taskRegion.id, taskDownOnClick, "50px");
+    menu.addDropDownButton(
+        "Status",
+        taskRegion.id,
+        statusOptions,
+        dropdownStatusOnSelect
+    );
+    menu.addButton("▲", taskRegion.id, taskUpOnClick, "50px");
+    menu.addButton("▼", taskRegion.id, taskDownOnClick, "50px");
 }
 
 function taskInlineInputOnBlur(event) {
     const taskInlineInput = event.target;
     const taskRegion = taskInlineInput.parentElement;
-    if (taskRegion == null) { // detached from DOM (removed)
+    if (taskRegion == null) {
+        // detached from DOM (removed)
         return;
     }
     const taskText = taskInlineInput.value;
     const taskId = taskRegion.id;
     const taskStatus = taskRegion.dataset.status;
-    const groupRegion = taskRegion.parentElement.parentElement;
+    const groupRegion = taskRegion.parentElement.parentElement.parentElement;
     const groupId = groupRegion.id;
     const prevTaskRegion = taskRegion.previousElementSibling;
     let prevTaskId = null;
@@ -1411,16 +1458,16 @@ function taskInlineInputOnBlur(event) {
     taskRegion.appendChild(taskPre);
 
     const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": taskId,
-            "group": groupId,
-            "status": taskStatus,
-            "after": prevTaskId
-        }
+        type: "task-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: taskId,
+            group: groupId,
+            status: taskStatus,
+            after: prevTaskId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -1428,35 +1475,40 @@ function taskInlineInputOnBlur(event) {
 
 function taskInputOnKeyDown(event) {
     const taskInput = event.target;
-    const groupRegion = taskInput.parentElement.parentElement;
+    const groupRegion = taskInput.parentElement.parentElement.parentElement;
     switch (true) {
         case event.key === "Enter" && !event.shiftKey:
             taskNewAdd(taskInput);
             event.preventDefault();
-            break
-        case ((event.key === "ArrowDown" || event.key === "ArrowRight") && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInput))):
+            break;
+        case (event.key === "ArrowDown" || event.key === "ArrowRight") &&
+            (event.ctrlKey || isCursorAtEndOrNotFocused(taskInput)):
             taskNewAdd(taskInput);
             const nextGroupRegion = groupRegion.nextElementSibling;
             if (nextGroupRegion == null) {
                 return;
             }
-            const nextGroupHeaderRegion = nextGroupRegion.querySelector(".group-header-region");
-            nextGroupHeaderRegion.focus();
+            const nextGroupHeaderText =
+                nextGroupRegion.querySelector(".group-header-text");
+            nextGroupHeaderText.focus();
             event.preventDefault();
             break;
-        case (event.key === "ArrowUp" || event.key === "ArrowLeft") && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInput)):
+        case (event.key === "ArrowUp" || event.key === "ArrowLeft") &&
+            (event.ctrlKey || isCursorAtStartOrNotFocused(taskInput)):
             taskNewAdd(taskInput);
-            const taskListRegion = groupRegion.querySelector(".task-list-region");
+            const taskListRegion =
+                groupRegion.querySelector(".task-list-region");
             const lastTaskRegion = taskListRegion.lastElementChild;
             if (lastTaskRegion != null) {
                 taskInlineInputActivate(lastTaskRegion);
             } else {
-                const groupHeaderRegion = groupRegion.querySelector(".group-header-region")
+                const groupHeaderRegion = groupRegion.querySelector(
+                    ".group-header-region"
+                );
                 groupSelect(groupHeaderRegion, false);
             }
             event.preventDefault();
             break;
-
     }
 }
 
@@ -1473,30 +1525,37 @@ function taskInlineInputOnKeyDown(event) {
             taskMoveUp(taskRegion);
             event.preventDefault();
             break;
-        case (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) || ((event.key === "ArrowDown" || event.key === "ArrowRight") && (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
-
+        case (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) ||
+            ((event.key === "ArrowDown" || event.key === "ArrowRight") &&
+                (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
             if (nextTaskRegion != null) {
                 taskInlineInputActivate(nextTaskRegion, true);
             } else {
-                const groupRegion = taskRegion.parentElement.parentElement;
+                const groupRegion =
+                    taskRegion.parentElement.parentElement.parentElement;
                 const taskNewInput = groupRegion.querySelector(".task-input");
                 taskNewInput.focus();
             }
             taskInlineInputOnBlur(event);
             event.preventDefault();
             break;
-        case (event.key === "ArrowUp" || event.key === "ArrowLeft") && (event.ctrlKey || isCursorAtStartOrNotFocused(taskInlineInput)):
+        case (event.key === "ArrowUp" || event.key === "ArrowLeft") &&
+            (event.ctrlKey || isCursorAtStartOrNotFocused(taskInlineInput)):
             const prevTaskRegion = taskRegion.previousElementSibling;
             if (prevTaskRegion != null) {
                 taskInlineInputActivate(prevTaskRegion);
             } else {
-                const groupRegion = taskRegion.parentElement.parentElement;
-                const groupHeaderRegion = groupRegion.querySelector(".group-header-region");
+                const groupRegion =
+                    taskRegion.parentElement.parentElement.parentElement;
+                const groupHeaderRegion = groupRegion.querySelector(
+                    ".group-header-region"
+                );
                 groupSelect(groupHeaderRegion, false);
             }
             event.preventDefault();
             break;
-        case (event.key === "Enter" && event.ctrlKey) || (event.key.toLowerCase() === "t" && event.altKey):
+        case (event.key === "Enter" && event.ctrlKey) ||
+            (event.key.toLowerCase() === "t" && event.altKey):
             taskStatusSet(taskRegion.id, "1");
             event.preventDefault();
             break;
@@ -1525,7 +1584,7 @@ function taskRemove(taskId) {
     const taskRegion = document.getElementById(taskId);
     const taskPre = taskRegion.querySelector(".task-inline-input,.task-pre");
     const taskText = taskPre.innerText;
-    const groupRegion = taskRegion.parentElement;
+    const groupRegion = taskRegion.parentElement.parentElement;
     const groupId = groupRegion.id;
     const prevTaskRegion = taskRegion.previousElementSibling;
     let prevTaskId = null;
@@ -1535,16 +1594,16 @@ function taskRemove(taskId) {
     }
 
     const eventMessage = {
-        "type": "task-delete",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": taskId,
-            "group": groupId,
-            "status": "1", // todo
-            "after": prevTaskId
-        }
+        type: "task-delete",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: taskId,
+            group: groupId,
+            status: "1", // todo
+            after: prevTaskId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -1553,7 +1612,7 @@ function taskRemove(taskId) {
 function taskOnDeleteEvent(task) {
     const taskRegion = document.getElementById(task.id);
     taskRegion.remove();
-    
+
     store.delete("task", task.id);
 }
 
@@ -1567,23 +1626,26 @@ function taskUpOnClick(event) {
 function taskMoveUp(taskRegion) {
     const taskId = taskRegion.id;
     const taskStatus = taskRegion.dataset.status;
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
-    let groupId = taskRegion.parentElement.parentElement.id;
+    const taskText = taskRegion.querySelector(
+        ".task-inline-input,.task-pre"
+    ).innerText;
+    let groupId = taskRegion.parentElement.parentElement.parentElement.id;
     const taskPrevRegion = taskRegion.previousElementSibling;
     let taskPrevPrevId = null;
     if (taskPrevRegion == null) {
-        const groupRegion = taskRegion.parentElement.parentElement;
+        const groupRegion =
+            taskRegion.parentElement.parentElement.parentElement;
         const prevGroupRegion = groupRegion.previousElementSibling;
         if (prevGroupRegion == null) {
             return;
         }
         groupId = prevGroupRegion.id;
-        const taskListRegion = prevGroupRegion.querySelector(".task-list-region");
+        const taskListRegion =
+            prevGroupRegion.querySelector(".task-list-region");
         const lastTaskRegion = taskListRegion.lastElementChild;
         if (lastTaskRegion != null) {
             taskPrevPrevId = lastTaskRegion.id;
         }
-
     } else {
         const taskPrevPrevRegion = taskPrevRegion.previousElementSibling;
         if (taskPrevPrevRegion != null) {
@@ -1592,16 +1654,16 @@ function taskMoveUp(taskRegion) {
     }
 
     const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": taskId,
-            "group": groupId,
-            "status": taskStatus,
-            "after": taskPrevPrevId
-        }
+        type: "task-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: taskId,
+            group: groupId,
+            status: taskStatus,
+            after: taskPrevPrevId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -1617,12 +1679,15 @@ function taskDownOnClick(event) {
 function taskMoveDown(taskRegion) {
     const taskId = taskRegion.id;
     const taskStatus = taskRegion.dataset.status;
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
-    let groupId = taskRegion.parentElement.parentElement.id;
+    const taskText = taskRegion.querySelector(
+        ".task-inline-input,.task-pre"
+    ).innerText;
+    let groupId = taskRegion.parentElement.parentElement.parentElement.id;
     const taskNextRegion = taskRegion.nextElementSibling;
     let taskNextRegionid = null;
     if (taskNextRegion == null) {
-        const groupRegion = taskRegion.parentElement.parentElement;
+        const groupRegion =
+            taskRegion.parentElement.parentElement.parentElement;
         const nextGroupRegion = groupRegion.nextElementSibling;
         if (nextGroupRegion == null) {
             return;
@@ -1633,16 +1698,16 @@ function taskMoveDown(taskRegion) {
     }
 
     const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": taskId,
-            "group": groupId,
-            "status": taskStatus,
-            "after": taskNextRegionid
-        }
+        type: "task-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: taskId,
+            group: groupId,
+            status: taskStatus,
+            after: taskNextRegionid,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
@@ -1652,8 +1717,10 @@ function taskStatusImgOnClick(event) {
     const taskRegion = event.target.parentElement;
     const taskId = taskRegion.id;
     let taskStatusId = taskRegion.dataset.status;
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
-    const groupId = taskRegion.parentElement.parentElement.id;
+    const taskText = taskRegion.querySelector(
+        ".task-inline-input,.task-pre"
+    ).innerText;
+    const groupId = taskRegion.parentElement.parentElement.parentElement.id;
     const prevTaskId = taskRegion.previousElementSibling?.id || null;
 
     switch (true) {
@@ -1672,20 +1739,19 @@ function taskStatusImgOnClick(event) {
     }
 
     const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": taskId,
-            "group": groupId,
-            "status": taskStatusId,
-            "after": prevTaskId
-        }
+        type: "task-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: taskId,
+            group: groupId,
+            status: taskStatusId,
+            after: prevTaskId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
-
 }
 
 function dropdownStatusOnSelect(event) {
@@ -1698,27 +1764,31 @@ function dropdownStatusOnSelect(event) {
 
 function taskStatusSet(taskId, taskStatus) {
     const taskRegion = document.getElementById(taskId);
-    const taskText = taskRegion.querySelector(".task-inline-input,.task-pre").innerText;
-    const groupId = taskRegion.parentElement.parentElement.id;
+    const taskText = taskRegion.querySelector(
+        ".task-inline-input,.task-pre"
+    ).innerText;
+    const groupId = taskRegion.parentElement.parentElement.parentElement.id;
     const prevTaskId = taskRegion.previousElementSibling?.id || null;
     const eventMessage = {
-        "type": "task-update",
-        "instance": instanceGuid,
-        "jwt": getCookieByName("jwtToken"),
-        "payload": {
-            "text": taskText,
-            "id": taskId,
-            "group": groupId,
-            "status": taskStatus,
-            "after": prevTaskId
-        }
+        type: "task-update",
+        instance: instanceGuid,
+        jwt: getCookieByName("jwtToken"),
+        payload: {
+            text: taskText,
+            id: taskId,
+            group: groupId,
+            status: taskStatus,
+            after: prevTaskId,
+        },
     };
 
     appEvent.send(JSON.stringify(eventMessage));
 }
 
 function persistState() {
-    const selectedProjectId = document.querySelector(".project-region-selected").id;
+    const selectedProjectId = document.querySelector(
+        ".project-region-selected"
+    ).id;
     localStorage.setItem("selected-project-id", selectedProjectId);
     const focusedElement = document.activeElement;
     let focusedElementInfo = null;
@@ -1727,36 +1797,80 @@ function persistState() {
         case focusedElement.classList.contains("project-region"):
         case focusedElement.classList.contains("project-region-selected"):
             selection = getEditableSelection(focusedElement);
-            focusedElementInfo = { type: "project", id: focusedElement.id, text: focusedElement.innerText, selStart: selection.start, selEnd: selection.end };
+            focusedElementInfo = {
+                type: "project",
+                id: focusedElement.id,
+                text: focusedElement.innerText,
+                selStart: selection.start,
+                selEnd: selection.end,
+            };
             break;
         case focusedElement.classList.contains("group-input"):
-            focusedElementInfo = { type: "group-input", id: "", text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
+            focusedElementInfo = {
+                type: "group-input",
+                id: "",
+                text: focusedElement.value,
+                selStart: focusedElement.selectionStart,
+                selEnd: focusedElement.selectionEnd,
+            };
             break;
-        case focusedElement.classList.contains("group-header-region"):
-        case focusedElement.classList.contains("group-header-region-selected"):
+        case focusedElement.classList.contains("group-header-text"):
             selection = getEditableSelection(focusedElement);
-            focusedElementInfo = { type: "group", id: focusedElement.parentElement.id, text: focusedElement.innerText, selStart: selection.start, selEnd: selection.end };
+            focusedElementInfo = {
+                type: "group",
+                id: focusedElement.parentElement.id,
+                text: focusedElement.innerText,
+                selStart: selection.start,
+                selEnd: selection.end,
+            };
             break;
         case focusedElement.classList.contains("task-input"):
-            focusedElementInfo = { type: "task-input", id: focusedElement.parentElement.parentElement.id, text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
+            focusedElementInfo = {
+                type: "task-input",
+                id: focusedElement.parentElement.parentElement.id,
+                text: focusedElement.value,
+                selStart: focusedElement.selectionStart,
+                selEnd: focusedElement.selectionEnd,
+            };
             break;
         case focusedElement.classList.contains("task-inline-input"):
-            focusedElementInfo = { type: "task-inline-input", id: focusedElement.parentElement.id, text: focusedElement.value, selStart: focusedElement.selectionStart, selEnd: focusedElement.selectionEnd };
+            focusedElementInfo = {
+                type: "task-inline-input",
+                id: focusedElement.parentElement.id,
+                text: focusedElement.value,
+                selStart: focusedElement.selectionStart,
+                selEnd: focusedElement.selectionEnd,
+            };
             break;
     }
     if (focusedElementInfo != null) {
-        localStorage.setItem("focused-element", JSON.stringify(focusedElementInfo));
+        localStorage.setItem(
+            "focused-element",
+            JSON.stringify(focusedElementInfo)
+        );
     } else {
         localStorage.removeItem("focused-element");
     }
     localStorage.setItem("scroll-position", window.scrollY);
+
+    const collapsedGroupHeaders = document.querySelectorAll(
+        ".group-header-region.collapsed"
+    );
+    const collspsedGroupsId = [];
+    collapsedGroupHeaders.forEach((groupHeader) => {
+        collspsedGroupsId.push(groupHeader.closest(".group-region").id);
+    });
+    localStorage.setItem("collapsed-groups", JSON.stringify(collspsedGroupsId));
 }
 
 function applyPersistedState() {
     const selectedProjectId = localStorage.getItem("selected-project-id");
-    const focusedElementInfo = JSON.parse(localStorage.getItem("focused-element"));
+    const focusedElementInfo = JSON.parse(
+        localStorage.getItem("focused-element")
+    );
     if (selectedProjectId != null) {
-        const selectedProjectRegion = document.getElementById(selectedProjectId);
+        const selectedProjectRegion =
+            document.getElementById(selectedProjectId);
         if (selectedProjectRegion != null) {
             projectSelect(selectedProjectRegion);
         }
@@ -1768,41 +1882,79 @@ function applyPersistedState() {
 
             switch (true) {
                 case focusedElementInfo.type == "project":
-                    const projectRegion = document.getElementById(focusedElementInfo.id);
+                    const projectRegion = document.getElementById(
+                        focusedElementInfo.id
+                    );
                     projectRegion?.focus();
                     if (projectRegion) {
                         projectRegion.innerText = focusedElementInfo.text;
-                        setContentEditableSelection(projectRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                        setContentEditableSelection(
+                            projectRegion,
+                            focusedElementInfo.selStart,
+                            focusedElementInfo.selEnd
+                        );
                     }
                     break;
                 case focusedElementInfo.type == "group-input":
                     document.querySelector(".group-input").focus();
-                    document.querySelector(".group-input").value = focusedElementInfo.text;
-                    document.querySelector(".group-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                    document.querySelector(".group-input").value =
+                        focusedElementInfo.text;
+                    document
+                        .querySelector(".group-input")
+                        .setSelectionRange(
+                            focusedElementInfo.selStart,
+                            focusedElementInfo.selEnd
+                        );
                     break;
                 case focusedElementInfo.type == "group":
-                    groupRegion = document.getElementById(focusedElementInfo.id);
+                    groupRegion = document.getElementById(
+                        focusedElementInfo.id
+                    );
                     if (groupRegion != null) {
-                        const groupHeaderRegion = groupRegion.querySelector(".group-header-region,.group-header-region-selected");
+                        const groupHeaderRegion = groupRegion.querySelector(
+                            ".group-header-region"
+                        );
                         groupSelect(groupHeaderRegion);
-                        groupHeaderRegion.innerText = focusedElementInfo.text;
-                        setContentEditableSelection(groupHeaderRegion, focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                        groupHeaderRegion.querySelector(
+                            ".group-header-text"
+                        ).textContent = focusedElementInfo.text;
+                        setContentEditableSelection(
+                            groupHeaderRegion,
+                            focusedElementInfo.selStart,
+                            focusedElementInfo.selEnd
+                        );
                     }
                     break;
                 case focusedElementInfo.type == "task-input":
-                    groupRegion = document.getElementById(focusedElementInfo.id);
+                    groupRegion = document.getElementById(
+                        focusedElementInfo.id
+                    );
                     if (groupRegion) {
                         groupRegion.querySelector(".task-input").focus();
-                        groupRegion.querySelector(".task-input").value = focusedElementInfo.text;
-                        groupRegion.querySelector(".task-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                        groupRegion.querySelector(".task-input").value =
+                            focusedElementInfo.text;
+                        groupRegion
+                            .querySelector(".task-input")
+                            .setSelectionRange(
+                                focusedElementInfo.selStart,
+                                focusedElementInfo.selEnd
+                            );
                     }
                     break;
                 case focusedElementInfo.type == "task-inline-input":
-                    const taskRegion = document.getElementById(focusedElementInfo.id);
+                    const taskRegion = document.getElementById(
+                        focusedElementInfo.id
+                    );
                     if (taskRegion) {
                         taskInlineInputActivate(taskRegion);
-                        taskRegion.querySelector(".task-inline-input").value = focusedElementInfo.text;
-                        taskRegion.querySelector(".task-inline-input").setSelectionRange(focusedElementInfo.selStart, focusedElementInfo.selEnd);
+                        taskRegion.querySelector(".task-inline-input").value =
+                            focusedElementInfo.text;
+                        taskRegion
+                            .querySelector(".task-inline-input")
+                            .setSelectionRange(
+                                focusedElementInfo.selStart,
+                                focusedElementInfo.selEnd
+                            );
                     }
                     break;
             }
@@ -1812,6 +1964,15 @@ function applyPersistedState() {
                 window.scrollTo(0, parseInt(savedPosition));
                 localStorage.removeItem("scroll-position");
             }
+        }, 50);
+    }
+
+    const collapsedGroupsJson = localStorage.getItem("collapsed-groups");
+    if (collapsedGroupsJson) {
+        setTimeout(() => {
+            JSON.parse(collapsedGroupsJson).forEach((collapsedGroupId) => {
+                groupCollapse(collapsedGroupId, true);
+            });
         }, 50);
     }
 }
