@@ -28,7 +28,7 @@
     /* Transitions & Dimensions */
     --transition-speed: 0.3s;
     --border-radius: 6px; /* Slightly more rounded corners */
-    --menu-bar-height: 95px;
+    --menu-bar-height: 120px;
 
     /* Status Colors (kept distinct for universal recognition, but harmonized) */
     --status-inprogress-bg: #fff3e0; /* Light orange */
@@ -211,6 +211,23 @@ button:active {
     font-size: 0.6em;
 }
 
+.input-search {
+    padding-left: 35px; /* Space for icon */
+    background: url("img/magnifier.png") no-repeat 10px center;
+    background-size: 16px; /* Adjust icon size */
+    width: 150px; /* Set width as needed */
+    height: 30px;
+}
+
+.input-search:focus {
+    width: 400px;
+    font-size: 150%;
+    height: 40px;
+    background-size: 26px; /* Adjust icon size */
+    padding-left: 40px; /* Space for icon */
+    transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 .menu-main {
     display: flex;
     flex-direction: row;
@@ -347,6 +364,7 @@ button:active {
 
 .task-region {
     margin-bottom: 8px; /* More space */
+    margin-left: 8px;
     padding: 12px 15px; /* More padding */
     display: flex;
     align-items: center;
@@ -366,7 +384,7 @@ button:active {
 
 .task-pre {
     margin: 0 auto 0 0;
-    font-size: 1rem; /* Consistent font size */
+    font-size: 1.4rem; /* Consistent font size */
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-break: normal;
@@ -416,17 +434,17 @@ button:active {
 
 /* Status Specific Colors */
 .inprogress {
-    border-left: 6px solid var(--status-inprogress-border);
+    border-left: 6px solid var(--status-inprogress-border) !important;
     font-weight: bold;
 }
 
 .done {
-    border-left: 6px solid var(--status-done-border);
+    border-left: 6px solid var(--status-done-border) !important;
     text-decoration: line-through;
 }
 
 .cancelled {
-    border-left: 6px solid var(--status-cancelled-border);
+    border-left: 6px solid var(--status-cancelled-border) !important;
     text-decoration: line-through;
 }
 
@@ -697,4 +715,12 @@ button:active {
     margin: 12px 8px; /* More margin */
     padding: 12px 25px; /* More padding */
     cursor: pointer;
+}
+
+.highlight {
+    background-color: yellow;
+}
+
+.hidden {
+    display: none;
 }

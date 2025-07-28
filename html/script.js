@@ -19,6 +19,10 @@ appEvent.onTaskUpdate = taskUpdateOnEvent;
 appEvent.onConnect = onConnect;
 appEvent.onDisconnect = onDisconnect;
 
+document
+    .getElementById("input-search")
+    .addEventListener("input", inputSearchOnInput);
+
 // rennew JWT token
 setInterval(() => renewToken(), 3600000); //hourly
 
@@ -94,6 +98,8 @@ function taskListApply(projectId) {
             taskListPopulate(taskList);
         })
         .catch((error) => logger.error(error));
+
+    setTimeout(inputSearchOnInput, 50);
 }
 
 /**
@@ -1190,6 +1196,7 @@ function taskUpdateOnEvent(task) {
     ensureVisible(taskRegion);
 
     store.upsertTask(task);
+    inputSearchOnInput();
 }
 
 function taskAdd(task) {
@@ -1255,6 +1262,10 @@ function taskAdd(task) {
     const taskPre = document.createElement("pre");
     taskPre.className = "task-pre";
     taskPre.innerText = task.text;
+    const inputSearch = document.getElementById("input-search");
+    if (inputSearch.value.length >= 3) {
+        highlightText(taskPre, inputSearch.value);
+    }
     taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
     taskRegion.addEventListener("dragstart", taskDragStart);
@@ -1999,4 +2010,72 @@ function onDisconnect(event) {
 
 function checkConnection() {
     return appEvent.eventSocket.readyState == WebSocket.OPEN;
+}
+
+/**
+ * Highlights all case-insensitive matches of searchWord in preElement
+ * @param {HTMLElement} preElement - The DOM element containing text to highlight
+ * @param {string} searchWord - The word/phrase to highlight
+ * @returns {boolean} True if any replacements were made, false otherwise
+ */
+function highlightText(preElement, searchWord) {
+    if (searchWord == "") {
+        return true;
+    }
+
+    if (!preElement || !searchWord || typeof searchWord !== "string") {
+        return false;
+    }
+
+    const originalHTML = preElement.innerHTML;
+    const regex = new RegExp(`(${escapeRegExp(searchWord)})`, "gi");
+
+    preElement.innerHTML = originalHTML.replace(
+        regex,
+        '<span class="highlight">$1</span>'
+    );
+
+    // Return true if the HTML changed (replacements occurred)
+    return preElement.innerHTML !== originalHTML;
+}
+
+// Helper to escape special regex characters
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function inputSearchOnInput(event) {
+    const searchWord = document
+        .getElementById("input-search")
+        .value.toLowerCase();
+    const preElements = document.querySelectorAll(".task-pre");
+    preElements.forEach((preElement) => {
+        preElement.innerHTML = preElement.textContent;
+        if (!highlightText(preElement, searchWord)) {
+            preElement.closest(".task-region").classList.add("hidden");
+        } else {
+            preElement.closest(".task-region").classList.remove("hidden");
+        }
+    });
+
+    const groupRegions = document.querySelectorAll(".group-region");
+    groupRegions.forEach((groupRegion) => {
+        logger.log(
+            ".task-region.hidden",
+            groupRegion.querySelectorAll(".task-region.hidden").length
+        );
+        logger.log(
+            ".task-region",
+            groupRegion.querySelectorAll(".task-region").length
+        );
+        if (
+            groupRegion.querySelectorAll(".task-region.hidden").length ==
+                groupRegion.querySelectorAll(".task-region").length &&
+            searchWord != ""
+        ) {
+            groupRegion.classList.add("hidden");
+        } else {
+            groupRegion.classList.remove("hidden");
+        }
+    });
 }
