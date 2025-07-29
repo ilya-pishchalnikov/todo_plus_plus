@@ -330,8 +330,6 @@ button:active {
 }
 
 .group-content-region {
-    max-height: 1000px; /* Для анимации */
-    transition: max-height 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
     overflow: auto;
 }
 
@@ -474,8 +472,8 @@ button:active {
 }
 
 .dropdown-option-region:hover {
-    background: var(--color-very-light-red);
-    color: var(--color-primary-red);
+    background: var(--color-background-grey-light);
+    color: var(--color-black);
 }
 
 /* Online Indicator */
