@@ -43,6 +43,18 @@ if ("serviceWorker" in navigator) {
     });
 }
 
+document.addEventListener("visibilitychange", () => {
+    // Check if the tab is now visible
+    if (document.visibilityState === "visible") {
+        logger.log("tab is visible");
+        renewToken();
+        // Fetch complete user data
+        allUserDataFetch();
+        // apply fetched data
+        userDataApply();
+    }
+});
+
 /**
  * Fetches complete user data from the server and persists it in IndexedDB.
  *
@@ -804,7 +816,6 @@ function groupCollapse(groupId, onlyCollapse = false) {
     if (groupHeaderRegion.classList.contains("collapsed") && onlyCollapse) {
         return;
     }
-    logger.log("groupId", groupId);
     groupContentRegion.classList.toggle("collapsed");
     groupHeaderRegion.classList.toggle("collapsed");
 }
@@ -900,7 +911,6 @@ function groupHeaderTextOnBlur(event) {
 }
 
 function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
-    logger.log("groupHeaderRegion", groupHeaderRegion);
     const groupRegion = groupHeaderRegion.parentElement;
 
     const taskRegionsSelected = document.querySelectorAll(
@@ -956,7 +966,6 @@ function groupAddOnClick(event) {
 function groupRemoveOnClick(event) {
     const button = event.target;
     const groupId = button.dataset.payload;
-    logger.log("groupid", groupId);
     const groupRegion = document.getElementById(groupId);
     const prevGroupRegion = groupRegion.previousElementSibling;
     let prevGroupId = null;
@@ -2060,14 +2069,6 @@ function inputSearchOnInput(event) {
 
     const groupRegions = document.querySelectorAll(".group-region");
     groupRegions.forEach((groupRegion) => {
-        logger.log(
-            ".task-region.hidden",
-            groupRegion.querySelectorAll(".task-region.hidden").length
-        );
-        logger.log(
-            ".task-region",
-            groupRegion.querySelectorAll(".task-region").length
-        );
         if (
             groupRegion.querySelectorAll(".task-region.hidden").length ==
                 groupRegion.querySelectorAll(".task-region").length &&
