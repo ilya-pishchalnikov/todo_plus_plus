@@ -1,6 +1,7 @@
 const menu = new Menu(signout);
 const popup = new Popup();
 const store = new IndexedDBDataStore("DataStore", 5);
+const dragndrop = new DragAndDrop();
 
 menu.checkConnection = checkConnection;
 
@@ -268,8 +269,8 @@ function projectAdd(projectId, projectName, previousProjectId) {
     projectRegion.addEventListener("keydown", projectRegionOnKeyDown);
     projectRegion.addEventListener("focus", projectRegionOnFocus);
     projectRegion.addEventListener("blur", projectRegionOnBlur);
-    projectRegion.addEventListener("dragstart", projectDragStart);
-    projectRegion.addEventListener("dragend", projectDragEnd);
+    projectRegion.addEventListener("dragstart", dragndrop.projectDragStart);
+    projectRegion.addEventListener("dragend", dragndrop.projectDragEnd);
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -742,8 +743,8 @@ function groupAdd(group, prevGroupId) {
         groupListRegion.prepend(groupRegion);
     }
 
-    groupRegion.addEventListener("dragstart", groupDragStart);
-    groupRegion.addEventListener("dragend", groupDragEnd);
+    groupRegion.addEventListener("dragstart", dragndrop.groupDragStart);
+    groupRegion.addEventListener("dragend", dragndrop.groupDragEnd);
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
@@ -1277,8 +1278,8 @@ function taskAdd(task) {
     }
     taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
-    taskRegion.addEventListener("dragstart", taskDragStart);
-    taskRegion.addEventListener("dragend", taskDragEnd);
+    taskRegion.addEventListener("dragstart", dragndrop.taskDragStart);
+    taskRegion.addEventListener("dragend", dragndrop.taskDragEnd);
 
     if (prevTaskRegion != null) {
         prevTaskRegion.after(taskRegion);
