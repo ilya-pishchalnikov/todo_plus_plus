@@ -1,2 +1,2 @@
-const instanceGuid = guid();
+const instanceGuid = Utils.guid();
 const appEvent = new AppEvent();

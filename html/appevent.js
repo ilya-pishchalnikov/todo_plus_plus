@@ -87,7 +87,7 @@ class AppEvent {
         } else {
             await this.store.init();
             const storeEvent = {
-                eventId: guid(),
+                eventId: Utils.guid(),
                 utc_time: Date.now().toString(),
                 data: data,
             };
@@ -114,7 +114,7 @@ class AppEvent {
             );
             return;
         }
-        const token = getCookieByName("jwtToken");
+        const token = Utils.getCookieByName("jwtToken");
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         this.eventSocket = new WebSocket(
             `${protocol}//${window.location.host}/ws?token=${token}`

@@ -60,7 +60,7 @@ class DragAndDrop {
         const eventMessage = {
             type: "project-update",
             instance: instanceGuid,
-            jwt: getCookieByName("jwtToken"),
+            jwt: Utils.getCookieByName("jwtToken"),
             payload: {
                 name: projectName,
                 id: projectId,
@@ -142,7 +142,7 @@ class DragAndDrop {
         const eventMessage = {
             type: "group-update",
             instance: instanceGuid,
-            jwt: getCookieByName("jwtToken"),
+            jwt: Utils.getCookieByName("jwtToken"),
             payload: {
                 name: groupName,
                 id: groupId,
@@ -232,7 +232,7 @@ class DragAndDrop {
         const eventMessage = {
             type: "task-update",
             instance: instanceGuid,
-            jwt: getCookieByName("jwtToken"),
+            jwt: Utils.getCookieByName("jwtToken"),
             payload: {
                 text: taskText,
                 id: taskId,
