@@ -2,6 +2,7 @@ const menu = new Menu(signout);
 const popup = new Popup();
 const store = new IndexedDBDataStore("DataStore", 5);
 const dragndrop = new DragAndDrop();
+const logger = new Logger();
 
 menu.checkConnection = checkConnection;
 
@@ -45,13 +46,9 @@ if ("serviceWorker" in navigator) {
 }
 
 document.addEventListener("visibilitychange", () => {
-    // Check if the tab is now visible
     if (document.visibilityState === "visible") {
-        logger.log("tab is visible");
         renewToken();
-        // Fetch complete user data
         allUserDataFetch();
-        // apply fetched data
         userDataApply();
     }
 });
