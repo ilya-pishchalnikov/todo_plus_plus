@@ -1,6 +1,8 @@
 const menu = new Menu(signout);
 const popup = new Popup();
 const store = new IndexedDBDataStore("DataStore", 5);
+const dragndrop = new DragAndDrop();
+const logger = new Logger();
 
 menu.checkConnection = checkConnection;
 
@@ -44,13 +46,9 @@ if ("serviceWorker" in navigator) {
 }
 
 document.addEventListener("visibilitychange", () => {
-    // Check if the tab is now visible
     if (document.visibilityState === "visible") {
-        logger.log("tab is visible");
         renewToken();
-        // Fetch complete user data
         allUserDataFetch();
-        // apply fetched data
         userDataApply();
     }
 });
@@ -67,7 +65,7 @@ function allUserDataFetch() {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            Authorization: "Bearer " + getCookieByName("jwtToken"),
+            Authorization: "Bearer " + Utils.getCookieByName("jwtToken"),
         },
     })
         .then((response) => {
@@ -174,7 +172,7 @@ function renewToken() {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            Authorization: "Bearer " + getCookieByName("jwtToken"),
+            Authorization: "Bearer " + Utils.getCookieByName("jwtToken"),
         },
     })
         .then((response) => {
@@ -193,7 +191,7 @@ function renewToken() {
         })
         .then((tokenString) => {
             if (/^[a-zA-Z0-9.\-_]+$/.test(tokenString)) {
-                setCookie("jwtToken", tokenString, {});
+                Utils.setCookie("jwtToken", tokenString, {});
             }
         })
         .catch((error) => logger.error(error));
@@ -236,10 +234,10 @@ function userDataApply() {
                 const eventMessage = {
                     type: "project-add",
                     instance: instanceGuid,
-                    jwt: getCookieByName("jwtToken"),
+                    jwt: Utils.getCookieByName("jwtToken"),
                     payload: {
                         name: "Project1",
-                        id: guid(),
+                        id: Utils.guid(),
                         after: null,
                     },
                 };
@@ -268,8 +266,8 @@ function projectAdd(projectId, projectName, previousProjectId) {
     projectRegion.addEventListener("keydown", projectRegionOnKeyDown);
     projectRegion.addEventListener("focus", projectRegionOnFocus);
     projectRegion.addEventListener("blur", projectRegionOnBlur);
-    projectRegion.addEventListener("dragstart", projectDragStart);
-    projectRegion.addEventListener("dragend", projectDragEnd);
+    projectRegion.addEventListener("dragstart", dragndrop.projectDragStart);
+    projectRegion.addEventListener("dragend", dragndrop.projectDragEnd);
     if (previousProjectId != null && previousProjectId != "") {
         const prevProjectRegion = document.getElementById(previousProjectId);
         if (prevProjectRegion != null) {
@@ -315,7 +313,7 @@ function projectRegionOnKeyDown(event) {
             event.preventDefault();
             break;
         case event.key === "ArrowRight":
-            if (isCursorAtEndOrNotFocused(selectedProjectRegion)) {
+            if (Utils.isCursorAtEndOrNotFocused(selectedProjectRegion)) {
                 const newGroupInput = document.getElementById("group-input");
                 newGroupInput.focus();
                 event.preventDefault();
@@ -329,7 +327,7 @@ function projectRegionOnKeyDown(event) {
             break;
         case event.key === "ArrowLeft":
             if (prevProjectRegion != null) {
-                if (isCursorAtStartOrNotFocused(selectedProjectRegion)) {
+                if (Utils.isCursorAtStartOrNotFocused(selectedProjectRegion)) {
                     projectSelect(prevProjectRegion, false);
                     event.preventDefault();
                 }
@@ -367,7 +365,7 @@ function projectRegionOnBlur(event) {
     const eventMessage = {
         type: "project-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: projectName,
             id: projectId,
@@ -394,7 +392,7 @@ function projectSelect(projectRegion, isSetCursorAtFirstPosition = false) {
     menu.addButton("▼", projectRegion.id, projectMoveRightOnClick, "50px");
     taskListApply(projectRegion.id);
     projectRegion.focus();
-    setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
+    Utils.setCursorAtEdge(projectRegion, isSetCursorAtFirstPosition);
 }
 
 /**
@@ -427,11 +425,11 @@ function projectRemoveOnEvent(project) {
                 alert("Working without any projects is prohibited");
                 projectName = prompt("Project name:", "");
             }
-            const projectId = guid();
+            const projectId = Utils.guid();
             const eventMessage = {
                 type: "project-add",
                 instance: instanceGuid,
-                jwt: getCookieByName("jwtToken"),
+                jwt: Utils.getCookieByName("jwtToken"),
                 payload: {
                     name: projectName,
                     id: projectId,
@@ -488,10 +486,10 @@ function projectAddOnClick(event) {
     const eventMessage = {
         type: "project-add",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: projectName,
-            id: guid(),
+            id: Utils.guid(),
             after: projectId,
         },
     };
@@ -515,7 +513,7 @@ function projectRemoveOnClick(event) {
     const eventMessage = {
         type: "project-delete",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: projectName,
             id: projectId,
@@ -545,7 +543,7 @@ function projectRenameOnClick(event) {
     const eventMessage = {
         type: "project-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: projectName,
             id: projectId,
@@ -582,7 +580,7 @@ function projectMoveLeft(projectRegion) {
     const eventMessage = {
         type: "project-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: projectName,
             id: projectId,
@@ -613,7 +611,7 @@ function projectMoveRight(projectRegion) {
     const eventMessage = {
         type: "project-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: projectName,
             id: projectId,
@@ -655,13 +653,13 @@ function groupInputOnKeyDown(event) {
             event.preventDefault();
             break;
         case event.key === "ArrowLeft":
-            if (isCursorAtStartOrNotFocused(groupInput)) {
+            if (Utils.isCursorAtStartOrNotFocused(groupInput)) {
                 projectSelect(projectSelectedRegion, false);
                 event.preventDefault();
             }
             break;
         case event.key === "ArrowRight":
-            if (isCursorAtEndOrNotFocused(groupInput)) {
+            if (Utils.isCursorAtEndOrNotFocused(groupInput)) {
                 if (firstGroupRegion == null) {
                     return;
                 }
@@ -689,10 +687,10 @@ function groupNewAddOnClick(event) {
     const eventMessage = {
         type: "group-add",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: groupName,
-            id: guid(),
+            id: Utils.guid(),
             projectid: projectId,
             after: null,
         },
@@ -742,8 +740,8 @@ function groupAdd(group, prevGroupId) {
         groupListRegion.prepend(groupRegion);
     }
 
-    groupRegion.addEventListener("dragstart", groupDragStart);
-    groupRegion.addEventListener("dragend", groupDragEnd);
+    groupRegion.addEventListener("dragstart", dragndrop.groupDragStart);
+    groupRegion.addEventListener("dragend", dragndrop.groupDragEnd);
 
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header-region";
@@ -779,12 +777,12 @@ function groupAdd(group, prevGroupId) {
     taskInput.className = "task-input";
     taskInput.placeholder = "New task text";
     taskInput.wrap = "hard";
-    taskInput.id = guid();
+    taskInput.id = Utils.guid();
     taskInput.dataset.groupid = group.id;
     taskInput.onfocus = taskInputOnFocus;
 
     taskInput.addEventListener("keydown", taskInputOnKeyDown);
-    taskInput.addEventListener("input", textAreaAutoResize);
+    taskInput.addEventListener("input", Utils.textAreaAutoResize);
     taskInputRegion.append(taskInput);
 
     store
@@ -846,7 +844,7 @@ function groupHeaderTextOnKeyDown(event) {
             break;
         case event.key === "ArrowUp" ||
             (event.key === "ArrowLeft" &&
-                isCursorAtStartOrNotFocused(groupHeaderRegion)):
+                Utils.isCursorAtStartOrNotFocused(groupHeaderRegion)):
             const prevGroupRegion = groupRegion.previousElementSibling;
             if (prevGroupRegion == null) {
                 const groupInput = document.getElementById("group-input");
@@ -860,7 +858,7 @@ function groupHeaderTextOnKeyDown(event) {
             break;
         case event.key === "ArrowDown" ||
             (event.key === "ArrowRight" &&
-                isCursorAtEndOrNotFocused(groupHeaderRegion)):
+                Utils.isCursorAtEndOrNotFocused(groupHeaderRegion)):
             if (taskFirstRegion == null) {
                 const taskInput = groupRegion.querySelector(".task-input");
                 taskInput.focus();
@@ -898,7 +896,7 @@ function groupHeaderTextOnBlur(event) {
     const eventMessage = {
         type: "group-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: groupName,
             id: groupId,
@@ -927,7 +925,7 @@ function groupSelect(groupHeaderRegion, isSetCursorToTheFirstPosition = false) {
     menu.addButton("▲", groupRegion.id, groupUpOnClick, "50px");
     menu.addButton("▼", groupRegion.id, groupDownOnClick, "50px");
     groupHeaderRegion.focus();
-    setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition);
+    Utils.setCursorAtEdge(groupHeaderRegion, isSetCursorToTheFirstPosition);
 }
 
 function groupAddOnClick(event) {
@@ -951,10 +949,10 @@ function groupAddOnClick(event) {
     const eventMessage = {
         type: "group-add",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: groupName,
-            id: guid(),
+            id: Utils.guid(),
             projectid: projectId,
             after: prevGroupId,
         },
@@ -991,7 +989,7 @@ function groupRemoveOnClick(event) {
     const eventMessage = {
         type: "group-delete",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: groupName,
             id: groupId,
@@ -1035,7 +1033,7 @@ function groupMoveUp(groupRegion) {
     const eventMessage = {
         type: "group-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: groupName,
             id: groupId,
@@ -1070,7 +1068,7 @@ function groupMoveDown(groupRegion) {
     const eventMessage = {
         type: "group-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             name: groupName,
             id: groupId,
@@ -1122,10 +1120,10 @@ function taskNewAdd(taskInput) {
     const eventMessage = {
         type: "task-add",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
-            id: guid(),
+            id: Utils.guid(),
             group: groupId,
             status: "1", // todo
             after: prevTaskId,
@@ -1202,7 +1200,7 @@ function taskUpdateOnEvent(task) {
         textElement.addEventListener("blur", taskInlineInputOnBlur);
     }
 
-    ensureVisible(taskRegion);
+    Utils.ensureVisible(taskRegion);
 
     store.upsertTask(task);
     inputSearchOnInput();
@@ -1277,8 +1275,8 @@ function taskAdd(task) {
     }
     taskRegion.appendChild(taskPre);
     taskRegion.draggable = true;
-    taskRegion.addEventListener("dragstart", taskDragStart);
-    taskRegion.addEventListener("dragend", taskDragEnd);
+    taskRegion.addEventListener("dragstart", dragndrop.taskDragStart);
+    taskRegion.addEventListener("dragend", dragndrop.taskDragEnd);
 
     if (prevTaskRegion != null) {
         prevTaskRegion.after(taskRegion);
@@ -1327,7 +1325,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
             const eventMessage = {
                 type: "task-update",
                 instance: instanceGuid,
-                jwt: getCookieByName("jwtToken"),
+                jwt: Utils.getCookieByName("jwtToken"),
                 payload: {
                     text: taskTextOld,
                     id: taskIdOld,
@@ -1393,7 +1391,7 @@ function taskInlineInputActivate(taskRegion, isSetCursorFirstPosition = false) {
     taskInlineInput.id = "task-inline-input";
     taskInlineInput.wrap = "hard";
     taskInlineInput.value = taskText;
-    taskInlineInput.addEventListener("input", textAreaAutoResize);
+    taskInlineInput.addEventListener("input", Utils.textAreaAutoResize);
     taskInlineInput.addEventListener("keydown", taskInlineInputOnKeyDown);
     taskInlineInput.addEventListener("blur", taskInlineInputOnBlur);
     taskRegion.append(taskInlineInput);
@@ -1480,7 +1478,7 @@ function taskInlineInputOnBlur(event) {
     const eventMessage = {
         type: "task-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
             id: taskId,
@@ -1502,7 +1500,7 @@ function taskInputOnKeyDown(event) {
             event.preventDefault();
             break;
         case (event.key === "ArrowDown" || event.key === "ArrowRight") &&
-            (event.ctrlKey || isCursorAtEndOrNotFocused(taskInput)):
+            (event.ctrlKey || Utils.isCursorAtEndOrNotFocused(taskInput)):
             taskNewAdd(taskInput);
             const nextGroupRegion = groupRegion.nextElementSibling;
             if (nextGroupRegion == null) {
@@ -1514,7 +1512,7 @@ function taskInputOnKeyDown(event) {
             event.preventDefault();
             break;
         case (event.key === "ArrowUp" || event.key === "ArrowLeft") &&
-            (event.ctrlKey || isCursorAtStartOrNotFocused(taskInput)):
+            (event.ctrlKey || Utils.isCursorAtStartOrNotFocused(taskInput)):
             taskNewAdd(taskInput);
             const taskListRegion =
                 groupRegion.querySelector(".task-list-region");
@@ -1547,7 +1545,8 @@ function taskInlineInputOnKeyDown(event) {
             break;
         case (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) ||
             ((event.key === "ArrowDown" || event.key === "ArrowRight") &&
-                (event.ctrlKey || isCursorAtEndOrNotFocused(taskInlineInput))):
+                (event.ctrlKey ||
+                    Utils.isCursorAtEndOrNotFocused(taskInlineInput))):
             if (nextTaskRegion != null) {
                 taskInlineInputActivate(nextTaskRegion, true);
             } else {
@@ -1560,7 +1559,8 @@ function taskInlineInputOnKeyDown(event) {
             event.preventDefault();
             break;
         case (event.key === "ArrowUp" || event.key === "ArrowLeft") &&
-            (event.ctrlKey || isCursorAtStartOrNotFocused(taskInlineInput)):
+            (event.ctrlKey ||
+                Utils.isCursorAtStartOrNotFocused(taskInlineInput)):
             const prevTaskRegion = taskRegion.previousElementSibling;
             if (prevTaskRegion != null) {
                 taskInlineInputActivate(prevTaskRegion);
@@ -1616,7 +1616,7 @@ function taskRemove(taskId) {
     const eventMessage = {
         type: "task-delete",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
             id: taskId,
@@ -1676,7 +1676,7 @@ function taskMoveUp(taskRegion) {
     const eventMessage = {
         type: "task-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
             id: taskId,
@@ -1720,7 +1720,7 @@ function taskMoveDown(taskRegion) {
     const eventMessage = {
         type: "task-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
             id: taskId,
@@ -1761,7 +1761,7 @@ function taskStatusImgOnClick(event) {
     const eventMessage = {
         type: "task-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
             id: taskId,
@@ -1792,7 +1792,7 @@ function taskStatusSet(taskId, taskStatus) {
     const eventMessage = {
         type: "task-update",
         instance: instanceGuid,
-        jwt: getCookieByName("jwtToken"),
+        jwt: Utils.getCookieByName("jwtToken"),
         payload: {
             text: taskText,
             id: taskId,
@@ -1816,7 +1816,7 @@ function persistState() {
     switch (true) {
         case focusedElement.classList.contains("project-region"):
         case focusedElement.classList.contains("project-region-selected"):
-            selection = getEditableSelection(focusedElement);
+            selection = Utils.getEditableSelection(focusedElement);
             focusedElementInfo = {
                 type: "project",
                 id: focusedElement.id,
@@ -1835,7 +1835,7 @@ function persistState() {
             };
             break;
         case focusedElement.classList.contains("group-header-text"):
-            selection = getEditableSelection(focusedElement);
+            selection = Utils.getEditableSelection(focusedElement);
             focusedElementInfo = {
                 type: "group",
                 id: focusedElement.parentElement.id,
@@ -1908,7 +1908,7 @@ function applyPersistedState() {
                     projectRegion?.focus();
                     if (projectRegion) {
                         projectRegion.innerText = focusedElementInfo.text;
-                        setContentEditableSelection(
+                        Utils.setContentEditableSelection(
                             projectRegion,
                             focusedElementInfo.selStart,
                             focusedElementInfo.selEnd
@@ -1938,7 +1938,7 @@ function applyPersistedState() {
                         groupHeaderRegion.querySelector(
                             ".group-header-text"
                         ).textContent = focusedElementInfo.text;
-                        setContentEditableSelection(
+                        Utils.setContentEditableSelection(
                             groupHeaderRegion,
                             focusedElementInfo.selStart,
                             focusedElementInfo.selEnd
@@ -1998,7 +1998,7 @@ function applyPersistedState() {
 }
 
 function signout() {
-    deleteCookie("jwtToken");
+    Utils.deleteCookie("jwtToken");
     window.location.assign("/login.html");
 }
 
