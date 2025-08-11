@@ -36,7 +36,7 @@ class Menu {
         button.classList.add("dropdown");
         button.innerText = name + "▼";
         button.dataset.payload = payload;
-        button.id = Utils.guid();
+        button.id = guid();
         if (width != null) {
             button.style.width = width;
         }
@@ -57,7 +57,7 @@ class Menu {
         });
 
         menuMain.appendChild(dropdownContent);
-        Utils.showElementUnder(button, dropdownContent);
+        showElementUnder(button, dropdownContent);
 
         window.addEventListener("click", this.windowOnClick);
     }
