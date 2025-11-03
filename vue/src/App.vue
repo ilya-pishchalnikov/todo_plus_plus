@@ -8,6 +8,7 @@
 <script>
 import LoginComponent from './components/login/login.vue'
 import MainLayout from './components/layout/main.vue'
+import apiClient from './js/utils/apiClient.js';
 import { onMounted, ref, computed } from 'vue'
 
 export default {
@@ -17,31 +18,34 @@ export default {
     MainLayout
   },
   setup() {
-    const jwtToken = ref('');
-    const isLoggedIn = computed(() => !!jwtToken.value);
+    
+    const isLoggedIn = computed(() => isAuthentificated);
 
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
+    const isAuthentificated = ref(false);
+
+    async function fetchIsAuthentificated() {
+        try {
+            const response = apiClient.get('/check_auth'); 
+            return response.status === 200;
+        } catch (error) {
+           return false;
+        }
     }
 
     function handleLoginSuccess() {
-      setTimeout(() => { jwtToken.value = getCookie('jwtToken') || ''; }, 100)
+      isAuthentificated.value = fetchIsAuthentificated();
     }
 
     function handleSignout() {
-      console.log("Signing out (app)...");
-      document.cookie = `jwtToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      jwtToken.value = '';
+      isAuthentificated.value = false;
     }
 
     onMounted(() => {
-      jwtToken.value = getCookie('jwtToken') || '';
+      isAuthentificated.value = fetchIsAuthentificated();
     });
 
     return {
-      jwtToken,
+      isAuthentificated,
       isLoggedIn,
       handleLoginSuccess,
       handleSignout

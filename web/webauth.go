@@ -83,7 +83,7 @@ func bearerAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		_, err := verifyJwtAndGetLoginByRequest(*request)
+		_, err := getCurrentLogin(*request)
 		if err != nil {
 			http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
 			return
@@ -134,8 +134,19 @@ func loginHandler(responseWriter http.ResponseWriter, request *http.Request) {
 			return
 		}
 
-		responseWriter.Header().Set("Content-Type", "text/plain")
-		responseWriter.Write([]byte(tokenString))
+		newCookie := http.Cookie{
+			Name:     "jwtToken",
+			Value:    tokenString,
+			Path:     "/",
+			Expires:  time.Now().Add(48 * time.Hour),
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		}
+
+		http.SetCookie(responseWriter, &newCookie)
+
+		responseWriter.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(responseWriter, "Invalid login or password", http.StatusUnauthorized)
 		return
@@ -389,7 +400,7 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 		return
 	}
 
-	login, err := verifyJwtAndGetLoginByRequest(*request)
+	login, err := getCurrentLogin(*request)
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
 	}
@@ -406,8 +417,19 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 		return
 	}
 
-	responseWriter.Header().Set("Content-Type", "text/plain")
-	responseWriter.Write([]byte(tokenString))
+	newCookie := http.Cookie{
+		Name:     "jwtToken",
+		Value:    tokenString,
+		Path:     "/",
+		Expires:  time.Now().Add(48 * time.Hour),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	http.SetCookie(responseWriter, &newCookie)
+
+	responseWriter.WriteHeader(http.StatusOK)
 }
 
 func secretTokenHandler(responseWriter http.ResponseWriter, request *http.Request) {
@@ -524,15 +546,20 @@ func resetPasswordHandler(responseWriter http.ResponseWriter, request *http.Requ
 	}
 }
 
-func verifyJwtAndGetLoginByRequest(request http.Request) (string, error) {
-	authHeader := request.Header.Get("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		return "", errors.New("the request is missing the 'Authorization: Bearer' header")
+func checkAuthHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
-	tokenString := authHeader[len("Bearer "):]
-	return auth.VerifyJwtAndGetLogin(tokenString)
+
+	responseWriter.WriteHeader(http.StatusOK)
 }
 
 func getCurrentLogin(request http.Request) (string, error) {
-	return verifyJwtAndGetLoginByRequest(request)
+	cookie, err := request.Cookie("jwtToken")
+	if err != nil {
+		return "", errors.New("authentication token not found")
+	}
+
+	return auth.VerifyJwtAndGetLogin(cookie.Value)
 }

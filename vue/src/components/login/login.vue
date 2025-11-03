@@ -182,6 +182,8 @@
 </template>
 
 <script>
+
+
 export default {
   name: 'AuthComponent',
   data() {
@@ -239,6 +241,7 @@ export default {
     // Проверка secret token из URL
     this.checkSecretToken();
   },
+
   
   methods: {
     // Переключение между формами
@@ -444,7 +447,7 @@ export default {
         }
 
         const tokenString = await response.text();
-        this.setCookie("jwtToken", tokenString, {});
+        //this.setCookie("jwtToken", tokenString, {});
         this.$emit('login-success')
         //window.location.href = "/";
       } catch (error) {
@@ -603,14 +606,12 @@ export default {
             
             if (window.hcaptcha && container) {
                 
-                // !!! ГЛАВНОЕ ИЗМЕНЕНИЕ: Если виджет уже существует, удаляем его из DOM/hCaptcha
                 if (this.captchaWidgetId) {
                     window.hcaptcha.remove(this.captchaWidgetId);
                     this.captchaWidgetId = null; // Сбросить ID виджета
                     console.log("hCaptcha widget removed and ready for new render.");
                 }
 
-                // Теперь всегда вызываем render, так как мы знаем, что DOM-элемент новый
                 this.captchaWidgetId = window.hcaptcha.render(
                     container, { 
                         sitekey: 'f1d8ae8c-549a-43dc-a636-8a82ae0aaed8',
@@ -621,7 +622,6 @@ export default {
             }
         });
       }
-      // Если окно закрывается, можно ничего не делать, так как v-if удалит элемент
     }
   }
 }

@@ -15,6 +15,8 @@ import HeaderLayout from './header.vue';
 import SidebarLayout from './sidebar.vue';  
 import ContentLayout from './content.vue';  
 import { defineEmits, ref } from 'vue';
+import apiClient from '../../js/utils/apiClient.js';
+import IndexedDBDataStore from '../../js/store/datastore.js';
 
 export default {
   name: 'MainLayout',
@@ -32,6 +34,40 @@ export default {
       emit('signout');
     } 
 
+
+    /**
+     * Fetches complete user data from the server and persists it in IndexedDB.
+     *
+     * Retrieves the user"s full dataset including projects, groups, and tasks by making a GET request
+     * to the "/api/all_user_data" endpoint. The response data is then stored in IndexedDB for offline use.
+     * @returns {void}
+     */
+    async function fetchAllUserData() {
+        try {
+            const response = await apiClient.get('/all_user_data'); 
+
+            const store = new IndexedDBDataStore("DataStore", 1);
+
+            store.clean();
+            if (response.data.projects) {
+              store.insertProjects(response.data.projects);
+            }
+            if (response.data.groups) {
+              store.insertTaskGroups(response.data.groups);
+            }
+            if (response.data.tasks) {
+              store.insertTasks(response.data.tasks);
+            }
+        } catch (error) {
+            if (error.response && error.response.status === 401) {
+                emit('signout');
+            } else {
+                console.error("Failed to fetch all data:", error);
+            }
+        }
+    }
+
+    fetchAllUserData();
 
     return {
       handleSignout,
