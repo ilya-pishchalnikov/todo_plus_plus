@@ -3,7 +3,6 @@ package web
 import (
 	"fmt"
 	"net/http"
-	"todopp/util"
 )
 
 // Initializes and starts the HTTP server
@@ -20,8 +19,9 @@ func StartServer(port string, cert string, certKey string) error {
 	}()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", getMainHandler) // index.html
-	mux.Handle("/html/", http.StripPrefix("/html/", http.FileServer(http.Dir(util.GetExecDir()+"html"))))
+	//mux.Handle("/", http.FileServer(http.Dir(util.GetExecDir()+"vue")))
+	mux.HandleFunc("/", getMainHandler)
+	//mux.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir(util.GetExecDir()+"vue/src"))))
 
 	mux.HandleFunc("/api/task_list", taskListHandler)
 	mux.HandleFunc("/api/login", loginHandler)
@@ -29,7 +29,9 @@ func StartServer(port string, cert string, certKey string) error {
 	mux.HandleFunc("/api/projects", projectHandler)
 	mux.HandleFunc("/api/all_user_data", allDataHandler)
 	mux.HandleFunc("/api/register", registerHandler)
-	mux.HandleFunc("/api/confirm_email", emailConfirmationHandler)
+	mux.HandleFunc("/api/secret_token", secretTokenHandler)
+	mux.HandleFunc("/api/forgot_password", forgotPasswordHandler)
+	mux.HandleFunc("/api/reset_password", resetPasswordHandler)
 
 	mux.HandleFunc("/ws", handleEventConnections)
 	//mux.HandleFunc("/ws", handleEventConnections)

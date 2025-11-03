@@ -42,3 +42,5 @@ config.json
 
 #log files
 *.log
+
+__debug_*

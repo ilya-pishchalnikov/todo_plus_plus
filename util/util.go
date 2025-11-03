@@ -26,6 +26,7 @@ type Config struct {
 	SmtpFrom      string `json:"smtpFrom"`
 	CaptchaSecret string `json:"hcaptchaSecret"`
 	Domain        string `json:"domain"`
+	IgnoreCaptcha bool   `json:"ignoreCaptcha"`
 }
 
 type hCaptchaResponse struct {
@@ -84,6 +85,10 @@ func VerifyCaptcha(captchaResponce string) (bool, error) {
 	config, err := GetConfig()
 	if err != nil {
 		return false, err
+	}
+
+	if config.IgnoreCaptcha {
+		return true, nil
 	}
 
 	resp, err := http.PostForm("https://hcaptcha.com/siteverify",

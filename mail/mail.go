@@ -97,13 +97,33 @@ func SendMail(smtpTo string, mailSubject string, plainTextBody string, htmlBody 
 	return nil
 }
 
-func SendConfirmationEmail(email string, token string) error {
+func SendConfirmationEmail(email string, token string, confirmationType string) error {
 	config, err := util.GetConfig()
 	if err != nil {
 		return err
 	}
 
-	confirmationLink := fmt.Sprintf("https://"+config.Domain+"/login.html?secret_token=%s", token)
+	confirmationLink := fmt.Sprintf("https://"+config.Domain+string(config.Port)+"/index.html?secret_token=%s", token)
+
+	var htmlTitle string
+	var htmlRequest string
+	var textRequest string
+	var subject string
+
+	switch confirmationType {
+	case "email_confirmation":
+		htmlTitle = "Email Confirmation"
+		htmlRequest = "Please click the button below to confirm your email address:"
+		textRequest = "Please confirm your email by visiting this link:"
+		subject = "Confirm Your Email"
+	case "password_reset":
+		htmlTitle = "Password Reset"
+		htmlRequest = "Please click the button below to reset your password:"
+		textRequest = "Please reset your password by visiting this link:"
+		subject = "Reset Your Password"
+	default:
+		return fmt.Errorf("invalid confirmation type")
+	}
 
 	htmlBody := fmt.Sprintf(`
 	<!DOCTYPE html>
@@ -136,18 +156,16 @@ func SendConfirmationEmail(email string, token string) error {
 	</head>
 	<body>
 		<div class="container">
-			<h2>Email Confirmation</h2>
-			<p>Please click the button below to confirm your email address:</p>
+			<h2>%s</h2>
+			<p>%s</p>
 			<a href="%s" class="button">Confirm Email</a>
 			<p>Or copy this link to your browser: %s</p>
 		</div>
 	</body>
 	</html>
-	`, confirmationLink, confirmationLink)
+	`, htmlTitle, htmlRequest, confirmationLink, confirmationLink)
 
-	textBody := fmt.Sprintf("Please confirm your email by visiting this link:\n%s", confirmationLink)
-
-	subject := "Confirm Your Email"
+	textBody := fmt.Sprintf("%s\n%s", textRequest, confirmationLink)
 
 	return SendMail(email, subject, textBody, htmlBody)
 }

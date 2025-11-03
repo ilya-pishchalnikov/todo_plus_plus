@@ -18,6 +18,38 @@ import (
 	"unicode"
 )
 
+type LoginPrompt struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+	Captcha  string `json:"captcha"`
+}
+
+type Register struct {
+	Name     string `json:"username"`
+	Login    string `json:"login"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Captcha  string `json:"captcha"`
+}
+
+type ForgotPasswordRequest struct {
+	Login   string `json:"login"`
+	Captcha string `json:"captcha"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"password"`
+}
+
+type TokenGetResponse struct {
+	Target  string `json:"target"`
+	Status  string `json:"status"`
+	Header  string `json:"header"`
+	Message string `json:"message"`
+	Details string `json:"details"`
+}
+
 // Simple login and password validation
 // Credentials should be stored in the gohelloworld_credentials environment variable,
 // formatted as 'login1=password1;login2=password2'.
@@ -46,7 +78,7 @@ func checkCredentials(username, password string, checkIfIsActive bool) bool {
 func bearerAuth(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		if !strings.Contains(request.URL.Path, "/api/") || request.URL.Path == "/api/login" || request.URL.Path == "/api/register" || request.URL.Path == "/api/confirm_email" {
+		if !strings.Contains(request.URL.Path, "/api/") || request.URL.Path == "/api/login" || request.URL.Path == "/api/register" || request.URL.Path == "/api/secret_token" || request.URL.Path == "/api/forgot_password" || request.URL.Path == "/api/reset_password" {
 			next.ServeHTTP(responseWriter, request)
 			return
 		}
@@ -59,27 +91,6 @@ func bearerAuth(next http.Handler) http.Handler {
 
 		next.ServeHTTP(responseWriter, request)
 	})
-}
-
-type LoginPrompt struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-	Captcha  string `json:"captcha"`
-}
-
-type Register struct {
-	Name     string `json:"username"`
-	Login    string `json:"login"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Captcha  string `json:"captcha"`
-}
-
-type EmainConfirmationResponse struct {
-	Status  string `json:"status"`
-	Header  string `json:"header"`
-	Message string `json:"message"`
-	Details string `json:"details"`
 }
 
 func loginHandler(responseWriter http.ResponseWriter, request *http.Request) {
@@ -217,7 +228,80 @@ func registerHandler(responseWriter http.ResponseWriter, request *http.Request) 
 		return
 	}
 
-	err = mail.SendConfirmationEmail(register.Email, token)
+	err = mail.SendConfirmationEmail(register.Email, token, "register")
+	if err != nil {
+		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func forgotPasswordHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// 1. Parse request
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(responseWriter, "Failed to read body", http.StatusInternalServerError)
+		return
+	}
+	defer request.Body.Close()
+
+	if isCaptchaValid, err := util.VerifyCaptcha(request.FormValue("captcha")); err != nil || !isCaptchaValid {
+		http.Error(responseWriter, "Failed Captcha validation", http.StatusInternalServerError)
+		return
+	}
+
+	var forgotPasswordRequest ForgotPasswordRequest
+	err = json.Unmarshal(body, &forgotPasswordRequest)
+	if err != nil {
+		http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
+		return
+	}
+
+	config, err := util.GetConfig()
+	if err != nil {
+		http.Error(responseWriter, "Error reading config: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	db, err := store.OpenDb(config.DbPath)
+	if err != nil {
+		http.Error(responseWriter, "Error opening db: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	user, err := store.GetUserByLogin(db, forgotPasswordRequest.Login)
+	if err != nil {
+		http.Error(responseWriter, "Error getting user by login: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	token, err := generateConfirmationToken()
+	if err != nil {
+		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	expire := time.Now().Add(6 * time.Hour).UnixMilli()
+
+	var userSecret store.UserSecret
+
+	userSecret.UserId = user.UserId
+	userSecret.Secret = token
+	userSecret.Target = "password_reset"
+	userSecret.Expire = expire
+
+	err = store.InsertUserSecret(db, userSecret)
+	if err != nil {
+		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = mail.SendConfirmationEmail(user.Email, token, "password_reset")
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 		return
@@ -326,7 +410,7 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 	responseWriter.Write([]byte(tokenString))
 }
 
-func emailConfirmationHandler(responseWriter http.ResponseWriter, request *http.Request) {
+func secretTokenHandler(responseWriter http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -334,7 +418,8 @@ func emailConfirmationHandler(responseWriter http.ResponseWriter, request *http.
 
 	token := request.URL.Query().Get("secret_token")
 
-	var response EmainConfirmationResponse
+	var response TokenGetResponse
+	response.Target = ""
 
 	config, err := util.GetConfig()
 	if err != nil {
@@ -361,7 +446,7 @@ func emailConfirmationHandler(responseWriter http.ResponseWriter, request *http.
 	}
 	defer db.Close()
 
-	err = store.ValidateSecret(db, token)
+	target, err := store.ValidateSecret(db, token)
 	if err != nil {
 		response.Status = "error"
 		response.Header = "Invalid or Expired Link"
@@ -373,6 +458,7 @@ func emailConfirmationHandler(responseWriter http.ResponseWriter, request *http.
 		return
 	}
 
+	response.Target = *target
 	response.Status = "success"
 	response.Header = "Email Confirmed Successfully"
 	response.Message = "Your email has been verified! You can now access all features."
@@ -380,6 +466,62 @@ func emailConfirmationHandler(responseWriter http.ResponseWriter, request *http.
 	responseJson, _ := json.Marshal(response)
 	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.Write(responseJson)
+}
+
+func resetPasswordHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var resetPasswordRequest ResetPasswordRequest
+	if err := json.NewDecoder(request.Body).Decode(&resetPasswordRequest); err != nil {
+		http.Error(responseWriter, "Failed to parse body", http.StatusInternalServerError)
+		return
+	}
+	defer request.Body.Close()
+
+	config, err := util.GetConfig()
+	if err != nil {
+		http.Error(responseWriter, "Failed to read config", http.StatusInternalServerError)
+		return
+	}
+
+	db, err := store.OpenDb(config.DbPath)
+	if err != nil {
+		http.Error(responseWriter, "Failed to open database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	user, err := store.GetUserByToken(db, resetPasswordRequest.Token)
+	if err != nil {
+		http.Error(responseWriter, "Failed to get user by token"+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	target, err := store.ValidateSecret(db, resetPasswordRequest.Token)
+	if err != nil {
+		http.Error(responseWriter, "Error validating secret: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if *target != "password_reset" {
+		http.Error(responseWriter, "Invalid token target", http.StatusInternalServerError)
+		return
+	}
+
+	newPasswordHash, err := util.HashPassword(resetPasswordRequest.NewPassword)
+	if err != nil {
+		http.Error(responseWriter, "Failed to hash new password", http.StatusInternalServerError)
+		return
+	}
+
+	err = store.UpdateUserPasswordHash(db, user.UserId, newPasswordHash)
+	if err != nil {
+		http.Error(responseWriter, "Failed to update password", http.StatusInternalServerError)
+		return
+	}
 }
 
 func verifyJwtAndGetLoginByRequest(request http.Request) (string, error) {

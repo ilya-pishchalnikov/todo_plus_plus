@@ -191,6 +191,9 @@ func IsUserExistsAndActive(db *sql.DB, login string) bool {
 func ActivateUser(db *sql.DB, userId string) error {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM user WHERE user_id = ?)", userId).Scan(&exists)
+	if err != nil {
+		return err
+	}
 
 	if exists {
 		_, err = db.Exec(`
@@ -222,4 +225,70 @@ func IsUserExists(db *sql.DB, userId string) bool {
 		return false
 	}
 	return exists
+}
+
+func GetUserByLogin(db *sql.DB, login string) (User, error) {
+	var user User
+
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM user WHERE login = ?)", login).Scan(&exists)
+	if err != nil {
+		return user, err
+	}
+	if !exists {
+		return user, errors.New("Login '" + login + "' is invalid")
+	}
+
+	err = db.QueryRow("SELECT user_id, name, login, password_hash, email, is_active FROM user WHERE login = ?", login).
+		Scan(&user.UserId, &user.Name, &user.Login, &user.PasswordHash, &user.Email, &user.IsActive)
+
+	return user, err
+}
+
+func GetUserByToken(db *sql.DB, token string) (User, error) {
+	var user User
+
+	var exists bool
+	err := db.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 
+			FROM user u
+			JOIN user_secret ut ON u.user_id = ut.user_id
+			WHERE ut.secret = ?)`, token).Scan(&exists)
+	if err != nil {
+		return user, err
+	}
+	if !exists {
+		return user, errors.New("token is invalid")
+	}
+
+	err = db.QueryRow(`
+		SELECT u.user_id, u.name, u.login, u.password_hash, u.email, u.is_active 
+		FROM user u
+		JOIN user_secret ut ON u.user_id = ut.user_id
+		WHERE ut.secret = ?`, token).
+		Scan(&user.UserId, &user.Name, &user.Login, &user.PasswordHash, &user.Email, &user.IsActive)
+
+	return user, err
+}
+
+func UpdateUserPasswordHash(db *sql.DB, userId string, newPasswordHash string) error {
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM user WHERE user_id = ?)", userId).Scan(&exists)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("A user with ID '" + userId + "' is not registered")
+	}
+
+	_, err = db.Exec(`
+		UPDATE user 
+		SET 
+			 password_hash = ?
+		WHERE user_id = ?`,
+		newPasswordHash, userId)
+
+	return err
 }

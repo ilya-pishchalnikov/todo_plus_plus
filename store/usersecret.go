@@ -36,42 +36,51 @@ func GetUserIdBySecret(db *sql.DB, secret string) (string, error) {
 	return user_id, err
 }
 
-func ValidateSecret(db *sql.DB, secret string) error {
+func ValidateSecret(db *sql.DB, secret string) (*string, error) {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM user_secret WHERE secret = ?)", secret).Scan(&exists)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !exists {
-		return errors.New("email confirmation required. The confirmation code you entered is invalid")
+		return nil, errors.New("email confirmation required. The confirmation code you entered is invalid")
 	}
 
 	var userId, target string
 	var expire int64
 	err = db.QueryRow("SELECT user_id, expire, target FROM user_secret WHERE secret = ?", secret).Scan(&userId, &expire, &target)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if target != "register" {
-		return errors.New("email confirmation required. The confirmation code you entered is invalid")
+	if target != "register" && target != "password_reset" {
+		return nil, errors.New("email confirmation required. The confirmation code you entered is invalid")
 	}
 
 	if expire < time.Now().UnixMilli() {
-		return errors.New("email confirmation required. The confirmation code you entered is expired")
+		return nil, errors.New("email confirmation required. The confirmation code you entered is expired")
 	}
 
 	if !IsUserExists(db, userId) {
-		return errors.New("user doesn't exists")
+		return nil, errors.New("user doesn't exists")
 	}
 
-	if IsUserActive(db, userId) {
-		return errors.New("user already activated")
+	if target == "register" {
+
+		if IsUserActive(db, userId) {
+			return nil, errors.New("user already activated")
+		}
+
+		err = ActivateUser(db, userId)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = db.Exec(`DELETE FROM user_secret WHERE secret = ?`, secret)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	ActivateUser(db, userId)
-
-	_, err = db.Exec(`DELETE FROM user_secret WHERE secret = ?`, secret)
-
-	return err
+	return &target, nil
 }

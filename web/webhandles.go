@@ -3,8 +3,10 @@ package web
 import (
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
-	"strings"
+	"os"
+	"path/filepath"
 	"todopp/store"
 	"todopp/util"
 )
@@ -19,32 +21,43 @@ func redirectToHTTPS(responseWriter http.ResponseWriter, request *http.Request) 
 	http.Redirect(responseWriter, request, target, http.StatusMovedPermanently)
 }
 
+func init() {
+	// Регистрируем кастомные MIME типы
+	mime.AddExtensionType(".ts", "application/javascript")
+	mime.AddExtensionType(".tsx", "application/javascript")
+	mime.AddExtensionType(".vue", "application/javascript")
+	mime.AddExtensionType(".js", "application/javascript")
+	mime.AddExtensionType(".css", "text/css")
+}
+
 // Handler for processing an empty GET request, which returns HTML containing the content of the 'content.txt' file
 func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
+
 	if request.Method != http.MethodGet {
 		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Detecting MIME type via file extension
-	switch {
-	case strings.HasSuffix(request.URL.Path, ".css"):
-		responseWriter.Header().Set("Content-Type", "text/css")
-	case strings.HasSuffix(request.URL.Path, ".js"):
-		responseWriter.Header().Set("Content-Type", "application/javascript")
-	case strings.HasSuffix(request.URL.Path, ".png"):
-		responseWriter.Header().Set("Content-Type", "image/png")
-	case strings.HasSuffix(request.URL.Path, ".ico"):
-		responseWriter.Header().Set("Content-Type", "image/x-icon")
-	case strings.HasSuffix(request.URL.Path, ".html"):
-		responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	case strings.HasSuffix(request.URL.Path, "/"):
-		responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	default:
-		responseWriter.Header().Set("Content-Type", "text/plain")
+	requestPath := request.URL.Path
+	if requestPath == "/" {
+		requestPath = "/index.html"
 	}
 
-	http.ServeFile(responseWriter, request, util.GetExecDir()+"html"+request.URL.Path)
+	filePath := filepath.Join(util.GetExecDir(), "vue/dist", requestPath)
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		filePath = filepath.Join(util.GetExecDir(), "vue/dist", "index.html")
+		responseWriter.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	} else {
+		ext := filepath.Ext(filePath)
+		contentType := mime.TypeByExtension(ext)
+		if contentType == "" {
+			contentType = "text/plain"
+		}
+		responseWriter.Header().Set("Content-Type", contentType)
+	}
+
+	http.ServeFile(responseWriter, request, filePath)
 }
 
 // Handler for processing the post_file request, which writes the body to the file content.txt
