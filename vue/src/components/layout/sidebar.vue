@@ -2,7 +2,6 @@
   <aside class="sidebar">
     <div class="sidebar-header">Projects:</div>
     <ProjectsComponent />
-    <div class="projects-region" id="projects-region"></div>
   </aside>
 </template>
 
