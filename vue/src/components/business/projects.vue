@@ -10,7 +10,7 @@
 </template>
 
 <script>
-import { onMounted, ref, inject } from 'vue';
+import { ref, inject, watch } from 'vue';
 import AddItemComponent from '../common/additembutton.vue';
 import { modalService } from '../../js/store/modal-service.js';
 import { getBrowserInstanceId } from '../../js/utils/utils.js';
@@ -47,17 +47,26 @@ export default {
       emit('project-selected', newProject.id);
     }
 
-    onMounted(() => {
-      dataStore.getProjects().then((storedProjects) => {
-        projects.value = storedProjects;
-        projects.value.sort((a, b) => a.sequence - b.sequence);
-        if (projects.value.length > 0) {
-          seletedProjectId.value = projects.value[0].id || '';
-        } else {
-          seletedProjectId.value = '';
-        }
-      });
+    function getAllProjects() {
+      if (isReady.value === false) {
+        console.warn("ProjectsComponent: DataStore is not ready yet.");
+      } else {
+        dataStore.getProjects().then((storedProjects) => {
+          projects.value = storedProjects;
+          projects.value.sort((a, b) => a.sequence - b.sequence);
+          if (projects.value.length > 0) {
+            seletedProjectId.value = projects.value[0].id || '';
+          } else {
+            seletedProjectId.value = '';
+          }
+        });
+      }
+    }
 
+    watch(isReady, (isReady) => {
+      if (isReady === true) {
+        getAllProjects();
+      }
     });
 
     function onProjectClick(e) {
@@ -106,7 +115,6 @@ export default {
     }
 
     return {
-      onMounted,
       projects,
       seletedProjectId,
       onProjectClick,
