@@ -24,7 +24,9 @@ export default {
   name: 'HeaderLayout',
   setup(props, {emit}) {
 
-    const { isConnected } = inject(AppEventKey);
+    const { instance: appEventInstance } = inject(AppEventKey);
+
+    const isConnected = ref(false);
 
     const onlineIndicator = computed(() => {
       return isConnected.value ? "online 🟢" : "offline 🔴";
@@ -37,6 +39,14 @@ export default {
     });
 
 
+    appEventInstance.onConnect = () => {
+      isConnected.value = true;
+      console.log('WebSocket Connected!!!')
+    };
+    appEventInstance.onDisconnect = () => {
+      isConnected.value = false;      
+      console.log('WebSocket Disconnected. Reconnecting...');
+    }
 
     function handleSignout() {
       console.log("Signing out...");

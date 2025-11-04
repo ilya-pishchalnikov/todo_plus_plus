@@ -55,8 +55,6 @@ export default {
 
     onMounted(() => {
       isAuthentificated.value = fetchIsAuthentificated();
-      appEventInstance.onConnect = () => console.log('WebSocket Connected!');
-      appEventInstance.onDisconnect = () => console.log('WebSocket Disconnected. Reconnecting...');
       DataStoreService.init();
     });
 
