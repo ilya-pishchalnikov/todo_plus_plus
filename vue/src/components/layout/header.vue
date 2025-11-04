@@ -17,19 +17,22 @@
 </template>
 
 <script>
-import {defineEmits, ref, computed} from 'vue';
+import {defineEmits, ref, computed, inject } from 'vue';
+import { AppEventKey } from '../../js/event/appevent-service';
 
 export default {
   name: 'HeaderLayout',
   setup(props, {emit}) {
 
+    const { isConnected } = inject(AppEventKey);
+
     const onlineIndicator = computed(() => {
-      return navigator.onLine ? "online 🟢" : "offline 🔴";
+      return isConnected.value ? "online 🟢" : "offline 🔴";
     });
 
     const onlineStyle = computed(() => {
       return {
-        color: navigator.onLine ? "green" : "red"
+        color: isConnected.value ? "green" : "red"
       }
     });
 

@@ -261,14 +261,16 @@ button:active {
     white-space: pre-wrap;
     user-select: text;
     cursor: pointer;
-    border: 1px solid var(--color-border-light);
+    /*border: 1px solid var(--color-border-light);*/
+    border:none;
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-subtle);
+    /*box-shadow: var(--shadow-subtle);*/
 }
 
 .project-region:hover {
     background: var(--color-background-grey-light);
-    border-color: var(--color-light-red);
+    /*border-color: var(--color-light-red);*/
+    box-shadow: var(--shadow-subtle);
 }
 
 .project-region-selected {
@@ -688,6 +690,27 @@ button:active {
     background-color: var(--color-background-light);
 }
 
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* Темное затемнение */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; 
+}
+
+.modal-header {
+  font-size: 2em;
+  color: var(--color-text-dark);
+  text-align: center;
+  margin-bottom: 25px;
+  margin-top: 0;
+}
+
 .modal-content {
     background: var(--color-white);
     padding: 2.5rem; /* More padding */
@@ -703,6 +726,80 @@ button:active {
     flex-direction: column;
     align-items: center;
     box-shadow: var(--shadow-prominent);
+}
+
+.modal-form {
+  width: 100%; 
+}
+
+.form-field {
+  margin-bottom: 15px;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: normal; 
+  color: var(--color-text-medium);
+  text-transform: uppercase; 
+  font-size: 0.9em;
+  text-align: left;
+}
+
+.input-field {
+  width: 100%;
+  padding: 12px 15px; 
+  border: 1px solid var(--color-border-medium);
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1em;
+  color: var(--color-text-dark);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-field:focus {
+  border-color: var(--color-primary-red);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end; 
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.btn {
+  margin: 0; 
+  padding: 12px 25px; 
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1em;
+  text-transform: uppercase;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn-save {
+  background-color: var(--color-primary-red);
+  color: var(--color-white);
+  box-shadow: var(--shadow-medium);
+}
+
+.btn-save:hover {
+  background-color: var(--color-dark-red);
+}
+
+.btn-cancel {
+  background-color: transparent;
+  color: var(--color-text-medium);
+  border: 1px solid var(--color-border-medium);
+}
+
+.btn-cancel:hover {
+  background-color: var(--color-background-light);
 }
 
 .h-captcha {
@@ -722,4 +819,30 @@ button:active {
 
 .hidden {
     display: none;
+}
+
+.add-button-container {
+  display: flex;
+  justify-content: center;
+  margin: 15px 0;
+}
+
+.add-button {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%; 
+  background-color: white;
+  color: black; 
+  cursor: pointer;
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+}
+
+.add-button:hover {
+  background-color: var(--color-background-grey-light);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }

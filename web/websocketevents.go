@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"todopp/auth"
 	"todopp/event"
 	"todopp/store"
 	"todopp/util"
@@ -20,12 +19,15 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	conn  *websocket.Conn
-	send  chan []byte
-	login string
+	conn     *websocket.Conn
+	send     chan []byte
+	login    string
+	instance string
 }
 
-var clients = make(map[*Client]bool)
+var clientInstanceMap = make(map[string]Client)
+
+var clientsMap = make(map[*Client]bool)
 
 var broadcast = make(chan []byte)
 
@@ -37,26 +39,26 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 	}
 	defer webSocket.Close()
 
-	jwt := request.URL.Query().Get("token")
-
-	if jwt == "" {
-		http.Error(responseWriter, "Failed to read JWT", http.StatusInternalServerError)
-		return
-	}
-
-	login, err := auth.VerifyJwtAndGetLogin(jwt)
+	login, err := getCurrentLogin(*request)
 	if err != nil {
-		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	client := &Client{conn: webSocket, send: make(chan []byte), login: login}
-	clients[client] = true
+	instance := request.URL.Query().Get("instance")
+	if instance == "" {
+		http.Error(responseWriter, "Instance ID is required", http.StatusBadRequest)
+		return
+	}
+
+	client := &Client{conn: webSocket, send: make(chan []byte), login: login, instance: instance}
+	clientsMap[client] = true
+	clientInstanceMap[client.instance] = *client
 
 	for {
 		_, msg, err := webSocket.ReadMessage()
 		if err != nil {
-			delete(clients, client)
+			delete(clientsMap, client)
 			break
 		}
 		broadcast <- msg
@@ -89,11 +91,13 @@ func handleEventMessages() {
 
 		responce := msg
 
-		login, err := auth.VerifyJwtAndGetLogin(appEvent.Jwt)
-		if err != nil {
-			fmt.Println(err)
+		clientInstance, keyExists := clientInstanceMap[appEvent.Instance]
+
+		if !keyExists {
 			continue
 		}
+
+		login := clientInstance.login
 
 		userId, err := store.GetUserIdByLogin(db, login)
 		if err != nil {
@@ -113,7 +117,7 @@ func handleEventMessages() {
 		eventStore.UtcTime = time.Now().UTC().UnixMilli()
 
 		// process events
-		err = event.ProcessEvent(appEvent)
+		err = event.ProcessEvent(appEvent, clientInstance.login)
 		if err != nil {
 			responce, err = event.GetErrorMessage(err.Error(), appEvent.Instance)
 			if err != nil {
@@ -125,8 +129,6 @@ func handleEventMessages() {
 			continue
 		}
 
-		//exclude jwt from responce
-		appEvent.Jwt = ""
 		responce, err = json.Marshal(appEvent)
 		if err != nil {
 			continue
@@ -136,10 +138,6 @@ func handleEventMessages() {
 		eventStore.Responce = string(responce)
 		store.InsertEvent(db, eventStore)
 
-		for client := range clients {
-			if client.login == login {
-				client.conn.WriteMessage(websocket.TextMessage, responce)
-			}
-		}
+		clientInstance.conn.WriteMessage(websocket.TextMessage, responce)
 	}
 }

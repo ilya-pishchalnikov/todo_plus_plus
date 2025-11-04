@@ -2,7 +2,6 @@ package event
 
 import (
 	"encoding/json"
-	"todopp/auth"
 	"todopp/store"
 	"todopp/util"
 )
@@ -10,14 +9,12 @@ import (
 type Event struct {
 	Type     string          `json:"type"`
 	Instance string          `json:"instance"`
-	Jwt      string          `json:"jwt"`
 	Payload  json.RawMessage `json:"payload"`
 }
 
 type ErrorEvent struct {
 	Type     string       `json:"type"`
 	Instance string       `json:"instance"`
-	Jwt      string       `json:"jwt"`
 	Payload  ErrorPayload `json:"payload"`
 }
 
@@ -47,17 +44,12 @@ type GroupPayload struct {
 
 func GetErrorMessage(message string, instance string) ([]byte, error) {
 	errorPayload := ErrorPayload{Message: message}
-	errorEvent := ErrorEvent{Type: "error", Instance: instance, Jwt: "", Payload: errorPayload}
+	errorEvent := ErrorEvent{Type: "error", Instance: instance, Payload: errorPayload}
 	responce, err := json.Marshal(errorEvent)
 	return responce, err
 }
 
-func ProcessEvent(event Event) error {
-
-	login, err := auth.VerifyJwtAndGetLogin(event.Jwt)
-	if err != nil {
-		return err
-	}
+func ProcessEvent(event Event, login string) error {
 
 	config, err := util.GetConfig()
 	if err != nil {
