@@ -273,9 +273,10 @@ button:active {
 .project-region {
     background: var(--color-white);
     margin: 6px 0; /* More vertical space */
-    padding: 15px; /* More padding */
-    display: block;
+    padding: 10px 15px; /* More padding */
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     min-width: 30px;
     white-space: pre-wrap;
     user-select: text;
@@ -284,6 +285,10 @@ button:active {
     border:none;
     border-radius: var(--border-radius);
     /*box-shadow: var(--shadow-subtle);*/
+}
+
+.project-region span {
+    cursor:pointer;
 }
 
 .project-region:hover {
@@ -296,9 +301,10 @@ button:active {
     background: var(--color-primary-red);
     color: var(--color-white);
     margin: 6px 0;
-    padding: 15px;
-    display: block;
+    padding: 10px 15px;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     min-width: 30px;
     white-space: pre-wrap;
     user-select: text;
@@ -864,4 +870,69 @@ button:active {
   background-color: var(--color-background-grey-light);
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+
+.more-options-container {
+  position: relative; 
+  display: inline-flex; 
+  align-items: center;
+  justify-content: center;
+  width: 30px; 
+  height: 30px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10; 
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.more-options-container:hover,
+.more-options-container.is-active {
+  /*background-color: var(--color-background-light); */
+  box-shadow: var(--shadow-subtle); 
+  /*border: 1px solid var(--color-dark-red);*/
+}
+
+.more-options-dots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px; 
+}
+
+.more-options-dots span {
+  display: block;
+  width: 4px; 
+  height: 4px;
+  background-color: var(--color-text-medium);
+  border-radius: 50%;
+}
+
+
+.context-menu {
+  position: absolute;
+  top: 100%; 
+  right: 0; 
+  min-width: 150px;
+  margin-top: 0; 
+  padding: 5px 0;
+  background-color: var(--color-white);
+  border-radius: 4px;
+  box-shadow: var(--shadow-medium); 
+  list-style: none;
+  z-index: 100; 
+  border: 1px solid var(--color-border-medium);
+  width: min-content;
+}
+
+.context-menu li {
+  padding: 8px 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--color-text-dark);
+}
+
+.context-menu li:hover {
+  background-color: var(--color-very-light-red);
 }

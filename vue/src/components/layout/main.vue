@@ -19,7 +19,7 @@
 </template>
 
 <script>
-import { defineEmits, ref } from 'vue';
+import { defineEmits, ref, onMounted, onUnmounted } from 'vue';
 import HeaderLayout from './header.vue';  
 import SidebarLayout from './sidebar.vue';  
 import ContentLayout from './content.vue';  
@@ -39,9 +39,25 @@ export default {
     const showPopup = ref(false);
 
     function handleSignout() {
-      console.log("Signing out (main)...");
       emit('signout');
     };
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        if (modalService.state.isVisible) {
+          modalService.handleCancel();
+          console.log("Modal closed by ESC key.");
+        }
+      }
+    }
+
+    onMounted(async () => {
+      document.addEventListener('keyup', handleEscape);
+    });
+
+    onUnmounted(async () => {
+      document.removeEventListener('keyup', handleEscape);
+    })
 
     return {
       handleSignout,

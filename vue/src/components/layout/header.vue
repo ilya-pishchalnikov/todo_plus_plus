@@ -41,16 +41,14 @@ export default {
 
     appEventInstance.onConnect = () => {
       isConnected.value = true;
-      console.log('WebSocket Connected!!!')
+      console.log('WebSocket Connecting...')
     };
     appEventInstance.onDisconnect = () => {
       isConnected.value = false;      
-      console.log('WebSocket Disconnected. Reconnecting...');
+      console.log('WebSocket Disconnected.');
     }
 
     function handleSignout() {
-      console.log("Signing out...");
-      //document.cookie = `jwtToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
       emit('signout');
     }
 
@@ -63,4 +61,4 @@ export default {
     }
   }
 }
-</script>
+</script>fix(ui/websocket): Online indicator now uses reactive service state
