@@ -48,21 +48,16 @@ export default {
     appEventInstance.onProjectUpdate = onProjectUpdateEventRecieved;
 
 
-    function onProjectAddEventRecieved(eventPayload) {
-      const newProject = {
-        id: eventPayload.id,
-        name: eventPayload.name,
-        sequence: projects.value.length > 0 ? projects.value[projects.value.length - 1].sequence + 1 : 1
-      };
-      projects.value.push(newProject);
-      projects.value.sort((a, b) => a.sequence - b.sequence);
-      seletedProjectId.value = newProject.id;
-      dataStore.upsertProject(eventPayload);
-      emit('project-selected', newProject.id);
+    async function onProjectAddEventRecieved(eventPayload) {
+      await dataStore.upsertProject(eventPayload);
+      await getAllProjects();
+      seletedProjectId.value = eventPayload.id;
+      emit('project-selected', eventPayload.id);
     }
 
-    function onProjectDeleteEventRecieved(eventPayload) {
-      projects.value = projects.value.filter(project => project.id !== eventPayload.id);
+    async function onProjectDeleteEventRecieved(eventPayload) {
+      await dataStore.delete("project",eventPayload.id);
+      await getAllProjects();
       if (seletedProjectId.value === eventPayload.id) {
         if (projects.value.length === 0) {
           seletedProjectId.value = "";
@@ -73,24 +68,25 @@ export default {
       }
     }
 
-    function onProjectUpdateEventRecieved (eventPayload) {
-      const project = projects.value.find(project => project.id === eventPayload.id);
-      project.name = eventPayload.name;
-      if (project.after !== eventPayload.after) {
-        console.error("ProjectsComponent: Projects reordering is not implemented yet")
-      }
+    async function onProjectUpdateEventRecieved (eventPayload) {
+      console.log("onProjectUpdateEventRecieved 1");
+      await dataStore.upsertProject(eventPayload);
+      console.log("onProjectUpdateEventRecieved 2");
+      await getAllProjects();
+      console.log("onProjectUpdateEventRecieved 3");
     }
 
-    function getAllProjects() {
+    async function getAllProjects() {
       if (isReady.value === false) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
       } else {
-        dataStore.getProjects().then((storedProjects) => {
+        await dataStore.getProjects().then((storedProjects) => {
           projects.value = storedProjects;
           projects.value.sort((a, b) => a.sequence - b.sequence);
-          if (projects.value.length > 0) {
+          if (seletedProjectId.value === "" && projects.value.length > 0) {
             seletedProjectId.value = projects.value[0].id || '';
-          } else {
+          }           
+          if (projects.value.length === 0){
             seletedProjectId.value = '';
           }
         });
@@ -99,7 +95,7 @@ export default {
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
-        getAllProjects();
+          getAllProjects();
       }
     }, { immediate: true });
 
@@ -119,10 +115,6 @@ export default {
       }
     }
 
-    function addProject() {
-      openNewProjectModal();
-    }
-
     async function renameProject(projectId) {
       try {
         const result = await modalService.openModal(
@@ -130,13 +122,21 @@ export default {
         );
 
         if (result) {
+          let prevProjectId;
+          let currentProjectId;
 
-          const project = projects.value.find(project => project.id === projectId)
+          for (let project of projects.value) {
+            if (project.id === projectId) {
+              currentProjectId = project.id;
+              break;
+            }
+            prevProjectId = project.id;
+          }
 
           const eventPayload = {
-            id: project.id,
+            id: currentProjectId,
             name: result.name,
-            after: project.after
+            after: prevProjectId
           };
 
           const eventData = {
@@ -185,7 +185,7 @@ export default {
     }
 
 
-    async function openNewProjectModal() {
+    async function addProject(prevProjectId) {
       try {
         const result = await modalService.openModal(
           "Add Project", projectFields
@@ -196,7 +196,7 @@ export default {
           const eventPayload = {
             id: window.crypto.randomUUID(),
             name: result.name,
-            after: projects.value[projects.value.length - 1]?.id || '',
+            after: prevProjectId || projects.value[projects.value.length - 1]?.id || '',
           };
 
           const eventData = {
