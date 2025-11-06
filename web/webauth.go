@@ -78,7 +78,7 @@ func checkCredentials(username, password string, checkIfIsActive bool) bool {
 func bearerAuth(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		if !strings.Contains(request.URL.Path, "/api/") || request.URL.Path == "/api/login" || request.URL.Path == "/api/register" || request.URL.Path == "/api/secret_token" || request.URL.Path == "/api/forgot_password" || request.URL.Path == "/api/reset_password" {
+		if !strings.Contains(request.URL.Path, "/api/") || request.URL.Path == "/api/login" || request.URL.Path == "/api/register" || request.URL.Path == "/api/secret_token" || request.URL.Path == "/api/forgot_password" || request.URL.Path == "/api/reset_password" || request.URL.Path == "/api/token_renew" {
 			next.ServeHTTP(responseWriter, request)
 			return
 		}
@@ -567,6 +567,41 @@ func resetPasswordHandler(responseWriter http.ResponseWriter, request *http.Requ
 		http.Error(responseWriter, "Failed to update password", http.StatusInternalServerError)
 		return
 	}
+}
+
+func signoutHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	accessTokenCookie := http.Cookie{
+		// Выполняем запрос к новому эндпоинту
+		// Сервер получит http-only cookie и отправит обратно новый, истекший cookie
+		Name:     "jwt-access-token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Now().Add(-10000 * time.Hour),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	http.SetCookie(responseWriter, &accessTokenCookie)
+
+	refreshTokenCookie := http.Cookie{
+		Name:     "jwt-refresh-token",
+		Value:    "",
+		Path:     "/api/token_renew",
+		Expires:  time.Now().Add(-10000 * time.Hour),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	http.SetCookie(responseWriter, &refreshTokenCookie)
+
+	responseWriter.WriteHeader(http.StatusOK)
 }
 
 func checkAuthHandler(responseWriter http.ResponseWriter, request *http.Request) {

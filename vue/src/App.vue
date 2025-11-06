@@ -23,7 +23,7 @@ export default {
 
     const isAuthentiticated = ref(false);
 
-    const { instance: appEventInstance } = inject(AppEventKey);
+    const { instance: appEventInstance, isConnected: isConnected } = inject(AppEventKey);
     provide(DataStoreKey, DataStoreService);
 
     async function fetchIsAuthentiticated() {
@@ -44,17 +44,25 @@ export default {
       }
     }
 
-    function handleSignout() {
+    async function handleSignout() {
       isAuthentiticated.value = false;
-      if (appEventInstance.isConneceted()) {
-        appEventInstance.disconnect();
+      DataStoreService.instance.clean();
+      try {
+        const response = await apiClient.get('/signout');
+
+        if (response.status === 200 || response.status === 204) {
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Error during signout request:", error);
+        return true;
       }
-      DataStoreService.clearAllData();
     }
 
     onMounted(async () => {
       isAuthentiticated.value = await fetchIsAuthentiticated();
-      if(isAuthentiticated.value) {
+      if (isAuthentiticated.value) {
         appEventInstance.connect();
         DataStoreService.init();
       }

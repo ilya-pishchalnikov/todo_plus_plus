@@ -33,6 +33,7 @@ func StartServer(port string, cert string, certKey string) error {
 	mux.HandleFunc("/api/forgot_password", forgotPasswordHandler)
 	mux.HandleFunc("/api/reset_password", resetPasswordHandler)
 	mux.HandleFunc("/api/check_auth", checkAuthHandler)
+	mux.HandleFunc("/api/signout", signoutHandler)
 
 	mux.HandleFunc("/ws", handleEventConnections)
 	//mux.HandleFunc("/ws", handleEventConnections)
