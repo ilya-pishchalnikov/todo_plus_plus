@@ -130,21 +130,39 @@ func loginHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
 		tokenString, err := auth.CreateJWTToken(jwtKey, loginPrompt.Login)
 		if err != nil {
-			http.Error(responseWriter, "Failed to create jwt token", http.StatusInternalServerError)
+			http.Error(responseWriter, "Failed to create access jwt token", http.StatusInternalServerError)
 			return
 		}
 
-		newCookie := http.Cookie{
-			Name:     "jwtToken",
+		accessTokenCookie := http.Cookie{
+			Name:     "jwt-access-token",
 			Value:    tokenString,
 			Path:     "/",
-			Expires:  time.Now().Add(48 * time.Hour),
+			Expires:  time.Now().Add(15 * time.Minute),
 			HttpOnly: true,
 			Secure:   true,
 			SameSite: http.SameSiteLaxMode,
 		}
 
-		http.SetCookie(responseWriter, &newCookie)
+		http.SetCookie(responseWriter, &accessTokenCookie)
+
+		tokenString, err = auth.CreateJWTToken(jwtKey, loginPrompt.Login)
+		if err != nil {
+			http.Error(responseWriter, "Failed to create refresh jwt token", http.StatusInternalServerError)
+			return
+		}
+
+		refreshTokenCookie := http.Cookie{
+			Name:     "jwt-refresh-token",
+			Value:    tokenString,
+			Path:     "/api/token_renew",
+			Expires:  time.Now().Add(24 * 7 * time.Hour),
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		}
+
+		http.SetCookie(responseWriter, &refreshTokenCookie)
 
 		responseWriter.WriteHeader(http.StatusOK)
 	} else {
@@ -400,7 +418,12 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 		return
 	}
 
-	login, err := getCurrentLogin(*request)
+	cookie, err := request.Cookie("jwt-refresh-token")
+	if err != nil {
+		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
+	}
+
+	login, err := auth.VerifyJwtAndGetLogin(cookie.Value)
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
 	}
@@ -417,17 +440,17 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 		return
 	}
 
-	newCookie := http.Cookie{
-		Name:     "jwtToken",
+	accessTokenCookie := http.Cookie{
+		Name:     "jwt-access-token",
 		Value:    tokenString,
 		Path:     "/",
-		Expires:  time.Now().Add(48 * time.Hour),
+		Expires:  time.Now().Add(15 * time.Minute),
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	}
 
-	http.SetCookie(responseWriter, &newCookie)
+	http.SetCookie(responseWriter, &accessTokenCookie)
 
 	responseWriter.WriteHeader(http.StatusOK)
 }
@@ -556,9 +579,9 @@ func checkAuthHandler(responseWriter http.ResponseWriter, request *http.Request)
 }
 
 func getCurrentLogin(request http.Request) (string, error) {
-	cookie, err := request.Cookie("jwtToken")
+	cookie, err := request.Cookie("jwt-access-token")
 	if err != nil {
-		return "", errors.New("authentication token not found")
+		return "", errors.New("access token not found")
 	}
 
 	return auth.VerifyJwtAndGetLogin(cookie.Value)
