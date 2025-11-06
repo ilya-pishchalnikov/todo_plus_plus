@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -69,13 +68,11 @@ func handleEventMessages() {
 
 	config, err := util.GetConfig()
 	if err != nil {
-		fmt.Println(err)
 		log.Fatal(err)
 	}
 
 	db, err := store.OpenDb(config.DbPath)
 	if err != nil {
-		fmt.Println(err)
 		log.Fatal(err)
 	}
 
@@ -101,7 +98,6 @@ func handleEventMessages() {
 
 		userId, err := store.GetUserIdByLogin(db, login)
 		if err != nil {
-			fmt.Println(err)
 			continue
 		}
 
