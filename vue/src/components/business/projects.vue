@@ -39,7 +39,9 @@ export default {
     const projectMenuItems = computed(() => [
       { label: 'Add', action: addProject },
       { label: 'Rename', action: renameProject },
-      { label: 'Remove', action: removeProject }
+      { label: 'Remove', action: removeProject },
+      { label: 'Move Up', action: moveUpProject},
+      { label: 'Move Down', action: moveDownProject}
     ]);
     const browserInstance = getBrowserInstanceId();
 
@@ -69,11 +71,8 @@ export default {
     }
 
     async function onProjectUpdateEventRecieved (eventPayload) {
-      console.log("onProjectUpdateEventRecieved 1");
       await dataStore.upsertProject(eventPayload);
-      console.log("onProjectUpdateEventRecieved 2");
       await getAllProjects();
-      console.log("onProjectUpdateEventRecieved 3");
     }
 
     async function getAllProjects() {
@@ -205,7 +204,7 @@ export default {
             payload: eventPayload
           };
 
-          const eventDataJson = JSON.stringify(eventData);
+          const eventDataJson = JSON.stringify(eventData);prevPrevProjectId
 
           appEventInstance.send(eventDataJson);
         }
@@ -213,6 +212,72 @@ export default {
       } catch (error) {
         console.error('Error in modal:', error);
       }
+    }
+
+    async function moveUpProject(projectId) {
+      let prevProjectId;
+      let prevPrevProjectId;
+      let currentProject;
+
+      for (let project of projects.value) {
+        if (project.id === projectId) {
+          currentProject = project;
+          break;
+        }
+        prevPrevProjectId = prevProjectId;
+        prevProjectId = project.id;
+      }
+
+      const eventPayload = {
+        id: currentProject.id,
+        name: currentProject.name,
+        after: prevPrevProjectId
+      };
+
+      const eventData = {
+        type: "project-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
+    }
+
+    async function moveDownProject(projectId) {
+      let currentProject;
+      let nextProjectId = "";
+      let prevPrevProjectId;
+
+      for (let project of projects.value) {
+        if (currentProject) {
+          nextProjectId = project.id;
+          break;
+        }
+        if (project.id === projectId) {
+          currentProject = project;
+        }
+        if (!currentProject) {
+          prevPrevProjectId = project.id;
+        }
+      }
+
+      const eventPayload = {
+        id: currentProject.id,
+        name: currentProject.name,
+        after: nextProjectId || prevPrevProjectId
+      };
+
+      const eventData = {
+        type: "project-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
     }
 
 
