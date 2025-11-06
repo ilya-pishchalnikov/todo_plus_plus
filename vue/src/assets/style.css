@@ -849,7 +849,7 @@ button:active {
 .add-button-container {
   display: flex;
   justify-content: center;
-  margin: 15px 0;
+  margin: 0;
 }
 
 .add-button {
@@ -870,6 +870,10 @@ button:active {
   background-color: var(--color-background-grey-light);
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-button span {
+    font-size: 150%;
 }
 
 

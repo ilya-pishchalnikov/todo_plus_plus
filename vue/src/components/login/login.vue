@@ -447,9 +447,7 @@ export default {
         }
 
         const tokenString = await response.text();
-        //this.setCookie("jwtToken", tokenString, {});
         this.$emit('login-success')
-        //window.location.href = "/";
       } catch (error) {
         console.error("Login error:", error);
         this.showDialog("Login error", error.message);

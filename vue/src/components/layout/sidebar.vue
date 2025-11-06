@@ -1,6 +1,5 @@
 <template>
   <aside class="sidebar">
-    <div class="sidebar-header">Projects:</div>
     <ProjectsComponent />
   </aside>
 </template>

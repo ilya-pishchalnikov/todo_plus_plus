@@ -1,6 +1,5 @@
 <template>
     <main class="main-content">
-      <div class="sidebar-header">Tasks:</div>
       <GroupsComponent />
     </main>
 </template>
