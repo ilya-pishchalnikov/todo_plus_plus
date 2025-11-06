@@ -35,7 +35,7 @@ async function fetchAllUserData() {
     try {
         const response = await apiClient.get('/all_user_data'); 
 
-        dataStoreInstance.clean();
+        await dataStoreInstance.clean();
         if (response.data.projects) {
             dataStoreInstance.insertProjects(response.data.projects);
         }
@@ -52,10 +52,16 @@ async function fetchAllUserData() {
     return true;
 }
 
+async function clean() {
+    isReady = false;
+    await dataStoreInstance.clean();
+}
+
 export const DataStoreKey = Symbol('IndexedDBDataStore');
 
 export const DataStoreService = {
     instance: dataStoreInstance,
     isReady,
-    init: initDataStore 
+    init: initDataStore,
+    clean: clean
 };

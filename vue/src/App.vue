@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <LoginComponent v-if="!isAuthentiticated" @login-success="handleLoginSuccess" />
-    <MainLayout v-if="isAuthentiticated" @signout="handleSignout" />
+    <LoginComponent v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
+    <MainLayout v-if="isAuthenticated" @signout="handleSignout" />
   </div>
 </template>
 
@@ -9,7 +9,7 @@
 import LoginComponent from './components/login/login.vue';
 import MainLayout from './components/layout/main.vue';
 import apiClient from './js/utils/apiClient.js';
-import { onMounted, ref, onUnmounted, inject, provide } from 'vue';
+import { onMounted, ref, onUnmounted, inject, provide, nextTick } from 'vue';
 import { AppEventKey } from './js/event/appevent-service';
 import { DataStoreService, DataStoreKey } from './js/store/datastore-service.js';
 
@@ -21,12 +21,12 @@ export default {
   },
   setup() {
 
-    const isAuthentiticated = ref(false);
+    const isAuthenticated = ref(false);
 
     const { instance: appEventInstance, isConnected: isConnected } = inject(AppEventKey);
     provide(DataStoreKey, DataStoreService);
 
-    async function fetchIsAuthentiticated() {
+    async function fetchIsAuthenticated() {
       try {
         const response = await apiClient.get('/check_auth');
         return response.status === 200;
@@ -35,20 +35,31 @@ export default {
       }
     }
 
-    async function handleLoginSuccess() {
-      isAuthentiticated.value = await fetchIsAuthentiticated();
-
-      if (isAuthentiticated.value) {
-        appEventInstance.connect();
-        DataStoreService.init();
-      }
+  async function handleLoginSuccess() {
+    const authenticated = await fetchIsAuthenticated();
+    if (authenticated) {
+      appEventInstance.connect();
+      await DataStoreService.init();
+      
+      isAuthenticated.value = authenticated;
+      
+      await nextTick();
+    } else {
+      console.error("Login failed - not authenticated");
     }
+  }
 
     async function handleSignout() {
-      isAuthentiticated.value = false;
-      DataStoreService.instance.clean();
+      isAuthenticated.value = false;
+      await DataStoreService.clean();
       try {
-        const response = await apiClient.get('/signout');
+        const response = await apiClient.get('/signout', {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        });
 
         if (response.status === 200 || response.status === 204) {
           return true;
@@ -61,10 +72,10 @@ export default {
     }
 
     onMounted(async () => {
-      isAuthentiticated.value = await fetchIsAuthentiticated();
-      if (isAuthentiticated.value) {
+      isAuthenticated.value = await fetchIsAuthenticated();
+      if (isAuthenticated.value) {
         appEventInstance.connect();
-        DataStoreService.init();
+        await DataStoreService.init();
       }
     });
 
@@ -75,7 +86,7 @@ export default {
     });
 
     return {
-      isAuthentiticated,
+      isAuthenticated,
       handleLoginSuccess,
       handleSignout
     }

@@ -77,13 +77,13 @@ export default {
       const project = projects.value.find(project => project.id === eventPayload.id);
       project.name = eventPayload.name;
       if (project.after !== eventPayload.after) {
-        console.error("projects reordering is not implemented yet")
+        console.error("ProjectsComponent: Projects reordering is not implemented yet")
       }
     }
 
     function getAllProjects() {
       if (isReady.value === false) {
-        console.warn("ProjectsComponenonProjectDeleteEventRecievedt: DataStore is not ready yet.");
+        console.warn("ProjectsComponent: DataStore is not ready yet.");
       } else {
         dataStore.getProjects().then((storedProjects) => {
           projects.value = storedProjects;
@@ -98,10 +98,10 @@ export default {
     }
 
     watch(isReady, (isReady) => {
-      if (isReady === true) {onProjectDeleteEventRecieved
+      if (isReady === true) {
         getAllProjects();
       }
-    });
+    }, { immediate: true });
 
     function onProjectClick(e) {
       const clickedElement = e.target;
