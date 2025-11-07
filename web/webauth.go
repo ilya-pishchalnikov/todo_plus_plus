@@ -128,7 +128,7 @@ func loginHandler(responseWriter http.ResponseWriter, request *http.Request) {
 			return
 		}
 
-		tokenString, err := auth.CreateJWTToken(jwtKey, loginPrompt.Login)
+		tokenString, err := auth.CreateJWTToken(jwtKey, loginPrompt.Login, 15*time.Minute)
 		if err != nil {
 			http.Error(responseWriter, "Failed to create access jwt token", http.StatusInternalServerError)
 			return
@@ -146,7 +146,7 @@ func loginHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
 		http.SetCookie(responseWriter, &accessTokenCookie)
 
-		tokenString, err = auth.CreateJWTToken(jwtKey, loginPrompt.Login)
+		tokenString, err = auth.CreateJWTToken(jwtKey, loginPrompt.Login, 4*7*time.Hour)
 		if err != nil {
 			http.Error(responseWriter, "Failed to create refresh jwt token", http.StatusInternalServerError)
 			return
@@ -434,7 +434,7 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 		return
 	}
 
-	tokenString, err := auth.CreateJWTToken(jwtKey, login)
+	tokenString, err := auth.CreateJWTToken(jwtKey, login, 15*time.Minute)
 	if err != nil {
 		http.Error(responseWriter, "Failed to create jwt token", http.StatusInternalServerError)
 		return

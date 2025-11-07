@@ -22,12 +22,12 @@ func generateHmacKey() ([]byte, error) {
 	return key, nil
 }
 
-func CreateJWTToken(hmacKey []byte, login string) (string, error) {
+func CreateJWTToken(hmacKey []byte, login string, lifeTime time.Duration) (string, error) {
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"login":  login,
-			"expire": time.Now().Add(24 * time.Hour).Unix(),
+			"expire": time.Now().Add(lifeTime).Unix(),
 		},
 	)
 	return token.SignedString([]byte(hmacKey))
