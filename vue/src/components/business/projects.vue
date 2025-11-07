@@ -116,8 +116,17 @@ export default {
 
     async function renameProject(projectId) {
       try {
+
+        const project = projects.value.find(project => project.id === projectId);
+
+        console.log("project", project);
+
+        const renameProjectFields = [
+          { name: 'name', label: 'Project Name', default: project.name }
+        ];
+
         const result = await modalService.openModal(
-          "Rename Project", projectFields
+          "Rename Project", renameProjectFields
         );
 
         if (result) {

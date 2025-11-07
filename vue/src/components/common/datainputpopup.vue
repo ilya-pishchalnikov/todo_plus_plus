@@ -57,7 +57,7 @@ export default {
       formData.value = {};
       if (newFields && newFields.length > 0) {
             newFields.forEach(field => {
-                formData.value[field.name] = '';
+                formData.value[field.name] = field.default;
             });
         } else {
              console.warn("DataInputPopup initialized with no fields defined."); 
