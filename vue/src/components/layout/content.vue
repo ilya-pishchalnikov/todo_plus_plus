@@ -1,6 +1,6 @@
 <template>
     <main class="main-content">
-      <GroupsComponent />
+      <GroupsComponent :project-id="projectId"/>
     </main>
 </template>
 
@@ -11,8 +11,14 @@ export default {
   components: {
     GroupsComponent
   },
-  setup(props, { emit }) {
+  props: {
+    projectId: {
+      type: String,
+      required: true,
+    }
+  },
 
+  setup(props, { emit }) {
     return {
     }
   }

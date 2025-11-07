@@ -41,7 +41,6 @@ apiClient.interceptors.response.use(
                  return apiClient(originalRequest);
             })
             .catch(err => {
-      console.log("isAuthentificated.value", isAuthentificated.value);
                  return Promise.reject(err);
             });
         }

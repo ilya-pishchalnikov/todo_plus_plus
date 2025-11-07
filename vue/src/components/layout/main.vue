@@ -2,8 +2,8 @@
   <HeaderLayout @signout="handleSignout"/>
 
   <div class="content-wrapper">
-    <SidebarLayout />
-    <ContentLayout />
+    <SidebarLayout @project-selected="handleProjectSelected"/>
+    <ContentLayout :project-id="projectId" />
   </div>
 
   <div v-if="showPopup" class="popup" id="popup"></div>
@@ -37,6 +37,7 @@ export default {
   setup(props, {emit}) {
 
     const showPopup = ref(false);
+    const projectId = ref("");
 
     function handleSignout() {
       emit('signout');
@@ -51,6 +52,10 @@ export default {
       }
     }
 
+    function handleProjectSelected(selectedProjectId) {
+      projectId.value = selectedProjectId;
+    }
+
     onMounted(async () => {
       document.addEventListener('keyup', handleEscape);
     });
@@ -61,8 +66,10 @@ export default {
 
     return {
       handleSignout,
+      handleProjectSelected,
       showPopup,
-      modalService
+      modalService,
+      projectId
     }
   }
 }

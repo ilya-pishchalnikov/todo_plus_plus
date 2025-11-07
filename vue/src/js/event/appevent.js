@@ -111,7 +111,7 @@ export class AppEvent {
         if (!("WebSocket" in window)) {
             alert("Your browser does not support WebSocket. This site will not work correctly. Please consider updating your browser or using a different browser that supports WebSocket.")
             return;
-        }signout
+        }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
         const browserInstanceId = getBrowserInstanceId();

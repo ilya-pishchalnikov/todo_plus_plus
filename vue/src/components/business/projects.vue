@@ -1,8 +1,8 @@
 <template>
   <div class="projects-region" id="projects-region">
     <div v-for="project in projects" :key="project.id" :id="project.id" :class="{
-      'project-region': project.id !== seletedProjectId,
-      'project-region-selected': project.id === seletedProjectId
+      'project-region': project.id !== selectedProjectId,
+      'project-region-selected': project.id === selectedProjectId
     }" @click="onProjectClick">
       <span>{{ project.name }}</span>
       <MoreOptionsButton :menu-items="projectMenuItems" :source-id="project.id" />
@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import { ref, inject, watch, computed } from 'vue';
+import { ref, inject, watch, computed, defineEmits } from 'vue';
 import AddItemComponent from '../common/additembutton.vue';
 import { modalService } from '../../js/store/modal-service.js';
 import { getBrowserInstanceId } from '../../js/utils/utils.js';
@@ -30,7 +30,7 @@ export default {
 
 
     const projects = ref([]);
-    const seletedProjectId = ref('');
+    const selectedProjectId = ref('');
     const projectFields = [
       { name: 'name', label: 'Project Name' }
     ];
@@ -49,24 +49,26 @@ export default {
     appEventInstance.onProjectDelete = onProjectDeleteEventRecieved;
     appEventInstance.onProjectUpdate = onProjectUpdateEventRecieved;
 
+    watch (()=>selectedProjectId.value, (newSelectedProjectId)=> {
+      emit('project-selected', newSelectedProjectId);
+    });
+
 
     async function onProjectAddEventRecieved(eventPayload) {
       await dataStore.upsertProject(eventPayload);
       await getAllProjects();
-      seletedProjectId.value = eventPayload.id;
-      emit('project-selected', eventPayload.id);
+      selectedProjectId.value = eventPayload.id;
     }
 
     async function onProjectDeleteEventRecieved(eventPayload) {
       await dataStore.delete("project",eventPayload.id);
       await getAllProjects();
-      if (seletedProjectId.value === eventPayload.id) {
+      if (selectedProjectId.value === eventPayload.id) {
         if (projects.value.length === 0) {
-          seletedProjectId.value = "";
+          selectedProjectId.value = "";
         } else {
-          seletedProjectId.value = eventPayload.after;
+          selectedProjectId.value = eventPayload.after;
         }
-        emit('project-selected', selectedProject.value);
       }
     }
 
@@ -82,11 +84,11 @@ export default {
         await dataStore.getProjects().then((storedProjects) => {
           projects.value = storedProjects;
           projects.value.sort((a, b) => a.sequence - b.sequence);
-          if (seletedProjectId.value === "" && projects.value.length > 0) {
-            seletedProjectId.value = projects.value[0].id || '';
+          if (selectedProjectId.value === "" && projects.value.length > 0) {
+            selectedProjectId.value = projects.value[0].id || '';
           }           
           if (projects.value.length === 0){
-            seletedProjectId.value = '';
+            selectedProjectId.value = '';
           }
         });
       }
@@ -108,9 +110,9 @@ export default {
         clickedProjectId = clickedElement.id;
       }
 
-      if (seletedProjectId.value !== clickedProjectId) {
-        seletedProjectId.value = clickedProjectId;
-        emit('project-selected', clickedProjectId);
+      selectedProjectId.value = eventPayload.id;
+      if (selectedProjectId.value !== clickedProjectId) {
+        selectedProjectId.value = clickedProjectId;
       }
     }
 
@@ -293,7 +295,7 @@ export default {
 
     return {
       projects,
-      seletedProjectId,
+      selectedProjectId,
       onProjectClick,
       addProject,
       projectMenuItems

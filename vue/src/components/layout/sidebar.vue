@@ -1,11 +1,12 @@
 <template>
   <aside class="sidebar">
-    <ProjectsComponent />
+    <ProjectsComponent @project-selected="handleProjectSelected"/>
   </aside>
 </template>
 
 <script>
 import ProjectsComponent from '../business/projects.vue';
+import { defineEmits } from 'vue';
 export default {
   name: 'SidebarLayout',
   components: {
@@ -13,8 +14,14 @@ export default {
   },
   setup(props, { emit }) {
 
-    return {
+    function handleProjectSelected(projectId) {
+      emit('project-selected', projectId)
     }
+
+    return {
+      handleProjectSelected
+    }
+
   }
 }
 </script>
