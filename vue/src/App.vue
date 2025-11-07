@@ -26,6 +26,18 @@ export default {
     const { instance: appEventInstance, isConnected: isConnected } = inject(AppEventKey);
     provide(DataStoreKey, DataStoreService);
 
+
+    appEventInstance.onUnauthorizedDisconnect = async (event) => {
+      const response = await apiClient.get('/token_renew', {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        });
+      appEventInstance.connect();
+    }
+
     async function fetchIsAuthenticated() {
       try {
         const response = await apiClient.get('/check_auth');

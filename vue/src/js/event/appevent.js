@@ -8,6 +8,7 @@ export class AppEvent {
 
     onConnect;
     onDisconnect;
+    onUnauthorizedDisconnect;
 
     onProjectAdd;
     onProjectDelete;
@@ -110,7 +111,7 @@ export class AppEvent {
         if (!("WebSocket" in window)) {
             alert("Your browser does not support WebSocket. This site will not work correctly. Please consider updating your browser or using a different browser that supports WebSocket.")
             return;
-        }
+        }signout
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
         const browserInstanceId = getBrowserInstanceId();
@@ -122,9 +123,20 @@ export class AppEvent {
     }
 
     eventSocketOnClose(event) {
+        const UNAUTHORIZED_CODE = 1008;
+
+        if (event.code === UNAUTHORIZED_CODE) {
+            console.error("WebSocket closed: Unauthorized (Token Invalid/Expired).");
+            if (this.onUnauthorizedDisconnect) {
+                this.onUnauthorizedDisconnect(event);
+            }
+            return; 
+        }
+
         if (this.onDisconnect!= null) {
             this.onDisconnect(event);
         }
+
         if (this.reconnectIntervalId == null) {
             this.reconnectIntervalId = setInterval(this.reconnect, 1000);
         }
@@ -134,7 +146,7 @@ export class AppEvent {
         if (this.onConnect!= null) {
             this.onConnect(event);
         }
-    }   
+    }
     
     reconnect() {
         switch (this.eventSocket.readyState) {
@@ -147,7 +159,7 @@ export class AppEvent {
             case WebSocket.CLOSED:
                 this.connect()
                 break;
-        }    
+        }
     }
 
     isConnected() {

@@ -38,15 +38,20 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 	}
 	defer webSocket.Close()
 
+	closeWithError := func(code int, reason string) {
+		webSocket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, reason))
+		webSocket.Close()
+	}
+
 	login, err := getCurrentLogin(*request)
 	if err != nil {
-		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
+		closeWithError(websocket.ClosePolicyViolation, "Unauthorized or token expired")
 		return
 	}
 
 	instance := request.URL.Query().Get("instance")
 	if instance == "" {
-		http.Error(responseWriter, "Instance ID is required", http.StatusBadRequest)
+		closeWithError(websocket.CloseProtocolError, "Instance ID is required")
 		return
 	}
 
@@ -58,7 +63,7 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 		_, msg, err := webSocket.ReadMessage()
 		if err != nil {
 			delete(clientsMap, client)
-			break
+			return
 		}
 		broadcast <- msg
 	}

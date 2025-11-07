@@ -7,6 +7,7 @@ export declare class AppEvent {
 
     onConnect: ((event: Event) => void) | null;
     onDisconnect: ((event: CloseEvent) => void) | null;
+    onUnauthorizedDisconnect: ((event: CloseEvent) => void) | null;
 
     onProjectAdd: AppEventHandler;
     onProjectDelete: AppEventHandler;
@@ -30,4 +31,5 @@ export declare class AppEvent {
     eventSocketOnMessage(event: MessageEvent): void;
     eventSocketOnClose(event: CloseEvent): void;
     eventSocketOnConnect(event: Event): void;
+
 }
