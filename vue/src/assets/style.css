@@ -197,32 +197,20 @@ button:active {
     box-shadow: var(--shadow-medium);
 }
 
-.menu-main-button {
-    margin-left: 10px; /* More space */
-    background: var(--color-dark-red); /* Darker red for menu button */
-    width: 100px; /* Adjusted width */
-    height: 40px; /* Adjusted height */
-    font-size: 0.9rem;
-}
-.menu-main-button:hover {
-    background: var(--color-primary-red);
-}
-
 .menu-upper {
     display: flex;
-    justify-content: flex-end;
-    gap: 15px; /* More space */
-    width: 100%;
-    margin-bottom: 10px; /* More space */
-    padding: 15px 25px;
-    padding-top: 50px;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding: 0 20px;
 }
 
 .menu-upper-item-right {
-    font-size: 0.7em;
-    color: var(--color-white); /* White for better contrast */
-    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    height: 40px;
 }
+
 .menu-upper-item-right:hover {
     opacity: 1;
 }
@@ -231,21 +219,65 @@ button:active {
     font-size: 0.6em;
 }
 
-.input-search {
-    padding-left: 35px; /* Space for icon */
-    background: url("img/magnifier.png") no-repeat 10px center;
-    background-size: 16px; /* Adjust icon size */
-    width: 150px; /* Set width as needed */
-    height: 30px;
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-top: 5px;
 }
 
-.input-search:focus {
-    width: 400px;
-    font-size: 150%;
+.search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-light);
+    pointer-events: none;
+}
+
+.input-search {
     height: 40px;
-    background-size: 26px; /* Adjust icon size */
-    padding-left: 40px; /* Space for icon */
-    transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    padding: 0 15px 0 40px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 8px;
+    background: var(--color-white);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    margin: 0;
+    width: 100%;
+}
+
+.signout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    color: var(--color-primary-red);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--color-background-light);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+.signout-btn:hover {
+    background-color: var(--color-very-light-red);
+    transform: scale(1.05);
 }
 
 .menu-main {
