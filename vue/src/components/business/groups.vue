@@ -2,7 +2,15 @@
   <div class="groups-region" id="groups-region">
     <div v-for="group in groups" :key="group.id" :id="group.id" class="group-region" @click="onProjectClick">
       <div class="group-header-region">
-        <span class="group-header-text">{{ group.name }}</span>
+        <span v-if="!group.isEditing" class="group-header-text" @click="groupHeaderClick" :id="'gh-' + group.id">
+          {{ group.name }}
+        </span>
+        <input v-else
+          :id="'ge-' + group.id"
+          v-model="group.name"
+          @blur="saveGroupName"
+          @keydown.enter ="saveGroupName"
+          @keydown.escape="cancelGroupName" />
         <div class="group-actions">
           <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
         </div>
@@ -13,7 +21,7 @@
 </template>
 
 <script>
-import { ref, inject, computed, watch } from 'vue';
+import { ref, inject, computed, watch, nextTick } from 'vue';
 import MoreOptionsButton from '../common/more-options-button.vue';
 import AddItemComponent from '../common/additembutton.vue';
 import { modalService } from '../../js/store/modal-service.js';
@@ -71,11 +79,68 @@ export default {
       if (isReady.value === false && projectId) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
       } else {
-          await dataStore.getTaskGroupsByProjectId(projectId).then((storedGroups) => {
-            groups.value = storedGroups;
-            groups.value.sort((a, b) => a.sequence - b.sequence);
-          });
+        await dataStore.getTaskGroupsByProjectId(projectId).then((storedGroups) => {
+          groups.value = storedGroups;
+          groups.value.sort((a, b) => a.sequence - b.sequence);
+        });
       }
+    }
+
+    async function groupHeaderClick(e) {
+      const groupId = e.target.id.slice(3);
+
+      groups.value.forEach(group => group.isEditing = false);
+      const group = groups.value.find(group => group.id === groupId);
+      group.isEditing = true;
+
+      if (group) {
+          group.isEditing = true;
+          
+          await nextTick();
+          
+          const input = document.querySelector(`#ge-${groupId}`);
+          if (input) {
+              input.focus();
+              input.select();
+          }
+      }
+    }
+
+    async function saveGroupName (e) {
+      const groupId = e.target.id.slice(3);
+      let prevGroupId = "";
+      let currentGroup;
+
+      groups.value.forEach(group => group.isEditing = false);
+
+      for (const group of groups.value) {
+        if (group.id === groupId) {
+          currentGroup = group;
+          break;
+        }
+        prevGroupId = group.id
+      }
+
+      const eventPayload = {
+        id: groupId,
+        name: e.target.value,
+        projectid: props.projectId,
+        after: prevGroupId
+      };
+
+      const eventData = {
+        type: "group-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
+    }
+
+    function cancelGroupName(e) { 
+      groups.value.forEach(group => group.isEditing = false);
     }
 
     async function onGroupAddEventRecieved(eventPayload) {
@@ -84,12 +149,11 @@ export default {
     }
 
     async function onGroupDeleteEventRecieved(eventPayload) {
-      await dataStore.delete("task_group",eventPayload.id);
+      await dataStore.delete("task_group", eventPayload.id);
       await getAllGroups(props.projectId);
     }
 
-    async function onGroupUpdateEventRecieved (eventPayload) {
-      console.log("onGroupUpdateEventRecieved eventPayload", eventPayload);
+    async function onGroupUpdateEventRecieved(eventPayload) {
       await dataStore.upsertGroup(eventPayload);
       await getAllGroups(props.projectId);
     }
@@ -130,7 +194,7 @@ export default {
       }
     }
 
-    async function insertGroup (nextGroupId) {
+    async function insertGroup(nextGroupId) {
       let prevGroupId = "";
 
       for (const group of groups.value) {
@@ -143,7 +207,7 @@ export default {
       addGroup(prevGroupId, true);
     }
 
-    
+
     function removeGroup(groupId) {
       let prevGroupId = "";
       let groupName = "";
@@ -162,7 +226,7 @@ export default {
         projectid: props.projectId,
         after: prevGroupId
       }
-      
+
 
       const event = {
         type: "group-delete",
@@ -174,7 +238,7 @@ export default {
 
       appEventInstance.send(eventJson);
     }
- 
+
     async function renameGroup(groupId) {
       try {
 
@@ -189,7 +253,7 @@ export default {
         );
 
         if (result) {
-          let prevGroupId;
+          let prevGroupId;id="'gh-' + group.id"
           let currentGroupId;
 
           for (const group of groups.value) {
@@ -221,7 +285,7 @@ export default {
       } catch (error) {
         console.error('Error in modal:', error);
       }
-    }   
+    }
 
     async function moveUpGroup(groupId) {
       let prevGroupId;
@@ -296,7 +360,10 @@ export default {
       groups,
       groupMenuItems,
       onGroupAddEventRecieved,
-      addGroup
+      addGroup,
+      groupHeaderClick,
+      saveGroupName,
+      cancelGroupName
     }
   }
 }
