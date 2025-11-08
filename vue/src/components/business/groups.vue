@@ -43,13 +43,16 @@ export default {
     const { instance: dataStore, isReady } = inject(DataStoreKey);
     const groupMenuItems = computed(() => [
       { label: 'Add', action: addGroup },
-      // { label: 'Rename', action: renameGroup },
-      // { label: 'Remove', action: removeGroup },
-      // { label: 'Move Up', action: moveUpGroup },
-      // { label: 'Move Down', action: moveDownGroup }
+      { label: 'Insert Before', action: insertGroup },
+      { label: 'Rename', action: renameGroup },
+      { label: 'Remove', action: removeGroup },
+      { label: 'Move Up', action: moveUpGroup },
+      { label: 'Move Down', action: moveDownGroup }
     ]);
     const browserInstance = getBrowserInstanceId();
     appEventInstance.onGroupAdd = onGroupAddEventRecieved;
+    appEventInstance.onGroupDelete = onGroupDeleteEventRecieved;
+    appEventInstance.onGroupUpdate = onGroupUpdateEventRecieved;
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -58,29 +61,40 @@ export default {
     }, { immediate: true });
 
     watch(() => props.projectId, async (newProjectId) => {
-      console.log("GroupsComponent: change project id", newProjectId);
       if (newProjectId) {
         await getAllGroups(props.projectId);
       }
     }, { immediate: true });
 
+
     async function getAllGroups(projectId) {
       if (isReady.value === false && projectId) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
       } else {
-        await dataStore.getTaskGroupsByProjectId(projectId).then((storedGroups) => {
-          groups.value = storedGroups;
-          groups.value.sort((a, b) => a.sequence - b.sequence);
-        });
+          await dataStore.getTaskGroupsByProjectId(projectId).then((storedGroups) => {
+            groups.value = storedGroups;
+            groups.value.sort((a, b) => a.sequence - b.sequence);
+          });
       }
     }
 
     async function onGroupAddEventRecieved(eventPayload) {
       await dataStore.upsertGroup(eventPayload);
-      await getAllGroups();
+      await getAllGroups(props.projectId);
     }
 
-    async function addGroup(prevGroupId) {
+    async function onGroupDeleteEventRecieved(eventPayload) {
+      await dataStore.delete("task_group",eventPayload.id);
+      await getAllGroups(props.projectId);
+    }
+
+    async function onGroupUpdateEventRecieved (eventPayload) {
+      console.log("onGroupUpdateEventRecieved eventPayload", eventPayload);
+      await dataStore.upsertGroup(eventPayload);
+      await getAllGroups(props.projectId);
+    }
+
+    async function addGroup(prevGroupId, isInsert = false) {
       try {
         const result = await modalService.openModal(
           "Add Group", groupFields
@@ -88,11 +102,15 @@ export default {
 
         if (result) {
 
+          if (!isInsert) {
+            prevGroupId = prevGroupId || groups.value[groups.value.length - 1]?.id || ''
+          }
+
           const eventPayload = {
             id: window.crypto.randomUUID(),
             name: result.name,
             projectid: props.projectId,
-            after: prevGroupId || groups.value[groups.value.length - 1]?.id || '',
+            after: prevGroupId,
           };
 
           const eventData = {
@@ -106,14 +124,178 @@ export default {
           appEventInstance.send(eventDataJson);
         }
 
+
       } catch (error) {
         console.error('Error in modal:', error);
       }
     }
 
+    async function insertGroup (nextGroupId) {
+      let prevGroupId = "";
+
+      for (const group of groups.value) {
+        if (group.id === nextGroupId) {
+          break;
+        }
+        prevGroupId = group.id;
+      }
+
+      addGroup(prevGroupId, true);
+    }
+
+    
+    function removeGroup(groupId) {
+      let prevGroupId = "";
+      let groupName = "";
+
+      for (const group of groups.value) {
+        if (group.id === groupId) {
+          groupName = group.name;
+          break;
+        }
+        prevGroupId = group.id;
+      };
+
+      const eventPayload = {
+        id: groupId,
+        name: groupName,
+        projectid: props.projectId,
+        after: prevGroupId
+      }
+      
+
+      const event = {
+        type: "group-delete",
+        instance: browserInstance,
+        payload: eventPayload
+      }
+
+      const eventJson = JSON.stringify(event);
+
+      appEventInstance.send(eventJson);
+    }
+ 
+    async function renameGroup(groupId) {
+      try {
+
+        const group = groups.value.find(group => group.id === groupId);
+
+        const renameGroupFields = [
+          { name: 'name', label: 'Group Name', default: group.name }
+        ];
+
+        const result = await modalService.openModal(
+          "Rename Group", renameGroupFields
+        );
+
+        if (result) {
+          let prevGroupId;
+          let currentGroupId;
+
+          for (const group of groups.value) {
+            if (group.id === groupId) {
+              currentGroupId = group.id;
+              break;
+            }
+            prevGroupId = group.id;
+          }
+
+          const eventPayload = {
+            id: currentGroupId,
+            name: result.name,
+            projectid: props.projectId,
+            after: prevGroupId
+          };
+
+          const eventData = {
+            type: "group-update",
+            instance: browserInstance,
+            payload: eventPayload
+          };
+
+          const eventDataJson = JSON.stringify(eventData);
+
+          appEventInstance.send(eventDataJson);
+        }
+
+      } catch (error) {
+        console.error('Error in modal:', error);
+      }
+    }   
+
+    async function moveUpGroup(groupId) {
+      let prevGroupId;
+      let prevPrevGroupId;
+      let currentGroup;
+
+      for (const group of groups.value) {
+        if (group.id === groupId) {
+          currentGroup = group;
+          break;
+        }
+        prevPrevGroupId = prevGroupId;
+        prevGroupId = group.id;
+      }
+
+      const eventPayload = {
+        id: currentGroup.id,
+        name: currentGroup.name,
+        projectid: props.projectId,
+        after: prevPrevGroupId
+      };
+
+      const eventData = {
+        type: "group-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
+    }
+
+    async function moveDownGroup(groupId) {
+      let currentGroup;
+      let nextGroupId = "";
+      let prevPrevGroupId;
+
+      for (const group of groups.value) {
+        if (currentGroup) {
+          nextGroupId = group.id;
+          break;
+        }
+        if (group.id === groupId) {
+          currentGroup = group;
+        }
+        if (!currentGroup) {
+          prevPrevGroupId = group.id;
+        }
+      }
+
+      const eventPayload = {
+        id: currentGroup.id,
+        name: currentGroup.name,
+        projectid: props.projectId,
+        after: nextGroupId || prevPrevGroupId
+      };
+
+      const eventData = {
+        type: "group-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
+    }
+
+
     return {
       groups,
       groupMenuItems,
+      onGroupAddEventRecieved,
       addGroup
     }
   }
