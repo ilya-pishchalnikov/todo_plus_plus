@@ -115,6 +115,7 @@ div {
     flex-grow: 1;
     overflow-y: auto;
     background-color: var(--color-white);
+    padding: 15px;
 }
 
 /* Form Elements */
@@ -374,6 +375,9 @@ button:active {
     box-shadow: none; /* Remove if it causes visual issues */
     margin: 0; /* Reset any default margins */
     border-radius: var(--border-radius) var(--border-radius) 0 0; /* Round top corners only */
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
 }
 
 .group-header-region:hover {
@@ -398,10 +402,22 @@ button:active {
     border-top: none;
 }
 
+.group-header-text {
+    flex-grow: 1;
+    cursor: pointer;
+    font-weight: 500;
+    margin-right: 10px;
+}
+
 .group-header-text:focus {
     outline: none !important;
     border: none !important;
     box-shadow: none !important;
+}
+
+.group-actions {
+    flex-shrink: 0;
+    margin-right: 20px;
 }
 
 .task-input {

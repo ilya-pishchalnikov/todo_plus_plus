@@ -110,7 +110,6 @@ export default {
         clickedProjectId = clickedElement.id;
       }
 
-      selectedProjectId.value = eventPayload.id;
       if (selectedProjectId.value !== clickedProjectId) {
         selectedProjectId.value = clickedProjectId;
       }

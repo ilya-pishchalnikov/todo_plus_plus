@@ -2,8 +2,10 @@
   <div class="groups-region" id="groups-region">
     <div v-for="group in groups" :key="group.id" :id="group.id" class="group-region" @click="onProjectClick">
       <div class="group-header-region">
-        <span>{{ group.name }}</span>
-        <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
+        <span class="group-header-text">{{ group.name }}</span>
+        <div class="group-actions">
+          <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
+        </div>
       </div>
     </div>
   </div>
@@ -56,13 +58,13 @@ export default {
     }, { immediate: true });
 
     watch(() => props.projectId, async (newProjectId) => {
+      console.log("GroupsComponent: change project id", newProjectId);
       if (newProjectId) {
         await getAllGroups(props.projectId);
       }
     }, { immediate: true });
 
     async function getAllGroups(projectId) {
-      console.log("getAllGroups", projectId);
       if (isReady.value === false && projectId) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
       } else {
@@ -79,7 +81,6 @@ export default {
     }
 
     async function addGroup(prevGroupId) {
-      console.log("addGroup");
       try {
         const result = await modalService.openModal(
           "Add Group", groupFields
