@@ -112,5 +112,19 @@ func InitDatabase(dbPath string) error {
 		}
 	}
 
+	// rename field
+	if exists, err := IsTableFieldExists(db, "event", "responce"); err != nil {
+		return err
+	} else if exists {
+		err = addField(db, "event", "response", "text")
+		if err != nil {
+			return err
+		}
+		err = dropField(db, "event", "responce")
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }

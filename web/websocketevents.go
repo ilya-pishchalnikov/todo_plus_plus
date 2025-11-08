@@ -25,9 +25,8 @@ type Client struct {
 }
 
 var clientInstanceMap = make(map[string]Client)
-
 var clientsMap = make(map[*Client]bool)
-
+var loginMap = make(map[string][]Client)
 var broadcast = make(chan []byte)
 
 func handleEventConnections(responseWriter http.ResponseWriter, request *http.Request) {
@@ -59,14 +58,40 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 	clientsMap[client] = true
 	clientInstanceMap[client.instance] = *client
 
+	if clients, exists := loginMap[client.login]; exists {
+		instanceExists := false
+		for _, c := range clients {
+			if c.instance == client.instance {
+				instanceExists = true
+				break
+			}
+		}
+		if !instanceExists {
+			loginMap[client.login] = append(clients, *client)
+		}
+	} else {
+		loginMap[client.login] = []Client{*client}
+	}
+
+	log.Printf("WebSocket opened login %s, instance %s", client.login, client.instance)
 	for {
 		_, msg, err := webSocket.ReadMessage()
 		if err != nil {
 			delete(clientsMap, client)
+			delete(clientInstanceMap, client.instance)
+			var newClients []Client
+			for _, loginClient := range loginMap[client.login] {
+				if loginClient.instance != client.instance {
+					newClients = append(newClients, loginClient)
+				}
+			}
+			loginMap[client.login] = newClients
+			log.Printf("WebSocket closed login %s, instance %s", client.login, client.instance)
 			return
 		}
 		broadcast <- msg
 	}
+
 }
 
 func handleEventMessages() {
@@ -91,7 +116,7 @@ func handleEventMessages() {
 			continue
 		}
 
-		responce := msg
+		response := msg
 
 		clientInstance, keyExists := clientInstanceMap[appEvent.Instance]
 
@@ -120,25 +145,36 @@ func handleEventMessages() {
 		// process events
 		err = event.ProcessEvent(appEvent, clientInstance.login)
 		if err != nil {
-			responce, err = event.GetErrorMessage(err.Error(), appEvent.Instance)
+			response, err = event.GetErrorMessage(err.Error(), appEvent.Instance)
 			if err != nil {
 				continue
 			}
 			eventStore.IsError = 1
-			eventStore.Responce = string(responce)
+			eventStore.Response = string(response)
 			store.InsertEvent(db, eventStore)
 			continue
 		}
 
-		responce, err = json.Marshal(appEvent)
+		response, err = json.Marshal(appEvent)
 		if err != nil {
 			continue
 		}
 
 		eventStore.IsError = 0
-		eventStore.Responce = string(responce)
+		eventStore.Response = string(response)
 		store.InsertEvent(db, eventStore)
 
-		clientInstance.conn.WriteMessage(websocket.TextMessage, responce)
+		clients := loginMap[login]
+		if clients == nil {
+			continue
+		}
+
+		for _, client := range clients {
+			err := client.conn.WriteMessage(websocket.TextMessage, response)
+			if err != nil {
+				log.Printf("Failed to send message to client %s instance %s: %v", client.login, client.instance, err)
+				continue
+			}
+		}
 	}
 }

@@ -43,7 +43,7 @@ create table if not exists event (
 	utc_time int,
 	user_id text,
 	payload text,
-	responce text,
+	response text,
 	is_error int,
 	primary key (user_id, utc_time, event_id),
 	foreign key (user_id) references user(user_id)
@@ -80,3 +80,4 @@ create table if not exists user_secret (
 	target text,
 	foreign key (user_id) references user(user_id)
 );
+

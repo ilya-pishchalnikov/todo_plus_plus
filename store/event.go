@@ -7,15 +7,15 @@ type Event struct {
 	UtcTime  int64
 	UserId   string
 	Payload  string
-	Responce string
+	Response string
 	IsError  int
 }
 
 func InsertEvent(db *sql.DB, event Event) error {
 	_, err := db.Exec(`
-	INSERT INTO event (event_id, utc_time, user_id, payload, responce, is_error) 
+	INSERT INTO event (event_id, utc_time, user_id, payload, response, is_error) 
 	VALUES (?, ?, ?, ?, ?, ?)`,
-		event.EventId, event.UtcTime, event.UserId, event.Payload, event.Responce, event.IsError)
+		event.EventId, event.UtcTime, event.UserId, event.Payload, event.Response, event.IsError)
 
 	return err
 }

@@ -45,8 +45,8 @@ type GroupPayload struct {
 func GetErrorMessage(message string, instance string) ([]byte, error) {
 	errorPayload := ErrorPayload{Message: message}
 	errorEvent := ErrorEvent{Type: "error", Instance: instance, Payload: errorPayload}
-	responce, err := json.Marshal(errorEvent)
-	return responce, err
+	response, err := json.Marshal(errorEvent)
+	return response, err
 }
 
 func ProcessEvent(event Event, login string) error {

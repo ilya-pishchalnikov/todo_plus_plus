@@ -4,7 +4,7 @@ import IndexedDBEventStore from '../store/datastore.js';
 export class AppEvent {
     eventSocket;
     
-    isLogEvents;
+    isLogEvents = true;
 
     onConnect;
     onDisconnect;
@@ -30,6 +30,8 @@ export class AppEvent {
     }
 
     eventSocketOnMessage(event) {
+        console.log(event.data);
+
         if (this.isLogEvents) {
             console.log(event.data);
         }
@@ -85,7 +87,8 @@ export class AppEvent {
     }
 
     async send(data) {
-        console.log("AppEvent.send: " + data);
+        console.log("AppEvent.send: " + data, this.isConnected);
+
         if (this.isConnected()){
             this.eventSocket.send(data);
             console.log("AppEvent.send: sent via socket");
