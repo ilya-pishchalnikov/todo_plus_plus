@@ -437,13 +437,13 @@ button:active {
 }
 
 .task-region {
-    margin-bottom: 8px; /* More space */
-    margin-left: 8px;
-    padding: 12px 15px; /* More padding */
+    margin-bottom: 5px; /* More space */
+    padding: 5px; /* More padding */
     display: flex;
     align-items: center;
     gap: 15px; /* More space between elements */
     border-radius: var(--border-radius);
+    justify-content: space-between;
 }
 
 .task-region img,
@@ -454,6 +454,17 @@ button:active {
 
 .task-region:hover {
     background: var(--color-background-light);
+}
+
+.task-text {
+    flex-grow: 1;
+    margin-right: 5px;
+    text-align: left;
+}
+
+.tasks-actions {
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .task-pre {

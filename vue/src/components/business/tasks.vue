@@ -1,22 +1,26 @@
 <template>
   <div class="task-list-region">
-    <div v-for="task in tasks" :id="task.id" :key="task.id" :class="'task-region',
-    {
-      'todo': task.status === 1,
-      'inprogress': task.status === 2,
-      'done': task.status === 3,
-      'cancelled': task.status === 4,
+    <div v-for="task in tasks" :id="task.id" :key="task.id" :class="{
+      'task-region': true,
+      'todo': task.status == 1,
+      'inprogress': task.status == 2,
+      'done': task.status == 3,
+      'cancelled': task.status == 4,
     }">
       <img class="task-status-img" :src="getStatusIcon(task.status)" :id="'ti-' + task.id" @click="statusImgOnClick" />
-      <span>{{ task.text }}</span>
+      <span class="task-text">{{ task.text }}</span>
+      <div class="tasks-actions">
+        <MoreOptionsButton :menu-items="taskMenuItems" :source-id="task.id" />
+      </div>
     </div>
     <AddItemComponent @add-item="addTask" :text="'Add Task'" />
   </div>
 </template>
 
 <script>
-import { ref, watch, inject } from 'vue'
+import { ref, watch, inject, computed } from 'vue'
 import AddItemComponent from '../common/additembutton.vue';
+import MoreOptionsButton from '../common/more-options-button.vue';
 import { AppEventKey } from '../../js/event/appevent-service.js';
 import { DataStoreKey } from '../../js/store/datastore-service.js';
 import { getBrowserInstanceId } from '../../js/utils/utils.js';
@@ -37,6 +41,7 @@ export default {
   },
   components: {
     AddItemComponent,
+    MoreOptionsButton,
   },
 
   setup(props, { emit }) {
@@ -53,8 +58,19 @@ export default {
       3: doneIcon,
       4: cancelledIcon
     };
+    const taskMenuItems = computed(() => [
+      { label: 'Add', action: addTask },
+      { label: 'Insert Before', action: insertTask },
+      { label: 'Rename', action: renameTask },
+      { label: 'Remove', action: removeTask },
+      { label: 'Move Up', action: moveUpTask },
+      { label: 'Move Down', action: moveDownTask }
+    ]);
+
+
     appEventInstance.onTaskAdd.push(onTaskAddEventRecieved);
     appEventInstance.onTaskUpdate.push(onTaskUpdateEventReceived);
+    appEventInstance.onTaskDelete.push(onTaskDeleteEventReceived);
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -152,9 +168,173 @@ export default {
       }
     }
 
+    async function renameTask(taskId) {
+      const task = tasks.value.find(task => task.id === taskId);
+
+      const renameTaskFields = [
+        { name: 'text', label: 'Task Text', default: task.text }
+      ];
+
+      const result = await modalService.openModal(
+        "Rename Task", renameTaskFields
+      );
+
+      if (result) {
+        let prevTaskId;
+        let currentTask;
+
+        for (const task of tasks.value) {
+          if (task.id === taskId) {
+            currentTask = task;
+            break;
+          }
+          prevTaskId = task.id;
+        }
+
+        const eventPayload = {
+          id: currentTask.id,
+          text: result.text,
+          status: String(currentTask.status),
+          group: props.groupId,
+          after: prevTaskId
+        };
+
+        const eventData = {
+          type: "task-update",
+          instance: browserInstance,
+          payload: eventPayload
+        };
+
+        const eventDataJson = JSON.stringify(eventData);
+
+        appEventInstance.send(eventDataJson);
+      }
+    }
+
+    async function insertTask(nextTaskId) {
+      let prevTaskId = "";
+
+      for (const task of tasks.value) {
+        if (task.id === nextTaskId) {
+          break;
+        }
+        prevTaskId = task.id;
+      }
+
+      addTask(prevTaskId, true);
+    }
+
+    async function removeTask(taskId) {
+      let prevTaskId = "";
+      let task;
+
+      for (const currentTask of tasks.value) {
+        if (currentTask.id === taskId) {
+          task = currentTask
+          break;
+        }
+        prevTaskId = currentTask.id;
+      }
+      
+      const eventPayload = {
+        id: task.id,
+        text: task.text,
+        status: String(task.status),
+        group: props.groupId,
+        after: prevTaskId
+      };
+
+      const eventData = {
+        type: "task-delete",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
+    }
+
+    async function moveUpTask(taskId) {
+      console.log("moveUpTask", taskId);
+
+      let prevTaskId = "";
+      let prevPrevTaskId = "";
+      let currentTask;
+
+      for (const task of tasks.value) {
+        if (task.id === taskId) {
+          currentTask = task;
+          break;
+        }
+        prevPrevTaskId = prevTaskId;
+        prevTaskId = task.id;
+      }
+
+      const eventPayload = {
+        id: currentTask.id,
+        text: currentTask.text,
+        status: String(currentTask.status),
+        group: props.groupId,
+        after: prevPrevTaskId
+      };
+
+      const eventData = {
+        type: "task-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      console.log("moveUpTask eventDataJson", eventDataJson);
+
+      appEventInstance.send(eventDataJson);
+    }
+
+
+    async function moveDownTask(taskId) {
+      let currentTask;
+      let nextTaskId = "";
+      let prevPrevTaskId;
+
+      for (const task of tasks.value) {
+        if (currentTask) {
+          nextTaskId = task.id;
+          break;
+        }
+        if (task.id === taskId) {
+          currentTask = task;
+        }
+        if (!currentTask) {
+          prevPrevTaskId = task.id;
+        }
+      }
+
+      const eventPayload = {
+        id: currentTask.id,
+        text: currentTask.text,
+        status: String(currentTask.status),
+        group: props.groupId,
+        after: nextTaskId || prevPrevTaskId
+      };
+
+      const eventData = {
+        type: "task-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+
+      appEventInstance.send(eventDataJson);
+    }
+
     async function onTaskAddEventRecieved(eventPayload) {
-      await dataStore.upsertTask(eventPayload);
-      await getAllTasks(props.groupId);
+      if (eventPayload.group === props.groupId) {
+        await dataStore.upsertTask(eventPayload);
+        await getAllTasks(props.groupId);
+      }
     }
 
     async function onTaskUpdateEventReceived(eventPayload) {
@@ -165,11 +345,20 @@ export default {
       }
     }
 
+    async function onTaskDeleteEventReceived(eventPayload) {
+      const taskIndex = tasks.value.findIndex(task => task.id === eventPayload.id);
+      if (taskIndex !== -1) {
+        await dataStore.delete('task', eventPayload.id);
+        await getAllTasks(props.groupId);
+      }
+    }
+
     return {
       tasks,
       addTask,
       statusImgOnClick,
-      getStatusIcon
+      getStatusIcon,
+      taskMenuItems
     }
   }
 }

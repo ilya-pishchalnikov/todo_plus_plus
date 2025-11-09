@@ -256,7 +256,7 @@ export default {
         );
 
         if (result) {
-          let prevGroupId;id="'gh-' + group.id"
+          let prevGroupId;
           let currentGroupId;
 
           for (const group of groups.value) {
