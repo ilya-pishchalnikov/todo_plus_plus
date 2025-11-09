@@ -481,7 +481,8 @@ button:active {
 }
 
 .task-list-region {
-    padding-top: 15px;
+    margin-left: 25px;
+    padding: 0;
 }
 
 .task-status-img {

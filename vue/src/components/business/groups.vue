@@ -61,9 +61,9 @@ export default {
       { label: 'Move Down', action: moveDownGroup }
     ]);
     const browserInstance = getBrowserInstanceId();
-    appEventInstance.onGroupAdd = onGroupAddEventRecieved;
-    appEventInstance.onGroupDelete = onGroupDeleteEventRecieved;
-    appEventInstance.onGroupUpdate = onGroupUpdateEventRecieved;
+    appEventInstance.onGroupAdd.push(onGroupAddEventRecieved);
+    appEventInstance.onGroupDelete.push(onGroupDeleteEventRecieved);
+    appEventInstance.onGroupUpdate.push(onGroupUpdateEventRecieved);
 
     watch(isReady, (isReady) => {
       if (isReady === true) {

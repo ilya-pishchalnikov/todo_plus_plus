@@ -3,22 +3,22 @@ import IndexedDBEventStore from '../store/datastore.js';
 
 export class AppEvent {
     eventSocket;
-    
-    isLogEvents = true;
 
-    onConnect;
-    onDisconnect;
-    onUnauthorizedDisconnect;
+    isLogEvents;
 
-    onProjectAdd;
-    onProjectDelete;
-    onProjectUpdate;
-    onGroupAdd;
-    onGroupDelete;
-    onGroupUpdate;
-    onTaskAdd;
-    onTaskDelete;
-    onTaskUpdate;
+    onConnect = [];
+    onDisconnect = [];
+    onUnauthorizedDisconnect = [];
+
+    onProjectAdd = [];
+    onProjectDelete = [];
+    onProjectUpdate = [];
+    onGroupAdd = [];
+    onGroupDelete = [];
+    onGroupUpdate = [];
+    onTaskAdd = [];
+    onTaskDelete = [];
+    onTaskUpdate = [];
 
     reconnectIntervalId;
     #store;
@@ -30,83 +30,59 @@ export class AppEvent {
     }
 
     eventSocketOnMessage(event) {
-        console.log(event.data);
-
         if (this.isLogEvents) {
             console.log(event.data);
         }
 
         var parsedEvent = JSON.parse(event.data);
-        switch(parsedEvent.type) {
+        switch (parsedEvent.type) {
             case "project-add":
-                if (this.onProjectAdd != null){
-                    this.onProjectAdd(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onProjectAdd, parsedEvent.payload);
                 break;
             case "project-delete":
-                if (this.onProjectDelete != null){
-                    this.onProjectDelete(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onProjectDelete, parsedEvent.payload);
                 break;
             case "project-update":
-                if (this.onProjectUpdate != null){
-                    this.onProjectUpdate(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onProjectUpdate, parsedEvent.payload);
                 break;
             case "group-add":
-                if (this.onGroupAdd != null){
-                    this.onGroupAdd(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onGroupAdd, parsedEvent.payload);
                 break;
             case "group-delete":
-                if (this.onGroupDelete != null){
-                    this.onGroupDelete(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onGroupDelete, parsedEvent.payload);
                 break;
             case "group-update":
-                if (this.onGroupUpdate != null){
-                    this.onGroupUpdate(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onGroupUpdate, parsedEvent.payload);
                 break;
-            case "task-add":
-                if (this.onTaskAdd != null){
-                    this.onTaskAdd(parsedEvent.payload);
-                }
+            case "task-add":                
+                this.executeHandlers(this.onTaskAdd, parsedEvent.payload);
                 break;
-            case "task-delete":
-                if (this.onTaskDelete != null){
-                    this.onTaskDelete(parsedEvent.payload);
-                }
+            case "task-delete":                
+                this.executeHandlers(this.onTaskDelete, parsedEvent.payload);
                 break;
             case "task-update":
-                if (this.onTaskUpdate != null){
-                    this.onTaskUpdate(parsedEvent.payload);
-                }
+                this.executeHandlers(this.onTaskUpdate, parsedEvent.payload);
                 break;
         }
     }
 
     async send(data) {
-        console.log("AppEvent.send: " + data, this.isConnected);
-
-        if (this.isConnected()){
+        if (this.isConnected()) {
             this.eventSocket.send(data);
-            console.log("AppEvent.send: sent via socket");
         } else {
             await this.#store.init();
-            const storeEvent = {eventId:guid(), utc_time:Date.now().toString(), data:data}
-            await this.#store.saveEvents(storeEvent);  
+            const storeEvent = { eventId: guid(), utc_time: Date.now().toString(), data: data }
+            await this.#store.saveEvents(storeEvent);
             const eventData = JSON.parse(data);
-            const receiveMessage = {data:JSON.stringify(eventData)};            
+            const receiveMessage = { data: JSON.stringify(eventData) };
             this.eventSocketOnMessage(receiveMessage);
-            console.log("AppEvent.send: stored in indexedDB");          
         }
     }
 
     async resendEvents() {
         await this.#store.init();
         const events = await this.#store.getEventsSince("0");
-        events.forEach(event => {this.eventSocket.send(event.data);});
+        events.forEach(event => { this.eventSocket.send(event.data); });
         await this.#store.clearEventStore();
     }
 
@@ -130,27 +106,21 @@ export class AppEvent {
 
         if (event.code === UNAUTHORIZED_CODE) {
             console.error("WebSocket closed: Unauthorized (Token Invalid/Expired).");
-            if (this.onUnauthorizedDisconnect) {
-                this.onUnauthorizedDisconnect(event);
-            }
-            return; 
+            this.executeHandlers(this.onUnauthorizedDisconnect, event);
+            return;
         }
 
-        if (this.onDisconnect!= null) {
-            this.onDisconnect(event);
-        }
+        this.executeHandlers(this.onDisconnect, event);
 
         if (this.reconnectIntervalId == null) {
             this.reconnectIntervalId = setInterval(this.reconnect, 1000);
         }
     }
 
-    eventSocketOnConnect(event) {  
-        if (this.onConnect!= null) {
-            this.onConnect(event);
-        }
+    eventSocketOnConnect(event) {
+        this.executeHandlers(this.onConnect, event);
     }
-    
+
     reconnect() {
         switch (this.eventSocket.readyState) {
             case WebSocket.OPEN:
@@ -167,6 +137,19 @@ export class AppEvent {
 
     isConnected() {
         return this.eventSocket.readyState == WebSocket.OPEN;
+    }
+
+    executeHandlers(handlers, payload) {
+        if (handlers) {
+            if (Array.isArray(handlers)) {
+                for (const handler of handlers) {
+                    handler(payload);
+                }
+            }
+            else {
+                handlers(payload);
+            }
+        }
     }
 }
 

@@ -56,14 +56,14 @@ export default {
     });
 
 
-    appEventInstance.onConnect = () => {
+    appEventInstance.onConnect.push(() => {
       isConnected.value = true;
       console.log('WebSocket Connecting...')
-    };
-    appEventInstance.onDisconnect = () => {
+    });
+    appEventInstance.onDisconnect.push(() => {
       isConnected.value = false;      
       console.log('WebSocket Disconnected.');
-    }
+    });
 
     function handleSignout() {
       emit('signout');

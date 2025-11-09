@@ -26,7 +26,8 @@ export default {
     const { instance: appEventInstance, isConnected: isConnected } = inject(AppEventKey);
     provide(DataStoreKey, DataStoreService);
 
-
+    appEventInstance.isLogEvents = true;
+    
     appEventInstance.onUnauthorizedDisconnect = async (event) => {
       const response = await apiClient.get('/token_renew', {
           headers: {

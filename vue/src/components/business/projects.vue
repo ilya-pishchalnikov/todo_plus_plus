@@ -45,9 +45,9 @@ export default {
     ]);
     const browserInstance = getBrowserInstanceId();
 
-    appEventInstance.onProjectAdd = onProjectAddEventRecieved;
-    appEventInstance.onProjectDelete = onProjectDeleteEventRecieved;
-    appEventInstance.onProjectUpdate = onProjectUpdateEventRecieved;
+    appEventInstance.onProjectAdd.push(onProjectAddEventRecieved);
+    appEventInstance.onProjectDelete.push(onProjectDeleteEventRecieved);
+    appEventInstance.onProjectUpdate.push(onProjectUpdateEventRecieved);
 
     watch (()=>selectedProjectId.value, (newSelectedProjectId)=> {
       emit('project-selected', newSelectedProjectId);
