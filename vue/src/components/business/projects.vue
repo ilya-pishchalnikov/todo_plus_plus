@@ -8,7 +8,7 @@
       <MoreOptionsButton :menu-items="projectMenuItems" :source-id="project.id" />
     </div>
   </div>
-  <AddItemComponent @add-item="addProject" />
+  <AddItemComponent @add-item="addProject" :text="'Add Project'"  />
 </template>
 
 <script>

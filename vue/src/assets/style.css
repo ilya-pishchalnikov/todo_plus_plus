@@ -903,7 +903,7 @@ button:active {
 .add-button {
   width: 50px;
   height: 50px;
-  border-radius: 50%; 
+  border-radius: 25px; 
   background-color: white;
   color: black; 
   cursor: pointer;
@@ -911,19 +911,95 @@ button:active {
   display: flex;
   justify-content: center;
   align-items: center;
-  
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  /*box-shadow: var(--shadow-subtle);
+  border: 1px solid var(--color-border-light);*/
 }
+
+.add-button.expanding {
+  width: 150px;
+  border-radius: 25px;
+  justify-content: flex-start;
+  padding: 0 15px;
+}
+
+.add-button.expanded {
+  width: 150px;
+  border-radius: 25px;
+  justify-content: flex-start;
+  padding: 0 15px;
+}
+
+.add-button.collapsing {
+  width: 150px;
+  border-radius: 25px;
+  justify-content: flex-start;
+  padding: 0 15px;
+  animation: collapse 0.3s ease forwards;
+}
+
 
 .add-button:hover {
   background-color: var(--color-background-grey-light);
-  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-medium);
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .add-button span {
-    font-size: 150%;
+  transition: all 0.3s ease;
 }
 
+.plus-sign {
+  font-size: 150%;
+  flex-shrink: 0;
+}
+
+.add-button.expanding .plus-sign,
+.add-button.expanded .plus-sign,
+.add-button.collapsing .plus-sign {
+  margin-right: 8px;
+}
+
+.button-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  max-width: 0;
+  overflow: hidden;
+}
+
+
+.add-button.expanding .button-text {
+  opacity: 1;
+  transform: translateX(0);
+  max-width: 100px;
+  transition: all 0.3s ease 0.1s;
+}
+
+.add-button.expanded .button-text {
+  opacity: 1;
+  transform: translateX(0);
+  max-width: 100px;
+}
+
+.add-button.collapsing .button-text {
+  opacity: 0;
+  transform: translateX(-10px);
+  max-width: 0;
+  transition: all 0.2s ease;
+}
+
+@keyframes collapse {
+  to {
+    width: 50px;
+    padding: 0;
+  }
+}
 
 .more-options-container {
   position: relative; 

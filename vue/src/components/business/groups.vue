@@ -15,15 +15,17 @@
           <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
         </div>
       </div>
+      <TasksComponent :group-id="group.id"/>
     </div>
   </div>
-  <AddItemComponent @add-item="addGroup" />
+  <AddItemComponent @add-item="addGroup" :text="'Add Group'" />
 </template>
 
 <script>
 import { ref, inject, computed, watch, nextTick } from 'vue';
 import MoreOptionsButton from '../common/more-options-button.vue';
 import AddItemComponent from '../common/additembutton.vue';
+import TasksComponent from './tasks.vue'
 import { modalService } from '../../js/store/modal-service.js';
 import { getBrowserInstanceId } from '../../js/utils/utils.js';
 import { AppEventKey } from '../../js/event/appevent-service.js';
@@ -39,7 +41,8 @@ export default {
   },
   components: {
     MoreOptionsButton,
-    AddItemComponent
+    AddItemComponent,
+    TasksComponent
   },
   setup(props, { emit }) {
 
