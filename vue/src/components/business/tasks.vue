@@ -8,7 +8,16 @@
       'cancelled': task.status == 4,
     }">
       <img class="task-status-img" :src="getStatusIcon(task.status)" :id="'ti-' + task.id" @click="statusImgOnClick" />
-      <span class="task-text">{{ task.text }}</span>
+      <span class="task-text" v-if="!task.isEditing" @click="taskTextClick" :id="'tt-'+task.id">
+        {{ task.text }}
+      </span>
+      <input v-else 
+        :id="'te-'+task.id"
+        v-model="task.text"
+        @blur="saveTaskText"
+        @keydown.enter="saveTaskText"
+        @keydown.escape="cancelTaskText" 
+      />
       <div class="tasks-actions">
         <MoreOptionsButton :menu-items="taskMenuItems" :source-id="task.id" />
       </div>
@@ -18,7 +27,7 @@
 </template>
 
 <script>
-import { ref, watch, inject, computed } from 'vue'
+import { ref, watch, inject, computed, nextTick } from 'vue'
 import AddItemComponent from '../common/additembutton.vue';
 import MoreOptionsButton from '../common/more-options-button.vue';
 import { AppEventKey } from '../../js/event/appevent-service.js';
@@ -38,7 +47,7 @@ export default {
       type: String,
       required: true,
     }
-  },
+  }, 
   components: {
     AddItemComponent,
     MoreOptionsButton,
@@ -56,7 +65,7 @@ export default {
       1: todoIcon,
       2: inprogressIcon,
       3: doneIcon,
-      4: cancelledIcon
+      4: cancelledIcon 
     };
     const taskMenuItems = computed(() => [
       { label: 'Add', action: addTask },
@@ -96,7 +105,7 @@ export default {
 
     async function statusImgOnClick(e) {
       const taskId = e.target.id.substring(3);
-      let task;
+      let task; 
       let prevTaskId = "";
 
       for (const currentTask of tasks.value) {
@@ -129,6 +138,60 @@ export default {
       const eventDataJson = JSON.stringify(eventData);
 
       appEventInstance.send(eventDataJson);
+    }
+
+    async function taskTextClick(e) {
+      const taskId = e.target.id.slice(3);
+      const task = tasks.value.find(task => task.id === taskId);
+      if (task) {
+        task.isEditing = true;
+        await nextTick();
+        document.getElementById("te-" + taskId).focus();
+      }
+    }
+
+    async function saveTaskText(e){
+      const taskId = e.target.id.slice(3);
+      const text = e.target.value;
+      let prevTaskId = "";
+      let task;
+      for (const curTask of tasks.value) {
+        if (curTask.id === taskId) {
+          task = curTask;
+          break;
+        }
+        prevTaskId = curTask.id;
+      }
+
+      if (task) {
+        task.isEditing = false;
+
+        const eventPayload = {
+        id: task.id,
+          text: task.text,
+          group: task.group,
+          status: String(task.status),
+          after: prevTaskId,
+        };
+
+        const eventData = {
+          type: "task-update",
+          instance: browserInstance,
+          payload: eventPayload
+        };
+
+        const eventDataJson = JSON.stringify(eventData);
+
+        appEventInstance.send(eventDataJson);
+      }
+    }
+
+    async function cancelTaskText(e) {
+      const taskId = e.target.id.slice(3);
+      const task = tasks.value.find(task => task.id === taskId);
+      if (task) {
+        task.isEditing = false;
+      }
     }
 
     async function addTask(prevTaskId, isInsert = false) {
@@ -358,7 +421,10 @@ export default {
       addTask,
       statusImgOnClick,
       getStatusIcon,
-      taskMenuItems
+      taskMenuItems,
+      taskTextClick,
+      saveTaskText,
+      cancelTaskText
     }
   }
 }
