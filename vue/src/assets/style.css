@@ -349,6 +349,21 @@ button:active {
     background: var(--color-dark-red);
 }
 
+.project-enter-active,
+.project-leave-active {
+  transition: all 0.3s ease;
+}
+
+.project-enter-from,
+.project-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.project-move {
+  transition: transform 0.3s ease;
+}
+
 /* Group Region */
 
 .group-input {
@@ -1075,4 +1090,14 @@ button:active {
 
 .context-menu li:hover {
   background-color: var(--color-very-light-red);
+}
+
+.dragging {
+  opacity: 0.5;
+  cursor: move;
+}
+
+.drag-over {
+  background-color: rgba(0, 0, 0, 0.1);
+  transform: scale(1.02);
 }

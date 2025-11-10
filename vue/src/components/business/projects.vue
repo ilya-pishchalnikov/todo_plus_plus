@@ -1,9 +1,17 @@
 <template>
-  <div class="projects-region" id="projects-region">
+  <div class="projects-region" id="projects-region" @dragover.prevent @drop="onDrop" @drag-over.prevent>
     <div v-for="project in projects" :key="project.id" :id="project.id" :class="{
       'project-region': project.id !== selectedProjectId,
       'project-region-selected': project.id === selectedProjectId
-    }" @click="onProjectClick">
+    }" 
+      @click="onProjectClick"
+      draggable="true" 
+      @dragstart="onDragStart($event, project.id)"
+      @dragenter.prevent
+      @dragover="dragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
+      >
       <span>{{ project.name }}</span>
       <MoreOptionsButton :menu-items="projectMenuItems" :source-id="project.id" />
     </div>
@@ -12,7 +20,7 @@
 </template>
 
 <script>
-import { ref, inject, watch, computed, defineEmits } from 'vue';
+import { ref, inject, watch, computed, defineEmits, nextTick } from 'vue';
 import AddItemComponent from '../common/additembutton.vue';
 import { modalService } from '../../js/store/modal-service.js';
 import { getBrowserInstanceId } from '../../js/utils/utils.js';
@@ -44,6 +52,7 @@ export default {
       { label: 'Move Down', action: moveDownProject}
     ]);
     const browserInstance = getBrowserInstanceId();
+    const draggingProjectId = ref(null);
 
     appEventInstance.onProjectAdd.push(onProjectAddEventRecieved);
     appEventInstance.onProjectDelete.push(onProjectDeleteEventRecieved);
@@ -288,13 +297,109 @@ export default {
     }
 
 
+    async function onDragStart(event, projectId) {
+      draggingProjectId.value = projectId;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('projectId', projectId);
+      await nextTick();
+      event.target.classList.add('dragging');
+      event.target.style.opacity = '0.5';
+    }
+
+    function onDragLeave(event) {
+      event.target.classList.remove('drag-over');
+    }
+
+    function onDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const draggedId = draggingProjectId.value;
+      let targetElement = event.target.closest(".project-region, .project-region-selected");
+
+      document.querySelectorAll('.dragging, .drag-over').forEach(el => {
+        el.classList.remove('dragging', 'drag-over');
+        el.style.opacity = '';
+      });
+
+      if (!targetElement) {
+        if (draggedId && draggedId !== projects.value[projects.value.length - 1]?.id) {
+          moveProjectToNewPosition(draggedId, '');          
+        }
+        draggingProjectId.value = null;
+        return;
+      }
+
+      const targetId = targetElement.id;
+      
+      document.querySelectorAll('.dragging, .drag-over').forEach( el => {
+        el.classList.remove('dragging', 'drag-over');
+      });
+
+      if (draggedId === targetId) {
+        draggingProjectId.value = null;
+        return;
+      }
+      let newAfterId = "";
+      const targetIndex = projects.value.findIndex(p => p.id === targetId);
+      const draggingIndex = projects.value.findIndex(p => p.id === draggedId);
+
+      if (draggingIndex != -1 && targetIndex != -1) {
+        if (draggingIndex < targetIndex) {
+          newAfterId = targetId;
+        } else {
+          newAfterId = projects.value[targetIndex - 1]?.id || '';
+        }
+      }
+
+      moveProjectToNewPosition(draggedId, newAfterId);
+      draggingProjectId.value = null;
+    }
+
+    function moveProjectToNewPosition(projectId, afterId) {
+      const project = projects.value.find(p => p.id === projectId);
+      if (project) {
+        const eventPayload = {
+          id: projectId,
+          name: project.name,
+          after: afterId
+        };
+
+        const eventData = {
+          type: "project-update",
+          instance: browserInstance,
+          payload: eventPayload
+        };
+
+        const eventDataJson = JSON.stringify(eventData);
+
+        appEventInstance.send(eventDataJson);
+      }
+    }
+
+    function dragOver(event) {
+      event.preventDefault();
+      const target = event.target.closest('.project-region, .project-region-selected');
+      if (target && target.id !== draggingProjectId.value) {
+        document.querySelectorAll('.drag-over').forEach(el => {
+          el.classList.remove('drag-over');
+        });
+        target.classList.add('drag-over');
+      }
+    }
+
+
 
     return {
       projects,
       selectedProjectId,
       onProjectClick,
       addProject,
-      projectMenuItems
+      projectMenuItems,
+      onDragStart,
+      onDragLeave,
+      onDrop,
+      dragOver
     }
   }
 }
