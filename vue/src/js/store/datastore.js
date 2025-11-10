@@ -145,6 +145,24 @@ class IndexedDBDataStore {
     }
 
     /**
+     * Asynchronously retrieves all task groups from the database
+     * @returns {Promise} A promise that resolves with the task groups or rejects with an error
+     */
+    async getTaskGroups() {
+        if (!this.db) await this.init();
+
+        const transaction = this.db.transaction(["task_group"], "readonly");
+        const store = transaction.objectStore("task_group");
+
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = (event) => reject
+        });
+    }
+
+    /**
      * Fetches all tasks by task group id sorted by sequence using index
      * 
      * @returns {Promise<Array>} Array of tasks sorted by sequence
@@ -305,6 +323,11 @@ class IndexedDBDataStore {
         });
     }
 
+    /**
+     * Retrieves projects with sequence numbers above the specified value
+     * @param {number} sequence - The sequence number to use as lower bound
+     * @returns {Promise} A promise that resolves with projects above the specified sequence
+     */
     async getProjectsAboveSequence(sequence) {
         if (!this.db) await this.init();
         const range = IDBKeyRange.lowerBound(sequence);

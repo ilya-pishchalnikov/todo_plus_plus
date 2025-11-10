@@ -86,6 +86,13 @@ export default {
       await getAllProjects();
     }
 
+    watch(isReady, (isReady) => {
+      if (isReady === true) {
+        getAllProjects();
+      }
+    }, { immediate: true });
+
+
     async function getAllProjects() {
       if (isReady.value === false) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
@@ -103,31 +110,46 @@ export default {
       }
     }
 
-    watch(isReady, (isReady) => {
-      if (isReady === true) {
-          getAllProjects();
-      }
-    }, { immediate: true });
-
     function onProjectClick(e) {
-      const clickedElement = e.target;
-      let clickedProjectId = '';
-
-      if (clickedElement.tagName === "SPAN") {
-        clickedProjectId = clickedElement.parentElement.id;
-      } else {
-        clickedProjectId = clickedElement.id;
+      const projectId = e.target.closest('.project-region, .project-region-selected').id;
+      if (projectId) {
+        selectedProjectId.value = projectId;
       }
+    }
 
-      if (selectedProjectId.value !== clickedProjectId) {
-        selectedProjectId.value = clickedProjectId;
+    async function addProject(prevProjectId) {
+      try {
+        const result = await modalService.openModal(
+          "Add Project", projectFields
+        );
+
+        if (result) {
+
+          const eventPayload = {
+            id: window.crypto.randomUUID(),
+            name: result.name,
+            after: prevProjectId || projects.value[projects.value.length - 1]?.id || '',
+          };
+
+          const eventData = {
+            type: "project-add",
+            instance: browserInstance,
+            payload: eventPayload
+          };
+
+          const eventDataJson = JSON.stringify(eventData);prevPrevProjectId
+
+          appEventInstance.send(eventDataJson);
+        }
+
+      } catch (error) {
+        console.error('Error in modal:', error);
       }
     }
 
     async function renameProject(projectId) {
       try {
         const project = projects.value.find(project => project.id === projectId);
-
         const renameProjectFields = [
           { name: 'name', label: 'Project Name', default: project.name }
         ];
@@ -139,7 +161,6 @@ export default {
         if (result) {
           let prevProjectId;
           let currentProjectId;
-
           for (let project of projects.value) {
             if (project.id === projectId) {
               currentProjectId = project.id;
@@ -164,6 +185,7 @@ export default {
 
           appEventInstance.send(eventDataJson);
         }
+
 
       } catch (error) {
         console.error('Error in modal:', error);
@@ -200,42 +222,13 @@ export default {
     }
 
 
-    async function addProject(prevProjectId) {
-      try {
-        const result = await modalService.openModal(
-          "Add Project", projectFields
-        );
-
-        if (result) {
-
-          const eventPayload = {
-            id: window.crypto.randomUUID(),
-            name: result.name,
-            after: prevProjectId || projects.value[projects.value.length - 1]?.id || '',
-          };
-
-          const eventData = {
-            type: "project-add",
-            instance: browserInstance,
-            payload: eventPayload
-          };
-
-          const eventDataJson = JSON.stringify(eventData);prevPrevProjectId
-
-          appEventInstance.send(eventDataJson);
-        }
-
-      } catch (error) {
-        console.error('Error in modal:', error);
-      }
-    }
 
     async function moveUpProject(projectId) {
-      let prevProjectId;
-      let prevPrevProjectId;
       let currentProject;
+      let prevPrevProjectId = "";
+      let prevProjectId = "";
 
-      for (let project of projects.value) {
+      for (const project of projects.value) {
         if (project.id === projectId) {
           currentProject = project;
           break;
@@ -266,7 +259,7 @@ export default {
       let nextProjectId = "";
       let prevPrevProjectId;
 
-      for (let project of projects.value) {
+      for (const project of projects.value) {
         if (currentProject) {
           nextProjectId = project.id;
           break;
@@ -312,31 +305,35 @@ export default {
 
     function onDrop(event) {
       event.preventDefault();
-      event.stopPropagation();
-
-      const draggedId = draggingProjectId.value;
-      let targetElement = event.target.closest(".project-region, .project-region-selected");
-
-      document.querySelectorAll('.dragging, .drag-over').forEach(el => {
-        el.classList.remove('dragging', 'drag-over');
-        el.style.opacity = '';
+      
+      document.querySelectorAll('.dragging').forEach(el => {
+        el.classList.remove('dragging');
+        el.style.opacity = '1';
       });
 
-      if (!targetElement) {
-        if (draggedId && draggedId !== projects.value[projects.value.length - 1]?.id) {
-          moveProjectToNewPosition(draggedId, '');          
+      document.querySelectorAll('.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+      });
+
+      const groupId = event.dataTransfer.getData('groupId');
+      const sourceProjectId = event.dataTransfer.getData('sourceProjectId');
+      
+      if (groupId) {
+        const target = event.target.closest('.project-region, .project-region-selected');
+        const targetProjectId = target ? target.id : '';
+        
+        if (targetProjectId && targetProjectId !== sourceProjectId) {
+          moveGroupToNewProject(groupId, targetProjectId);
         }
-        draggingProjectId.value = null;
+        
         return;
       }
 
-      const targetId = targetElement.id;
+      const draggedId = event.dataTransfer.getData('projectId');
+      const target = event.target.closest('.project-region, .project-region-selected');
+      const targetId = target ? target.id : '';
       
-      document.querySelectorAll('.dragging, .drag-over').forEach( el => {
-        el.classList.remove('dragging', 'drag-over');
-      });
-
-      if (draggedId === targetId) {
+      if (!draggedId || draggedId === targetId) {
         draggingProjectId.value = null;
         return;
       }
@@ -355,7 +352,31 @@ export default {
       moveProjectToNewPosition(draggedId, newAfterId);
       draggingProjectId.value = null;
     }
+    
+    async function moveGroupToNewProject(groupId, newProjectId) {
+      let group;
 
+      await dataStore.getTaskGroups().then((groups) => {
+        group = groups.find(group => group.id === groupId)
+      });
+
+      const eventPayload = {
+          id: group.id,
+          name: group.name, 
+          projectid: newProjectId,
+          after: '' 
+      };
+
+      const eventData = {
+          type: "group-update",
+          instance: browserInstance,
+          payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+      appEventInstance.send(eventDataJson);
+    }
+    
     function moveProjectToNewPosition(projectId, afterId) {
       const project = projects.value.find(p => p.id === projectId);
       if (project) {
@@ -380,14 +401,16 @@ export default {
     function dragOver(event) {
       event.preventDefault();
       const target = event.target.closest('.project-region, .project-region-selected');
-      if (target && target.id !== draggingProjectId.value) {
+      const isProjectDrag = event.dataTransfer.types.includes('projectId');
+      const isGroupDrag = event.dataTransfer.types.includes('groupId');
+      
+      if (target && (isGroupDrag || (isProjectDrag && target.id !== draggingProjectId.value))) {
         document.querySelectorAll('.drag-over').forEach(el => {
           el.classList.remove('drag-over');
         });
         target.classList.add('drag-over');
       }
     }
-
 
 
     return {

@@ -1,6 +1,13 @@
 <template>
-  <div class="groups-region" id="groups-region">
-    <div v-for="group in groups" :key="group.id" :id="group.id" class="group-region" @click="onProjectClick">
+  <div class="groups-region" id="groups-region" @dragover.prevent="dragOverParent" @drop="onDropParent" @dragleave="onDragLeaveParent">
+    <div v-for="group in groups" :key="group.id" :id="group.id" class="group-region" @click="onProjectClick"
+      draggable="true" 
+      @dragstart="onDragStart($event, group.id)"
+      @dragenter.prevent
+      @dragover="dragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
+      >
       <div class="group-header-region">
         <span v-if="!group.isEditing" class="group-header-text" @click="groupHeaderClick" :id="'gh-' + group.id">
           {{ group.name }}
@@ -64,6 +71,8 @@ export default {
     appEventInstance.onGroupAdd.push(onGroupAddEventRecieved);
     appEventInstance.onGroupDelete.push(onGroupDeleteEventRecieved);
     appEventInstance.onGroupUpdate.push(onGroupUpdateEventRecieved);
+    
+       const draggingGroupId = ref(null);
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -206,8 +215,7 @@ export default {
         }
         prevGroupId = group.id;
       }
-
-      addGroup(prevGroupId, true);
+      await addGroup(prevGroupId, true);
     }
 
 
@@ -244,9 +252,7 @@ export default {
 
     async function renameGroup(groupId) {
       try {
-
         const group = groups.value.find(group => group.id === groupId);
-
         const renameGroupFields = [
           { name: 'name', label: 'Group Name', default: group.name }
         ];
@@ -258,7 +264,6 @@ export default {
         if (result) {
           let prevGroupId;
           let currentGroupId;
-
           for (const group of groups.value) {
             if (group.id === groupId) {
               currentGroupId = group.id;
@@ -285,15 +290,16 @@ export default {
           appEventInstance.send(eventDataJson);
         }
 
+        
       } catch (error) {
         console.error('Error in modal:', error);
       }
     }
 
     async function moveUpGroup(groupId) {
-      let prevGroupId;
-      let prevPrevGroupId;
       let currentGroup;
+      let prevPrevGroupId = "";
+      let prevGroupId = "";
 
       for (const group of groups.value) {
         if (group.id === groupId) {
@@ -358,6 +364,122 @@ export default {
       appEventInstance.send(eventDataJson);
     }
 
+    
+    function onDragStart(event, groupId) {
+      draggingGroupId.value = groupId;
+      event.dataTransfer.effectAllowed = 'move';
+      
+      event.dataTransfer.setData('groupId', groupId);
+      event.dataTransfer.setData('sourceProjectId', props.projectId);
+
+      nextTick(() => {
+       event.target.classList.add('dragging');
+        event.target.style.opacity = '0.5';
+      });
+    }
+
+    function dragOver(event) {
+      event.preventDefault();
+      const target = event.target.closest('.group-region');
+      if (target && target.id !== draggingGroupId.value) {
+        document.querySelectorAll('.group-region').forEach(el => {
+          el.classList.remove('drag-over');
+        });
+        target.classList.add('drag-over');
+      }
+    }
+    
+    function dragOverParent(event) {
+        event.preventDefault();
+        document.querySelectorAll('.group-region').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    }
+
+    function onDragLeave(event) {
+      event.target.classList.remove('drag-over');
+    }
+    
+     function onDragLeaveParent(event) {
+        document.querySelectorAll('.group-region').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    }
+
+    function onDrop(event) {
+      event.preventDefault();
+      const target = event.target.closest('.group-region');
+      if (!target || !draggingGroupId.value) {
+        return;
+      }
+      
+      document.querySelectorAll('.group-region').forEach(el => {
+        el.classList.remove('drag-over');
+        el.classList.remove('dragging');
+        el.style.opacity = '1';
+      });
+
+      const draggedId = draggingGroupId.value;
+      const targetId = target.id;
+      draggingGroupId.value = null;
+
+      if (draggedId === targetId) return;
+
+      let newAfterId = '';
+      const draggingIndex = groups.value.findIndex(g => g.id === draggedId);
+      const targetIndex = groups.value.findIndex(g => g.id === targetId);
+
+      if (draggingIndex !== -1 && targetIndex !== -1) {
+        if (draggingIndex < targetIndex) {
+          newAfterId = targetId;
+        } else {
+          newAfterId = groups.value[targetIndex - 1]?.id || '';
+        }
+      }
+
+      moveGroupToNewPosition(draggedId, newAfterId, props.projectId);
+    }
+    
+    function onDropParent(event) {
+      event.preventDefault();
+      
+      const draggedId = draggingGroupId.value;
+      
+      if (!draggedId || event.dataTransfer.getData('groupId') !== draggedId) {
+          return;
+      }
+      
+      const lastGroup = groups.value.slice().reverse().find(g => g.id !== draggedId);
+      const newAfterId = lastGroup ? lastGroup.id : '';
+
+      moveGroupToNewPosition(draggedId, newAfterId, props.projectId);
+      
+      document.querySelectorAll('.group-region').forEach(el => {
+        el.classList.remove('dragging');
+        el.style.opacity = '1';
+      });
+      draggingGroupId.value = null;
+    }
+
+    function moveGroupToNewPosition(groupId, afterId, newProjectId) {
+      const group = groups.value.find(g => g.id === groupId) || {}; // Находим группу в текущем списке
+      
+      const eventPayload = {
+        id: groupId,
+        name: group.name,
+        projectid: newProjectId, 
+        after: afterId
+      };
+
+      const eventData = {
+        type: "group-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+      appEventInstance.send(eventDataJson);
+    }
 
     return {
       groups,
@@ -366,7 +488,19 @@ export default {
       addGroup,
       groupHeaderClick,
       saveGroupName,
-      cancelGroupName
+      cancelGroupName,
+      insertGroup,
+      renameGroup,
+      removeGroup,
+      moveUpGroup,
+      moveDownGroup,
+      onDragStart,
+      dragOver,
+      onDragLeave,
+      onDrop,
+      onDropParent,
+      onDragLeaveParent,
+      dragOverParent,
     }
   }
 }
