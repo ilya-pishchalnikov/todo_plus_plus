@@ -7,6 +7,7 @@
       @dragover="dragOver"
       @dragleave="onDragLeave"
       @drop="onDrop"
+      @dragend="onDragEnd"
       >
       <div class="group-header-region">
         <span v-if="!group.isEditing" class="group-header-text" @click="groupHeaderClick" :id="'gh-' + group.id">
@@ -461,6 +462,17 @@ export default {
       draggingGroupId.value = null;
     }
 
+    function onDragEnd(event) {
+      event.target.classList.remove('dragging');
+      event.target.style.opacity = '1';
+
+      document.querySelectorAll('.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+      });
+      
+      draggingGroupId.value = null;
+    }
+
     function moveGroupToNewPosition(groupId, afterId, newProjectId) {
       const group = groups.value.find(g => g.id === groupId) || {}; // Находим группу в текущем списке
       
@@ -501,6 +513,7 @@ export default {
       onDropParent,
       onDragLeaveParent,
       dragOverParent,
+      onDragEnd
     }
   }
 }

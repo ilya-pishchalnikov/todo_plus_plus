@@ -11,6 +11,7 @@
       @dragover="dragOver"
       @dragleave="onDragLeave"
       @drop="onDrop"
+      @dragend="onDragEnd"
       >
       <span>{{ project.name }}</span>
       <MoreOptionsButton :menu-items="projectMenuItems" :source-id="project.id" />
@@ -412,6 +413,16 @@ export default {
       }
     }
 
+    function onDragEnd(event) {
+      event.target.classList.remove('dragging');
+      event.target.style.opacity = '1';
+
+      document.querySelectorAll('.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+      });
+
+      draggingProjectId.value = null;
+    }
 
     return {
       projects,
@@ -422,7 +433,8 @@ export default {
       onDragStart,
       onDragLeave,
       onDrop,
-      dragOver
+      dragOver,
+      onDragEnd
     }
   }
 }
