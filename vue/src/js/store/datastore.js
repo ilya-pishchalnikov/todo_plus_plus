@@ -158,7 +158,7 @@ class IndexedDBDataStore {
             const request = store.getAll();
 
             request.onsuccess = () => resolve(request.result);
-            request.onerror = (event) => reject
+            request.onerror = (event) => reject(event.target.error);
         });
     }
 
@@ -183,6 +183,21 @@ class IndexedDBDataStore {
             request.onsuccess = () => resolve(request.result);
             request.onerror = (event) => reject(event.target.error);
         });
+    }
+
+    async getTasks() {
+        if (!this.db) await this.init();
+
+        const transaction = this.db.transaction(["task"], "readonly");
+        const store = transaction.objectStore("task");
+
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = (event) => reject(event.target.error);
+        }
+        );
     }
 
     /**

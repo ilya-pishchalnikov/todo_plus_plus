@@ -1,29 +1,20 @@
 <template>
-  <div class="groups-region" id="groups-region" @dragover.prevent="dragOverParent" @drop="onDropParent" @dragleave="onDragLeaveParent">
+  <div class="groups-region" id="groups-region" @dragover.prevent="dragOverParent" @drop="onDropParent"
+    @dragleave="onDragLeaveParent">
     <div v-for="group in groups" :key="group.id" :id="group.id" class="group-region" @click="onProjectClick"
-      draggable="true" 
-      @dragstart="onDragStart($event, group.id)"
-      @dragenter.prevent
-      @dragover="dragOver"
-      @dragleave="onDragLeave"
-      @drop="onDrop"
-      @dragend="onDragEnd"
-      >
+      draggable="true" @dragstart="onDragStart($event, group.id)" @dragenter.prevent @dragover="dragOver"
+      @dragleave="onDragLeave" @drop="onDrop" @dragend="onDragEnd">
       <div class="group-header-region">
         <span v-if="!group.isEditing" class="group-header-text" @click="groupHeaderClick" :id="'gh-' + group.id">
           {{ group.name }}
         </span>
-        <input v-else
-          :id="'ge-' + group.id"
-          v-model="group.name"
-          @blur="saveGroupName"
-          @keydown.enter ="saveGroupName"
+        <input v-else :id="'ge-' + group.id" v-model="group.name" @blur="saveGroupName" @keydown.enter="saveGroupName"
           @keydown.escape="cancelGroupName" />
         <div class="group-actions">
           <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
         </div>
       </div>
-      <TasksComponent :group-id="group.id"/>
+      <TasksComponent :group-id="group.id" />
     </div>
   </div>
   <AddItemComponent @add-item="addGroup" :text="'Add Group'" />
@@ -72,8 +63,8 @@ export default {
     appEventInstance.onGroupAdd.push(onGroupAddEventRecieved);
     appEventInstance.onGroupDelete.push(onGroupDeleteEventRecieved);
     appEventInstance.onGroupUpdate.push(onGroupUpdateEventRecieved);
-    
-       const draggingGroupId = ref(null);
+
+    const draggingGroupId = ref(null);
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -107,19 +98,19 @@ export default {
       group.isEditing = true;
 
       if (group) {
-          group.isEditing = true;
-          
-          await nextTick();
-          
-          const input = document.querySelector(`#ge-${groupId}`);
-          if (input) {
-              input.focus();
-              input.select();
-          }
+        group.isEditing = true;
+
+        await nextTick();
+
+        const input = document.querySelector(`#ge-${groupId}`);
+        if (input) {
+          input.focus();
+          input.select();
+        }
       }
     }
 
-    async function saveGroupName (e) {
+    async function saveGroupName(e) {
       const groupId = e.target.id.slice(3);
       let prevGroupId = "";
       let currentGroup;
@@ -152,7 +143,7 @@ export default {
       appEventInstance.send(eventDataJson);
     }
 
-    function cancelGroupName(e) { 
+    function cancelGroupName(e) {
       groups.value.forEach(group => group.isEditing = false);
     }
 
@@ -291,7 +282,7 @@ export default {
           appEventInstance.send(eventDataJson);
         }
 
-        
+
       } catch (error) {
         console.error('Error in modal:', error);
       }
@@ -365,16 +356,16 @@ export default {
       appEventInstance.send(eventDataJson);
     }
 
-    
+
     function onDragStart(event, groupId) {
       draggingGroupId.value = groupId;
       event.dataTransfer.effectAllowed = 'move';
-      
+
       event.dataTransfer.setData('groupId', groupId);
       event.dataTransfer.setData('sourceProjectId', props.projectId);
 
       nextTick(() => {
-       event.target.classList.add('dragging');
+        event.target.classList.add('dragging');
         event.target.style.opacity = '0.5';
       });
     }
@@ -389,40 +380,57 @@ export default {
         target.classList.add('drag-over');
       }
     }
-    
+
     function dragOverParent(event) {
-        event.preventDefault();
-        document.querySelectorAll('.group-region').forEach(el => {
-            el.classList.remove('drag-over');
-        });
+      event.preventDefault();
+      document.querySelectorAll('.group-region').forEach(el => {
+        el.classList.remove('drag-over');
+      });
     }
 
     function onDragLeave(event) {
       event.target.classList.remove('drag-over');
     }
-    
-     function onDragLeaveParent(event) {
-        document.querySelectorAll('.group-region').forEach(el => {
-            el.classList.remove('drag-over');
-        });
+
+    function onDragLeaveParent(event) {
+      document.querySelectorAll('.group-region').forEach(el => {
+        el.classList.remove('drag-over');
+      });
     }
 
     function onDrop(event) {
       event.preventDefault();
-      const target = event.target.closest('.group-region');
-      if (!target || !draggingGroupId.value) {
-        return;
-      }
-      
+      event.stopPropagation();
+
+      // Cleanup visual effects
       document.querySelectorAll('.group-region').forEach(el => {
         el.classList.remove('drag-over');
         el.classList.remove('dragging');
         el.style.opacity = '1';
       });
 
-      const draggedId = draggingGroupId.value;
-      const targetId = target.id;
-      draggingGroupId.value = null;
+      const draggedId = event.dataTransfer.getData('groupId');
+      const target = event.target.closest('.group-region');
+      const targetId = target ? target.id : '';
+
+      const taskId = event.dataTransfer.getData('taskId');
+      const dragType = event.dataTransfer.getData('dragType');
+
+      if (dragType === 'task' && taskId) {
+        // TASK DROP: Dropping a task onto a group container
+        const sourceGroupId = event.dataTransfer.getData('sourceGroupId');
+        const newGroupId = targetId; // Target group is the one we dropped onto
+
+        if (!newGroupId || newGroupId === sourceGroupId) {
+          // Dropped onto the task list itself, or the same group, handled by tasks.vue
+          return;
+        }
+
+        // Move task to new group (at the beginning, so afterId is '')
+        moveTaskToNewGroup(taskId, newGroupId, '');
+        draggingGroupId.value = null; // Important to reset if a group drag was happening (though it shouldn't be a task drag)
+        return;
+      }
 
       if (draggedId === targetId) return;
 
@@ -440,21 +448,28 @@ export default {
 
       moveGroupToNewPosition(draggedId, newAfterId, props.projectId);
     }
-    
+
     function onDropParent(event) {
       event.preventDefault();
-      
+
       const draggedId = draggingGroupId.value;
-      
-      if (!draggedId || event.dataTransfer.getData('groupId') !== draggedId) {
-          return;
+
+      const taskId = event.dataTransfer.getData('taskId');
+      const dragType = event.dataTransfer.getData('dragType');
+
+      if (dragType === 'task' && taskId) {
+        return;
       }
-      
+
+      if (!draggedId || event.dataTransfer.getData('groupId') !== draggedId) {
+        return;
+      }
+
       const lastGroup = groups.value.slice().reverse().find(g => g.id !== draggedId);
       const newAfterId = lastGroup ? lastGroup.id : '';
 
       moveGroupToNewPosition(draggedId, newAfterId, props.projectId);
-      
+
       document.querySelectorAll('.group-region').forEach(el => {
         el.classList.remove('dragging');
         el.style.opacity = '1';
@@ -469,22 +484,53 @@ export default {
       document.querySelectorAll('.drag-over').forEach(el => {
         el.classList.remove('drag-over');
       });
-      
+
       draggingGroupId.value = null;
     }
 
     function moveGroupToNewPosition(groupId, afterId, newProjectId) {
       const group = groups.value.find(g => g.id === groupId) || {}; // Находим группу в текущем списке
-      
+
       const eventPayload = {
         id: groupId,
         name: group.name,
-        projectid: newProjectId, 
+        projectid: newProjectId,
         after: afterId
       };
 
       const eventData = {
         type: "group-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+      appEventInstance.send(eventDataJson);
+    }
+
+    async function moveTaskToNewGroup (taskId, newGroupId, afterId) {
+
+      if (!taskId || !newGroupId) return;
+
+      let taskToMove;
+
+      await dataStore.getTasks()
+            .then(tasks => {
+              taskToMove = tasks.find(t => t.id === taskId);
+            });
+
+      if (!taskToMove) return;
+
+      const eventPayload = {
+        id: taskId,
+        text: taskToMove.text,
+        status: String(taskToMove.status),
+        group: newGroupId,
+        after: afterId
+      };
+
+      const eventData = {
+        type: "task-update",
         instance: browserInstance,
         payload: eventPayload
       };

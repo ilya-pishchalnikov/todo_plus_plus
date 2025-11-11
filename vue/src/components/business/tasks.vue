@@ -6,7 +6,15 @@
       'inprogress': task.status == 2,
       'done': task.status == 3,
       'cancelled': task.status == 4,
-    }">
+    }"
+      draggable="true"
+      @dragstart="onDragStart($event, task.id)"
+      @dragenter.prevent
+      @dragover="dragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
+      @dragend="onDragEnd"
+    >
       <img class="task-status-img" :src="getStatusIcon(task.status)" :id="'ti-' + task.id" @click="statusImgOnClick" />
       <span class="task-text" v-if="!task.isEditing" @click="taskTextClick" :id="'tt-'+task.id">
         {{ task.text }}
@@ -75,6 +83,8 @@ export default {
       { label: 'Move Up', action: moveUpTask },
       { label: 'Move Down', action: moveDownTask }
     ]);
+
+    const draggingTaskId = ref(null); // State for dragging task ID
 
 
     appEventInstance.onTaskAdd.push(onTaskAddEventRecieved);
@@ -319,7 +329,6 @@ export default {
     }
 
     async function moveUpTask(taskId) {
-      console.log("moveUpTask", taskId);
 
       let prevTaskId = "";
       let prevPrevTaskId = "";
@@ -349,9 +358,6 @@ export default {
       };
 
       const eventDataJson = JSON.stringify(eventData);
-
-      console.log("moveUpTask eventDataJson", eventDataJson);
-
       appEventInstance.send(eventDataJson);
     }
 
@@ -393,6 +399,189 @@ export default {
       appEventInstance.send(eventDataJson);
     }
 
+    // --- Drag and Drop Logic ---
+
+    function onDragStart(event, taskId) {
+      draggingTaskId.value = taskId;
+      event.dataTransfer.effectAllowed = 'move';
+      
+      const task = tasks.value.find(t => t.id === taskId);
+      
+      // Pass the task ID and its source group ID and project ID (which is not directly available, but not required for drag to Project)
+      event.dataTransfer.setData('taskId', taskId);
+      event.dataTransfer.setData('sourceGroupId', props.groupId);
+      // Data to identify if it's a task being dragged
+      event.dataTransfer.setData('dragType', 'task');
+
+      nextTick(() => {
+       event.target.classList.add('dragging');
+        event.target.style.opacity = '0.5';
+      });
+    }
+
+    function dragOver(event) {
+      event.preventDefault();
+      // Only allow drag-over effect if a task is being dragged
+      if (event.dataTransfer.getData('dragType') === 'task') {
+        const target = event.target.closest('.task-region');
+        if (target && target.id !== draggingTaskId.value) {
+          document.querySelectorAll('.task-region').forEach(el => {
+            el.classList.remove('drag-over');
+          });
+          target.classList.add('drag-over');
+        }
+      }
+    }
+
+    function onDragLeave(event) {
+      event.target.classList.remove('drag-over');
+    }
+
+    function onDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      document.querySelectorAll('.task-region').forEach(el => {
+        el.classList.remove('drag-over');
+        el.classList.remove('dragging');
+        el.style.opacity = '1';
+      });
+      
+      // Only proceed if it was a task drag-n-drop
+      if (event.dataTransfer.getData('dragType') !== 'task') {
+        draggingTaskId.value = null;
+        return;
+      }
+      
+      const draggedId = event.dataTransfer.getData('taskId');
+      const sourceGroupId = event.dataTransfer.getData('sourceGroupId');
+      const target = event.target.closest('.task-region');
+      const targetId = target ? target.id : '';
+      const newGroupId = props.groupId; // The component's current group ID
+
+      if (!draggedId) {
+        draggingTaskId.value = null;
+        return;
+      }
+      
+      // If dropping onto a task in the same group, calculate the new sequence position
+      if (targetId && sourceGroupId === newGroupId) {
+          if (draggedId === targetId) {
+              draggingTaskId.value = null;
+              return;
+          }
+          
+          let newAfterId = '';
+          const draggingIndex = tasks.value.findIndex(t => t.id === draggedId);
+          const targetIndex = tasks.value.findIndex(t => t.id === targetId);
+
+          if (draggingIndex !== -1 && targetIndex !== -1) {
+              if (draggingIndex < targetIndex) {
+                  // Dragging down: New 'after' is the target task ID
+                  newAfterId = targetId;
+              } else {
+                  // Dragging up: New 'after' is the ID of the task before the target task
+                  newAfterId = tasks.value[targetIndex - 1]?.id || '';
+              }
+          }
+          
+          moveTaskToNewPosition(draggedId, newAfterId, newGroupId);
+          
+      } else if (!targetId && sourceGroupId === newGroupId) {
+          // Dropping into the empty space at the bottom of the *same* group
+          const lastTask = tasks.value.slice().reverse().find(t => t.id !== draggedId);
+          const newAfterId = lastTask ? lastTask.id : '';
+          
+          if (newAfterId === draggedId) {
+              draggingTaskId.value = null;
+              return;
+          }
+          
+          moveTaskToNewPosition(draggedId, newAfterId, newGroupId);
+          
+      } else if (targetId && sourceGroupId !== newGroupId) {
+          // Dropping onto a task in a *different* group
+          // The dragged task should be inserted relative to the target task in the new group.
+          
+          let newAfterId = '';
+          const targetIndex = tasks.value.findIndex(t => t.id === targetId);
+
+          if (targetIndex !== -1) {
+              // New 'after' is the ID of the task before the target task in the *new* group.
+              newAfterId = tasks.value[targetIndex - 1]?.id || '';
+          }
+          
+          // Move to new group and position
+          moveTaskToNewPosition(draggedId, newAfterId, newGroupId);
+          
+      } else {
+          // This covers dropping into the empty space of an *empty* or *different* group
+          // If the group is empty, newAfterId will be ''. If not empty, dropping into the space below the last task is not handled here
+          // This case is primarily for an empty target group.
+          
+          if (tasks.value.length === 0) {
+              moveTaskToNewPosition(draggedId, '', newGroupId);
+          }
+          // Dropping onto the component boundary without hitting a task is tricky, 
+          // the 'groups.vue' component has a specific dragOverParent/onDropParent for this.
+      }
+      
+      draggingTaskId.value = null;
+    }
+
+    function onDragEnd(event) {
+      event.target.classList.remove('dragging');
+      event.target.style.opacity = '1';
+
+      document.querySelectorAll('.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+      });
+      
+      draggingTaskId.value = null;
+    }
+    
+    // Function to send the task-update event for position change
+    async function moveTaskToNewPosition(taskId, afterId, newGroupId) {
+      let taskToMove;
+      
+      // Need to fetch the task data, especially if it was dragged from a different group (tasks.value won't have it).
+      // A more robust solution would be to pass the task's text and status in dataTransfer, but for now, we rely on the dataStore for cross-group moves.
+      if (tasks.value.find(t => t.id === taskId)) {
+         taskToMove = tasks.value.find(t => t.id === taskId);
+      } else {
+          // Fetch task from DataStore if it's not in the current list (i.e., cross-group move)
+          await dataStore.getTasks()
+            .then(tasks => {
+              taskToMove = tasks.find(t => t.id === taskId);
+            });
+      }
+
+      if (!taskToMove) {
+          console.error("Task to move not found:", taskId);
+          return;
+      }
+      
+      const eventPayload = {
+        id: taskId,
+        text: taskToMove.text,
+        status: String(taskToMove.status),
+        group: newGroupId, 
+        after: afterId
+      };
+
+      const eventData = {
+        type: "task-update",
+        instance: browserInstance,
+        payload: eventPayload
+      };
+
+      const eventDataJson = JSON.stringify(eventData);
+      appEventInstance.send(eventDataJson);
+    }
+
+    // --- End Drag and Drop Logic ---
+
+
     async function onTaskAddEventRecieved(eventPayload) {
       if (eventPayload.group === props.groupId) {
         await dataStore.upsertTask(eventPayload);
@@ -424,7 +613,12 @@ export default {
       taskMenuItems,
       taskTextClick,
       saveTaskText,
-      cancelTaskText
+      cancelTaskText,
+      onDragStart,
+      dragOver,
+      onDragLeave,
+      onDrop,
+      onDragEnd
     }
   }
 }

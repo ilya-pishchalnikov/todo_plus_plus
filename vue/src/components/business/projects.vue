@@ -318,21 +318,35 @@ export default {
 
       const groupId = event.dataTransfer.getData('groupId');
       const sourceProjectId = event.dataTransfer.getData('sourceProjectId');
-      
-      if (groupId) {
-        const target = event.target.closest('.project-region, .project-region-selected');
-        const targetProjectId = target ? target.id : '';
-        
-        if (targetProjectId && targetProjectId !== sourceProjectId) {
-          moveGroupToNewProject(groupId, targetProjectId);
+      const taskId = event.dataTransfer.getData('taskId');
+
+      const target = event.target.closest('.project-region, .project-region-selected');
+      const targetProjectId = target ? target.id : '';
+
+      if (taskId) {
+        return; // ToDo: Handle task drop
+        // Task is being dropped onto a Project
+        if (targetProjectId && targetProjectId !== sourceProjectId) {          
+          dataStore.getTaskGroupsByProjectId(targetProjectId).then((groups) => {
+              groups.sort((a, b) => a.sequence - b.sequence);
+              const targetGroupId = groups.length > 0 ? groups[0].id : '';
+
+              moveTaskToNewProject(taskId, targetProjectId, targetGroupId);
+          });
         }
         
+        draggingProjectId.value = null;
+        return;
+      }
+      
+      if (groupId) {        
+        if (targetProjectId && targetProjectId !== sourceProjectId) {
+          moveGroupToNewProject(groupId, targetProjectId);
+        }        
         return;
       }
 
       const draggedId = event.dataTransfer.getData('projectId');
-      const target = event.target.closest('.project-region, .project-region-selected');
-      const targetId = target ? target.id : '';
       
       if (!draggedId || draggedId === targetId) {
         draggingProjectId.value = null;
@@ -377,6 +391,61 @@ export default {
       const eventDataJson = JSON.stringify(eventData);
       appEventInstance.send(eventDataJson);
     }
+
+    async function moveTaskToNewProject(taskId, newProjectId, newGroupId) {
+      let task;
+      let oldProjectName;
+      let oldGroupName;
+
+      await dataStore.getTasks().then((tasks) => {
+        task = tasks.find(task => task.id === taskId)
+      });
+
+      if (task.projectid === newProjectId) {
+        return;
+      }
+
+      await dataStore.getProjects().then((projects) => {
+        oldProjectName = projects.find(project => project.id === task.projectid)?.name;
+      });
+
+      await dataStore.getTaskGroups().then((groups) => {
+        oldGroupName = groups.find(group => group.id === task.groupid)?.name;
+      });
+
+      const groupEventPayload = {
+          id: window.crypto.randomUUID(),
+          name: "From " + oldProjectName + " " + oldGroupName,
+          projectid: newProjectId,
+          after: ''
+      }
+
+      const groupEventData = {
+          type: "group-add",
+          instance: browserInstance,
+          payload: groupEventPayload
+      };
+
+      const groupEventDataJson = JSON.stringify(groupEventData);
+      appEventInstance.send(groupEventDataJson);
+
+      // const eventPayload = {
+      //     id: task.id,
+      //     name: task.name, 
+      //     projectid: newProjectId,
+      //     groupid: newGroupId,
+      //     after: '' 
+      // };
+
+      // const eventData = {
+      //     type: "task-update",
+      //     instance: browserInstance,
+      //     payload: eventPayload
+      // };
+
+      // const eventDataJson = JSON.stringify(eventData);
+      // appEventInstance.send(eventDataJson);
+    }
     
     function moveProjectToNewPosition(projectId, afterId) {
       const project = projects.value.find(p => p.id === projectId);
@@ -404,8 +473,9 @@ export default {
       const target = event.target.closest('.project-region, .project-region-selected');
       const isProjectDrag = event.dataTransfer.types.includes('projectId');
       const isGroupDrag = event.dataTransfer.types.includes('groupId');
+      const isTaskDrag = event.dataTransfer.getData('dragType') === 'task';
       
-      if (target && (isGroupDrag || (isProjectDrag && target.id !== draggingProjectId.value))) {
+      if (target && (isGroupDrag || isTaskDrag || (isProjectDrag && target.id !== draggingProjectId.value))) {
         document.querySelectorAll('.drag-over').forEach(el => {
           el.classList.remove('drag-over');
         });
