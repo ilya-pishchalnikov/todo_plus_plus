@@ -146,7 +146,7 @@ func loginHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
 		http.SetCookie(responseWriter, &accessTokenCookie)
 
-		tokenString, err = auth.CreateJWTToken(jwtKey, loginPrompt.Login, 4*7*time.Hour)
+		tokenString, err = auth.CreateJWTToken(jwtKey, loginPrompt.Login, 24*7*time.Hour)
 		if err != nil {
 			http.Error(responseWriter, "Failed to create refresh jwt token", http.StatusInternalServerError)
 			return
