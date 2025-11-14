@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"todopp/store"
 	"todopp/util"
 )
@@ -28,12 +29,13 @@ func init() {
 	mime.AddExtensionType(".vue", "application/javascript")
 	mime.AddExtensionType(".js", "application/javascript")
 	mime.AddExtensionType(".css", "text/css")
+	mime.AddExtensionType(".webmanifest", "application/manifest+json")
 }
 
 // Handler for processing an empty GET request, which returns HTML containing the content of the 'content.txt' file
 func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
-	if request.Method != http.MethodGet {
+	if request.Method != http.MethodGet && request.Method != http.MethodHead {
 		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -44,6 +46,10 @@ func getMainHandler(responseWriter http.ResponseWriter, request *http.Request) {
 	}
 
 	filePath := filepath.Join(util.GetExecDir(), "vue/dist", requestPath)
+
+	if strings.HasSuffix(requestPath, ".webmanifest") {
+		responseWriter.Header().Set("Content-Type", "application/manifest+json")
+	}
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		filePath = filepath.Join(util.GetExecDir(), "vue/dist", "index.html")
@@ -240,4 +246,23 @@ func allDataHandler(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.Write(allUserDataJson)
 
+}
+
+func serveManifestHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodHead && request.Method != http.MethodGet {
+		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	manifestPath := filepath.Join(util.GetExecDir(), "vue/dist", "manifest.webmanifest")
+
+	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+		http.Error(responseWriter, "Manifest not found", http.StatusNotFound)
+		return
+	}
+
+	responseWriter.Header().Set("Content-Type", "application/manifest+json")
+	responseWriter.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
+
+	http.ServeFile(responseWriter, request, manifestPath)
 }

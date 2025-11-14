@@ -31,6 +31,9 @@ jobs:
         run: |
           cd vue/
           npm install
+          npm install register-service-worker
+          npm install vite-plugin-pwa -D
+          npm install workbox-precaching workbox-routing workbox-strategies workbox-expiration
           npm run build
           
       - name: Copy files
