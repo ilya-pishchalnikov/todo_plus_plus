@@ -324,18 +324,6 @@ export default {
       const targetProjectId = target ? target.id : '';
 
       if (taskId) {
-        return; // ToDo: Handle task drop
-        // Task is being dropped onto a Project
-        if (targetProjectId && targetProjectId !== sourceProjectId) {          
-          dataStore.getTaskGroupsByProjectId(targetProjectId).then((groups) => {
-              groups.sort((a, b) => a.sequence - b.sequence);
-              const targetGroupId = groups.length > 0 ? groups[0].id : '';
-
-              moveTaskToNewProject(taskId, targetProjectId, targetGroupId);
-          });
-        }
-        
-        draggingProjectId.value = null;
         return;
       }
       

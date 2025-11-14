@@ -47,7 +47,7 @@ async function fetchAllUserData() {
         }
     } catch (error) {
         console.error("Failed to fetch all data:", error);
-        return false;
+        return error.code === "ERR_NETWORK";
     }
     return true;
 }

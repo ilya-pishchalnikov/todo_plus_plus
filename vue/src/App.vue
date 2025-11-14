@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <LoginComponent v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
-    <MainLayout v-if="isAuthenticated" @signout="handleSignout" />
+    <LoginComponent v-if="!isAuthenticated && isLoaded" @login-success="handleLoginSuccess" />
+    <MainLayout v-if="isAuthenticated && isLoaded" @signout="handleSignout" />
   </div>
 </template>
 
@@ -22,6 +22,7 @@ export default {
   setup() {
 
     const isAuthenticated = ref(false);
+    const isLoaded = ref(false);
 
     const { instance: appEventInstance, isConnected: isConnected } = inject(AppEventKey);
     provide(DataStoreKey, DataStoreService);
@@ -44,7 +45,7 @@ export default {
         const response = await apiClient.get('/check_auth');
         return response.status === 200;
       } catch (error) {
-        return false;
+        return error.code === "ERR_NETWORK";
       }
     }
 
@@ -90,6 +91,7 @@ export default {
         appEventInstance.connect();
         await DataStoreService.init();
       }
+      isLoaded.value = true;
     });
 
     onUnmounted(() => {
@@ -100,6 +102,7 @@ export default {
 
     return {
       isAuthenticated,
+      isLoaded,
       handleLoginSuccess,
       handleSignout
     }
