@@ -88,8 +88,12 @@ export default {
     onMounted(async () => {
       isAuthenticated.value = await fetchIsAuthenticated();
       if (isAuthenticated.value) {
-        appEventInstance.connect();
         await DataStoreService.init();
+        await nextTick();
+        await appEventInstance.connect();
+        appEventInstance.onConnect.push(() => {
+          appEventInstance.resendEvents();
+        });
       }
       isLoaded.value = true;
     });

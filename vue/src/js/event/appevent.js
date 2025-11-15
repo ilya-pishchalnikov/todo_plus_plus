@@ -1,5 +1,5 @@
 import { guid, getBrowserInstanceId } from '../utils/utils.js';
-import IndexedDBEventStore from '../store/datastore.js';
+import { IndexedDBEventStore } from '../store/eventstore.js';
 
 export class AppEvent {
     eventSocket;
