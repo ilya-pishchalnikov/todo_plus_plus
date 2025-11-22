@@ -1,12 +1,13 @@
 <template>
-    <div class="add-button-container">
+    <div class="add-button-container" >
       <div 
         class="add-button" 
         @click="addItem"
         @mouseenter="startHover"
         @mouseleave="resetHover"
-        :class="{'expanded': isExpanded, 'expanding': isExpanding, 'collapsing': isCollapsing}"
+        :class="{'expanded': isExpanded, 'expanding': isExpanding, 'collapsing': isCollapsing, 'selected': isSelected}"
         :title="text"
+        ref="addButtonRef"
       >
         <span class="plus-sign">+</span>
         <span class="button-text" v-if="isExpanded">{{ text }}</span>
@@ -16,6 +17,8 @@
 
 <script>
 import { defineEmits, ref } from 'vue';
+import { scrollElementIntoView } from '../../js/utils/utils.js'
+
 
 export default {
   name: 'AddItemComponent',
@@ -29,6 +32,8 @@ export default {
     const isExpanded = ref(false);
     const isExpanding = ref(false);
     const isCollapsing = ref(false);
+    const isSelected = ref(false);
+    const addButtonRef = ref(null);
 
     let hoverTimeout = null;
     let collapseTimeout = null;
@@ -70,11 +75,40 @@ export default {
       }
     }
 
+    function select () {
+      isExpanding.value = true;
+      isSelected.value = true;
+      setTimeout(() => {
+        isExpanded.value = true;
+        isExpanding.value = false;
+      }, 300);
+    }
+
+    function deselect () {
+      isCollapsing.value = true;
+      isSelected.value = false;
+      setTimeout(() => {
+        isExpanded.value = false;
+        isCollapsing.value = false;
+      }, 300);
+    }
+
+    async function scrollTo() {
+      if(addButtonRef.value) {
+        scrollElementIntoView(addButtonRef.value);
+      }
+    }
+
     return {
-      addItem,
       isExpanded,
+      isSelected,
+      addButtonRef,
+      addItem,
       startHover,
-      resetHover
+      resetHover,
+      select,
+      deselect,
+      scrollTo
     }
   }
 }

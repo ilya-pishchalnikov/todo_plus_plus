@@ -4,16 +4,18 @@
     <div class="modal-content">
       <h2 class="modal-header">{{ title }}</h2>
 
-      <form @submit.prevent="handleSave" class="modal-form">
+      <form @submit.prevent="handleSave" @keydown="handleKeydown" class="modal-form" >
         
-        <div v-for="field in fields" :key="field.name" class="form-field">
+        <div v-for="(field, index) in fields" :key="field.name" class="form-field">
           <label :for="field.name">{{ field.label || field.name }}:</label>
           <input
             :id="field.name"
+            :autofocus="index === 0"
             class="input-field"
             type="text"
             v-model="formData[field.name]"
             required
+            ref="inputRef"
           />
         </div>
 
@@ -31,7 +33,7 @@
 </template>
 
 <script>
-import { defineProps, ref, watch, defineEmits } from 'vue';
+import { defineProps, ref, watch, defineEmits, nextTick } from 'vue';
 
 export default {
   name: 'DataInputPopup',
@@ -52,12 +54,21 @@ export default {
   setup(props, { emit }) {
     
     const formData = ref({});
+    const inputRef = ref([]);
+    const formRef = ref(null);
 
     watch(() => props.fields, (newFields) =>{
       formData.value = {};
       if (newFields && newFields.length > 0) {
             newFields.forEach(field => {
                 formData.value[field.name] = field.default;
+            });
+            nextTick(() => {
+                if (inputRef.value.length > 0 && inputRef.value[0]) {
+                    inputRef.value[0].focus();
+                } else {
+                    console.warn("Could not focus the first input element.");
+                }
             });
         } else {
              console.warn("DataInputPopup initialized with no fields defined."); 
@@ -73,10 +84,21 @@ export default {
       emit('cancel', null);
     }
 
+    function handleKeydown(event) {
+      if (event.key === "Enter") {
+        console.log("Enter key pressed");
+        event.preventDefault();
+        event.stopPropagation();
+        handleSave();
+      }
+    }
+
     return {
       formData,
+      inputRef,
       handleSave,
       handleCancel,
+      handleKeydown
     };
   }
 }

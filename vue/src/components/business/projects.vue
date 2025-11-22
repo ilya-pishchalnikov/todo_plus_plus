@@ -17,7 +17,7 @@
       <MoreOptionsButton :menu-items="projectMenuItems" :source-id="project.id" />
     </div>
   </div>
-  <AddItemComponent @add-item="addProject" :text="'Add Project'"  />
+  <AddItemComponent @add-item="addProject" :text="'Add Project'"  ref="addProjectComponent"/>
 </template>
 
 <script>
@@ -28,6 +28,7 @@ import { getBrowserInstanceId } from '../../js/utils/utils.js';
 import { AppEventKey } from '../../js/event/appevent-service.js';
 import { DataStoreKey } from '../../js/store/datastore-service.js';
 import MoreOptionsButton from '../common/more-options-button.vue';
+import { scrollElementIntoView } from '../../js/utils/utils.js'
 
 export default {
   name: 'ProjectsComponent',
@@ -54,6 +55,7 @@ export default {
     ]);
     const browserInstance = getBrowserInstanceId();
     const draggingProjectId = ref(null);
+    const addProjectComponent = ref(null);
 
     appEventInstance.onProjectAdd.push(onProjectAddEventRecieved);
     appEventInstance.onProjectDelete.push(onProjectDeleteEventRecieved);
@@ -67,6 +69,7 @@ export default {
     async function onProjectAddEventRecieved(eventPayload) {
       await dataStore.upsertProject(eventPayload);
       await getAllProjects();
+      addProjectComponent.value.deselect();
       selectedProjectId.value = eventPayload.id;
     }
 
@@ -94,6 +97,12 @@ export default {
     }, { immediate: true });
 
 
+    watch(selectedProjectId, () => {
+      nextTick(() => {
+        scrollToSelectedProject();
+      });
+    });
+
     async function getAllProjects() {
       if (isReady.value === false) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
@@ -114,7 +123,76 @@ export default {
     function onProjectClick(e) {
       const projectId = e.target.closest('.project-region, .project-region-selected').id;
       if (projectId) {
+        emit('project-clicked');
         selectedProjectId.value = projectId;
+      }
+    }
+
+    function selectPreviousProject() {
+      if (selectedProjectId.value) {
+        let previousProjectId = "";
+        for (let project of projects.value) {
+          if (project.id === selectedProjectId.value) {
+            break;
+          }
+          previousProjectId = project.id;
+        }
+        if (previousProjectId) {
+          selectedProjectId.value = previousProjectId;
+        }
+      }
+      else {
+        if (projects.value.length > 0) {
+          selectedProjectId.value = projects.value[projects.value.length - 1].id;
+          addProjectComponent.value.deselect();
+        }
+      }
+    }
+
+    function selectNextProject() {
+      if (selectedProjectId.value) {
+        let nextProjectId = "";
+        let currentProjectFound = false;
+        for (let project of projects.value) {
+          if (currentProjectFound) {
+            nextProjectId = project.id;
+            break;
+          }
+          if (project.id === selectedProjectId.value) {
+            currentProjectFound = true;
+          }
+        }
+        selectedProjectId.value = nextProjectId;
+        if (!nextProjectId) {
+          addProjectComponent.value.select();
+        }
+      }
+    }
+
+    function navigateIntoProject() {
+      if (selectedProjectId.value) {
+        return "group";
+      } else {
+        addProject();
+        return "project";
+      }
+    }
+
+    function editProject() {
+      if (selectedProjectId.value) {
+        renameProject(selectedProjectId.value);
+      } else {
+        addProject();
+      }
+    }
+
+    function scrollToSelectedProject() {
+      const element = document.getElementById(selectedProjectId.value); 
+      
+      if (element) {
+        scrollElementIntoView(element);
+      } else {
+        addProjectComponent.value.scrollTo();
       }
     }
 
@@ -138,7 +216,7 @@ export default {
             payload: eventPayload
           };
 
-          const eventDataJson = JSON.stringify(eventData);prevPrevProjectId
+          const eventDataJson = JSON.stringify(eventData);
 
           appEventInstance.send(eventDataJson);
         }
@@ -380,61 +458,6 @@ export default {
       appEventInstance.send(eventDataJson);
     }
 
-    async function moveTaskToNewProject(taskId, newProjectId, newGroupId) {
-      let task;
-      let oldProjectName;
-      let oldGroupName;
-
-      await dataStore.getTasks().then((tasks) => {
-        task = tasks.find(task => task.id === taskId)
-      });
-
-      if (task.projectid === newProjectId) {
-        return;
-      }
-
-      await dataStore.getProjects().then((projects) => {
-        oldProjectName = projects.find(project => project.id === task.projectid)?.name;
-      });
-
-      await dataStore.getTaskGroups().then((groups) => {
-        oldGroupName = groups.find(group => group.id === task.groupid)?.name;
-      });
-
-      const groupEventPayload = {
-          id: window.crypto.randomUUID(),
-          name: "From " + oldProjectName + " " + oldGroupName,
-          projectid: newProjectId,
-          after: ''
-      }
-
-      const groupEventData = {
-          type: "group-add",
-          instance: browserInstance,
-          payload: groupEventPayload
-      };
-
-      const groupEventDataJson = JSON.stringify(groupEventData);
-      appEventInstance.send(groupEventDataJson);
-
-      // const eventPayload = {
-      //     id: task.id,
-      //     name: task.name, 
-      //     projectid: newProjectId,
-      //     groupid: newGroupId,
-      //     after: '' 
-      // };
-
-      // const eventData = {
-      //     type: "task-update",
-      //     instance: browserInstance,
-      //     payload: eventPayload
-      // };
-
-      // const eventDataJson = JSON.stringify(eventData);
-      // appEventInstance.send(eventDataJson);
-    }
-    
     function moveProjectToNewPosition(projectId, afterId) {
       const project = projects.value.find(p => p.id === projectId);
       if (project) {
@@ -485,14 +508,20 @@ export default {
     return {
       projects,
       selectedProjectId,
+      addProjectComponent,
+      projectMenuItems,
       onProjectClick,
       addProject,
-      projectMenuItems,
       onDragStart,
       onDragLeave,
       onDrop,
       dragOver,
-      onDragEnd
+      onDragEnd,
+      selectPreviousProject,
+      selectNextProject,
+      navigateIntoProject,
+      scrollToSelectedProject,
+      editProject
     }
   }
 }

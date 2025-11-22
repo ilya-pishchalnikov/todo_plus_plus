@@ -62,6 +62,7 @@ apiClient.interceptors.response.use(
 
             if (isCheckAuth) {
                 console.log("Not performing window reload because the original request was check_auth.");
+                return Error("Unauthorized")
             } else {
                 console.log("Renew form for login form")
                 window.location.href = '/'; 

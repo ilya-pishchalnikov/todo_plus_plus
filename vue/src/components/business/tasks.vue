@@ -1,11 +1,12 @@
 <template>
-  <div class="task-list-region">
-    <div v-for="task in tasks" :id="task.id" :key="task.id" :class="{
+  <div class="task-list-region" @click="onTaskClick">
+    <div v-for="(task, index) in tasks" :id="task.id" :key="task.id" :class="{
       'task-region': true,
       'todo': task.status == 1,
       'inprogress': task.status == 2,
       'done': task.status == 3,
       'cancelled': task.status == 4,
+      'selected': index === selectedTaskIndex
     }"
       draggable="true"
       @dragstart="onDragStart($event, task.id)"
@@ -24,13 +25,14 @@
         v-model="task.text"
         @blur="saveTaskText"
         @keydown.enter="saveTaskText"
-        @keydown.escape="cancelTaskText" 
+        @keydown.escape="cancelTaskText"
+        @keydown="onTaskInputKeyDown"
       />
       <div class="tasks-actions">
         <MoreOptionsButton :menu-items="taskMenuItems" :source-id="task.id" />
       </div>
     </div>
-    <AddItemComponent @add-item="addTask" :text="'Add Task'" />
+    <AddItemComponent @add-item="addTask" :text="'Add Task'" ref="addTaskRef"/>
   </div>
 </template>
 
@@ -47,6 +49,7 @@ import todoIcon from '../../assets/todo.svg';
 import inprogressIcon from '../../assets/inprogress.svg';
 import doneIcon from '../../assets/done.svg';
 import cancelledIcon from '../../assets/cancelled.svg';
+import { scrollElementIntoView } from '../../js/utils/utils.js'
 
 export default {
   name: 'TasksComponent',
@@ -85,6 +88,9 @@ export default {
     ]);
 
     const draggingTaskId = ref(null); // State for dragging task ID
+    const selectedTaskIndex = ref(-1);
+    const addTaskRef = ref(null);
+    const isEditing = ref(false);
 
 
     appEventInstance.onTaskAdd.push(onTaskAddEventRecieved);
@@ -97,12 +103,166 @@ export default {
       }
     }, { immediate: true });
 
+    watch(selectedTaskIndex, (newIndex, oldIndex) => {
+      if (newIndex === -2 && oldIndex !== -2) {
+        addTaskRef.value.select();
+        addTaskRef.value.scrollTo();
+      } else if (newIndex !== -2 && oldIndex === -2) {
+        addTaskRef.value.deselect();      }
+
+      nextTick(() => {
+        scrollToSelectedTask();
+      });
+    });
+
+
+    function navigateIntoTask() {
+      if (tasks.value.length > 0) {
+        selectedTaskIndex.value = 0;
+        if (isEditing.value) {
+          tasks.value[selectedTaskIndex.value].isEditing = true;
+          nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});
+        }
+      } else {
+        selectedTaskIndex.value = -2;
+      }
+    }
+
+    function navigateOutTask() {
+      if (isEditing.value) {
+        if (selectedTaskIndex.value >= 0 && selectedTaskIndex.value <= tasks.value.length - 1) {
+          tasks.value[selectedTaskIndex.value].isEditing = false;
+        }
+      }
+      selectedTaskIndex.value = -1;
+      isEditing.value = false;
+    }
+
+    function navigateNextTask() {
+      if (selectedTaskIndex.value < tasks.value.length - 1 && selectedTaskIndex.value >= -1) {
+        if (isEditing.value) {
+          tasks.value[selectedTaskIndex.value].isEditing = false;
+          const taskId = tasks.value[selectedTaskIndex.value].id;
+          const text = document.getElementById('te-' + taskId).value;
+          saveTask(taskId, text);
+          selectedTaskIndex.value++;
+          tasks.value[selectedTaskIndex.value].isEditing = true;
+          nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});
+        } else {
+          selectedTaskIndex.value++;
+        }
+        return {moveToNextGroup: false, editing: isEditing.value};
+      } else if (selectedTaskIndex.value === -2){
+        selectedTaskIndex.value = -1;
+        const editing = isEditing.value;
+        isEditing.value = false;
+        return {moveToNextGroup: true, editing: editing};;
+      } else if (selectedTaskIndex.value === tasks.value.length - 1) {
+        if (tasks.value[selectedTaskIndex.value].isEditing) {
+          tasks.value[selectedTaskIndex.value].isEditing = false;
+          const taskId = tasks.value[selectedTaskIndex.value].id;
+          const text = document.getElementById('te-' + taskId).value;
+          saveTask(taskId, text);
+        } 
+        selectedTaskIndex.value = -2;
+        return {moveToNextGroup: false, editing: isEditing.value};
+      }
+    }
+
+    function navigatePreviousTask() {
+      if (selectedTaskIndex.value <= tasks.value.length - 1 && selectedTaskIndex.value >= 1) {
+        if (isEditing.value) {
+          tasks.value[selectedTaskIndex.value].isEditing = false;
+          const taskId = tasks.value[selectedTaskIndex.value].id;
+          const text = document.getElementById('te-' + taskId).value;
+          saveTask(taskId, text);
+          selectedTaskIndex.value--;
+          tasks.value[selectedTaskIndex.value].isEditing = true;
+          nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});
+        } else {
+          selectedTaskIndex.value--;
+        }
+        return {moveToPreviousGroup: false, editing: isEditing.value};
+      } else if (selectedTaskIndex.value === -2){
+        if (tasks.value.length > 0) {
+          selectedTaskIndex.value = tasks.value.length - 1;
+          if (isEditing.value) {
+            tasks.value[selectedTaskIndex.value].isEditing = true;
+            console.log(tasks.value[selectedTaskIndex.value]);
+            nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});          
+          }
+          return {moveToPreviousGroup: false, editing: isEditing.value};;
+        } else {
+          selectedTaskIndex.value = -1;
+          const editing = isEditing.value;
+          isEditing.value = false;
+          return {moveToPreviousGroup: true, editing: editing};
+        }
+      } else if (selectedTaskIndex.value === 0) {
+        const editing = isEditing.value;
+        isEditing.value = false;
+        if (editing) {
+          tasks.value[selectedTaskIndex.value].isEditing = false;
+          const taskId = tasks.value[selectedTaskIndex.value].id;
+          const text = document.getElementById('te-' + taskId).value;
+          saveTask(taskId, text);
+        }
+        selectedTaskIndex.value = -1;
+        return {moveToPreviousGroup: true, editing: editing};
+      }
+    }
+
+    function navigateAddTask() {
+      selectedTaskIndex.value = -2;      
+    }
+
+    async function editTask() {
+      if (selectedTaskIndex.value >= 0) { 
+        const task = tasks.value[selectedTaskIndex.value]
+        if (task) {
+          task.isEditing = true;
+          isEditing.value = true;
+          await nextTick();
+          document.getElementById("te-" + task.id).focus();
+        }
+      } else {
+        addTask();
+      }
+    }
+
+    function onTaskClick(event) {
+      event.stopPropagation();
+      const task = event.target;
+      selectedTaskIndex.value = tasks.value.findIndex(t => t.id === task.id);
+      emit('task-click', props.groupId);
+    }
+
+    function scrollToSelectedTask() {
+      let task;
+
+      if (selectedTaskIndex.value >= 0) {
+        task = document.getElementById(tasks.value[selectedTaskIndex.value].id); 
+      }
+      
+      if (task) {
+        scrollElementIntoView(task);
+      } else if (selectedTaskIndex.value === -2){
+        addTaskRef.value.scrollTo();
+      }
+    }
+
+
     function getStatusIcon(status) {
       return statusIcons[Number(status)] || statusIcons[1];
     }
 
 
     async function getAllTasks(groupId) {
+      let edinigTaskIndex;
+      if (tasks.value) {
+        edinigTaskIndex = tasks.value.findIndex(task => task.isEditing);
+      }
+
       if (isReady.value === false && groupId) {
         console.warn("TasksComponent: DataStore is not ready yet.");
       } else {
@@ -110,6 +270,11 @@ export default {
           tasks.value = storedTasks;
           tasks.value.sort((a, b) => a.sequence - b.sequence);
         });
+      }
+
+      if (edinigTaskIndex >= 0) {
+        tasks.value[edinigTaskIndex].isEditing = true;
+        nextTick(() => {document.getElementById("te-" + tasks.value[edinigTaskIndex].id).focus();});
       }
     }
 
@@ -151,18 +316,28 @@ export default {
     }
 
     async function taskTextClick(e) {
+      e.stopPropagation();
       const taskId = e.target.id.slice(3);
       const task = tasks.value.find(task => task.id === taskId);
       if (task) {
         task.isEditing = true;
+        isEditing.value = true;
+        selectedTaskIndex.value = tasks.value.findIndex(t => t.id === taskId);
+        emit('task-click', props.groupId);
         await nextTick();
         document.getElementById("te-" + taskId).focus();
       }
     }
 
     async function saveTaskText(e){
+      e.stopPropagation();
       const taskId = e.target.id.slice(3);
       const text = e.target.value;
+      saveTask(taskId, text);
+      isEditing.value = false;
+    }
+
+    function saveTask(taskId, text) {
       let prevTaskId = "";
       let task;
       for (const curTask of tasks.value) {
@@ -178,7 +353,7 @@ export default {
 
         const eventPayload = {
         id: task.id,
-          text: task.text,
+          text: text,
           group: task.group,
           status: String(task.status),
           after: prevTaskId,
@@ -201,6 +376,18 @@ export default {
       const task = tasks.value.find(task => task.id === taskId);
       if (task) {
         task.isEditing = false;
+      }
+      isEditing.value = false;
+      await getAllTasks(props.groupId);
+    }
+
+    function onTaskInputKeyDown(e) {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.stopPropagation();
+      }
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        cancelTaskText(e);
       }
     }
 
@@ -607,10 +794,13 @@ export default {
 
     return {
       tasks,
+      taskMenuItems,
+      selectedTaskIndex,
+      addTaskRef,
+      isEditing,
       addTask,
       statusImgOnClick,
       getStatusIcon,
-      taskMenuItems,
       taskTextClick,
       saveTaskText,
       cancelTaskText,
@@ -618,7 +808,15 @@ export default {
       dragOver,
       onDragLeave,
       onDrop,
-      onDragEnd
+      onDragEnd,
+      navigateIntoTask,
+      navigateOutTask,
+      navigateNextTask,
+      navigatePreviousTask,
+      navigateAddTask,
+      editTask,
+      onTaskClick,
+      onTaskInputKeyDown
     }
   }
 }

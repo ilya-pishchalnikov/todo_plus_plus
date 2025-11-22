@@ -1101,3 +1101,7 @@ button:active {
   background-color: rgba(0, 0, 0, 0.1);
   transform: scale(1.02);
 }
+
+.selected {
+    border: 2px solid var(--color-primary-red);
+}

@@ -1,9 +1,17 @@
 <template>
   <div class="groups-region" id="groups-region" @dragover.prevent="dragOverParent" @drop="onDropParent"
     @dragleave="onDragLeaveParent">
-    <div v-for="group in groups" :key="group.id" :id="group.id" class="group-region" @click="onProjectClick"
+    <div v-for="(group, index) in groups" :key="group.id" :id="group.id" 
+      :class="{
+        'group-region':true,
+        'selected': index == selectedGroupIndex && !isTaskSelected
+      }"
+      @click="onGroupClick"
       draggable="true" @dragstart="onDragStart($event, group.id)" @dragenter.prevent @dragover="dragOver"
-      @dragleave="onDragLeave" @drop="onDrop" @dragend="onDragEnd">
+      @dragleave="onDragLeave" 
+      @drop="onDrop" 
+      @dragend="onDragEnd"      
+      >
       <div class="group-header-region">
         <span v-if="!group.isEditing" class="group-header-text" @click="groupHeaderClick" :id="'gh-' + group.id">
           {{ group.name }}
@@ -14,10 +22,10 @@
           <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
         </div>
       </div>
-      <TasksComponent :group-id="group.id" />
+      <TasksComponent :group-id="group.id" ref="tasksRef" @task-click="onTaskClick"/>
     </div>
   </div>
-  <AddItemComponent @add-item="addGroup" :text="'Add Group'" />
+  <AddItemComponent v-if="projectId" @add-item="addGroup" :text="'Add Group'" ref="addGroupRef"/>
 </template>
 
 <script>
@@ -29,6 +37,7 @@ import { modalService } from '../../js/store/modal-service.js';
 import { getBrowserInstanceId } from '../../js/utils/utils.js';
 import { AppEventKey } from '../../js/event/appevent-service.js';
 import { DataStoreKey } from '../../js/store/datastore-service.js';
+import { scrollElementIntoView } from '../../js/utils/utils.js'
 
 export default {
   name: 'GroupsComponent',
@@ -65,6 +74,10 @@ export default {
     appEventInstance.onGroupUpdate.push(onGroupUpdateEventRecieved);
 
     const draggingGroupId = ref(null);
+    const selectedGroupIndex = ref(-1);
+    const addGroupRef = ref(null);
+    const tasksRef = ref([]);
+    const isTaskSelected = ref(false);
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -74,10 +87,139 @@ export default {
 
     watch(() => props.projectId, async (newProjectId) => {
       if (newProjectId) {
+        selectedGroupIndex.value = -1;
         await getAllGroups(props.projectId);
       }
     }, { immediate: true });
 
+    watch(selectedGroupIndex, (newIndex, oldIndex) => {
+      if (newIndex === -2 && oldIndex !== -2) {
+        addGroupRef.value.select();
+        addGroupRef.value.scrollTo();
+      } else if (newIndex !== -2 && oldIndex === -2) {
+        addGroupRef.value.deselect();
+      }
+
+      nextTick(() => {
+        scrollToSelectedGroup();
+      });
+    });
+
+    function navigateIntoGroup() {
+      if (groups.value.length > 0) {
+        selectedGroupIndex.value = 0;
+      } else {
+        selectedGroupIndex.value = -2; // Add New Group
+      }
+    }
+
+    function navigateOutGroup() {
+      selectedGroupIndex.value = -1;
+    }
+
+    function navigateIntoTask() {      
+      if(selectedGroupIndex.value >= 0) {
+        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+        taskRef.navigateIntoTask();
+        isTaskSelected.value = true;
+        return 'task';
+      } else {
+        return 'group';
+      }
+    }
+
+    function navigateOutTask() {
+      if(selectedGroupIndex.value >= 0) {
+        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+        taskRef.navigateOutTask();
+        isTaskSelected.value = false;
+        scrollToSelectedGroup();
+      }
+    }   
+
+    function navigateNextGroup() {
+      if (selectedGroupIndex.value < groups.value.length - 1 && selectedGroupIndex.value >= 0) {
+        selectedGroupIndex.value++;
+      } else if (selectedGroupIndex.value === groups.value.length - 1) {
+        selectedGroupIndex.value = -2; // Add New Group
+      }
+    }
+
+    function navigatePreviousGroup() {
+      if (selectedGroupIndex.value > 0) {
+        selectedGroupIndex.value--;
+      } else if (selectedGroupIndex.value === -2 && groups.value.length > 0) { // Add New Group
+        selectedGroupIndex.value = groups.value.length - 1;
+      }
+    }
+
+    function navigateNextTask() {
+      if(selectedGroupIndex.value >= 0) {
+        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+        const navigateResult = taskRef.navigateNextTask();
+        if (navigateResult.moveToNextGroup) {
+          if (selectedGroupIndex.value < groups.value.length - 1) {
+            selectedGroupIndex.value++;
+            const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+            taskRef.isEditing = navigateResult.editing;
+            taskRef.navigateIntoTask();
+          } else if (selectedGroupIndex.value === groups.value.length - 1) {
+            taskRef.isEditing = navigateResult.editing;
+            taskRef.navigateAddTask();
+          }
+        }
+      }
+    }
+
+    function navigatePreviousTask() {
+      if(selectedGroupIndex.value >= 0) {
+        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+        const navigateResult = taskRef.navigatePreviousTask();
+        if (navigateResult.moveToPreviousGroup) {
+          if(selectedGroupIndex.value > 0) {
+            selectedGroupIndex.value--;
+            const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+            taskRef.isEditing = navigateResult.editing;;
+            taskRef.navigateAddTask();
+          } else if (selectedGroupIndex.value === 0) {
+            taskRef.isEditing = navigateResult.editing;
+            taskRef.navigateIntoTask();
+          }
+        }
+      }
+    }
+
+    function editGroup() {
+      if (selectedGroupIndex.value >= 0) {
+        renameGroup(groups.value[selectedGroupIndex.value].id);
+      } else {
+        addGroup();
+      }
+    }
+
+    function editTask() {
+      if (selectedGroupIndex.value >= 0) {
+        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+        taskRef.editTask();
+      }
+    }
+
+    function onTaskClick(groupId) {
+      selectedGroupIndex.value = groups.value.findIndex(group => group.id === groupId);
+      isTaskSelected.value = true;
+      emit('task-click');
+    }
+
+    function onGroupAddEventRecieved(event) {
+      if (event.browserInstance === browserInstance) {
+        return;
+      }
+
+      if (event.projectId === props.projectId) {
+        getAllGroups(props.projectId);
+      }
+      selectedGroupIndex.value = -1;
+    }
 
     async function getAllGroups(projectId) {
       if (isReady.value === false && projectId) {
@@ -90,11 +232,40 @@ export default {
       }
     }
 
+    function scrollToSelectedGroup() {
+      let group;
+
+      if (selectedGroupIndex.value >= 0) {
+        group = document.getElementById(groups.value[selectedGroupIndex.value].id); 
+      }
+      
+      if (group) {
+        scrollElementIntoView(group);
+      } else if (selectedGroupIndex.value === -2){
+        addGroupRef.value.scrollTo();
+      }
+    }
+
+    function onGroupClick(event){
+      const groupId = event.target.closest('.group-region')?.id;
+      if (groupId) {
+        if (isTaskSelected.value && selectedGroupIndex.value >= 0) {
+          const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
+          taskRef.navigateOutTask();
+          isTaskSelected.value = false;
+        }
+        selectedGroupIndex.value = groups.value.findIndex(group => group.id === groupId);
+      }
+
+      emit('group-click');
+    }
+
     async function groupHeaderClick(e) {
       const groupId = e.target.id.slice(3);
 
       groups.value.forEach(group => group.isEditing = false);
       const group = groups.value.find(group => group.id === groupId);
+      selectedGroupIndex.value = groups.value.findIndex(g => g.id === groupId);
       group.isEditing = true;
 
       if (group) {
@@ -150,6 +321,7 @@ export default {
     async function onGroupAddEventRecieved(eventPayload) {
       await dataStore.upsertGroup(eventPayload);
       await getAllGroups(props.projectId);
+      selectedGroupIndex.value = groups.value.findIndex(group => group.id === eventPayload.id); 
     }
 
     async function onGroupDeleteEventRecieved(eventPayload) {
@@ -164,6 +336,10 @@ export default {
 
     async function addGroup(prevGroupId, isInsert = false) {
       try {
+        if (selectedGroupIndex.value !== -2) {
+          selectedGroupIndex.value = -2; // Add New Group
+        }
+
         const result = await modalService.openModal(
           "Add Group", groupFields
         );
@@ -542,9 +718,14 @@ export default {
     return {
       groups,
       groupMenuItems,
+      selectedGroupIndex,
+      isTaskSelected,
+      addGroupRef,
+      tasksRef,
       onGroupAddEventRecieved,
       addGroup,
       groupHeaderClick,
+      onGroupClick,
       saveGroupName,
       cancelGroupName,
       insertGroup,
@@ -559,7 +740,18 @@ export default {
       onDropParent,
       onDragLeaveParent,
       dragOverParent,
-      onDragEnd
+      onDragEnd,
+      navigateIntoGroup,
+      navigateOutGroup,
+      navigateNextGroup,
+      navigatePreviousGroup,
+      navigateIntoTask,
+      navigateOutTask,
+      navigateNextTask,
+      navigatePreviousTask,
+      editGroup,
+      editTask,
+      onTaskClick
     }
   }
 }
