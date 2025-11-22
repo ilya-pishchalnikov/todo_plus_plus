@@ -29,6 +29,7 @@ import SidebarLayout from './sidebar.vue';
 import ContentLayout from './content.vue';  
 import DataInputPopup from '../common/datainputpopup.vue';
 import { modalService } from '../../js/store/modal-service.js';
+import { useKeyboardNavigation } from '../../js/composables/useKeyboardNavigation.js';
 
 export default {
   name: 'MainLayout',
@@ -50,90 +51,7 @@ export default {
       emit('signout');
     };
 
-    function handleKeydown(event) {
-      if (event.key === 'Escape') {
-        if (modalService.state.isVisible) {
-          modalService.handleCancel();
-        } else {
-          navigateOut();
-        }
-      }
-
-      if(event.key === "ArrowUp") {
-        navigatePrevious();
-      }
- 
-      if(event.key === "ArrowDown") {
-        navigateNext();
-      }
-
-      if (event.key === "ArrowLeft") {
-        navigateOut();
-      }
-
-      if (event.key === "ArrowRight") {
-        navigateInto();
-      }
-
-      if (event.key === "Enter") {  
-        event.preventDefault();
-        navigateEdit();
-      }
-    }
-
-    function navigateInto() {
-      if (selectedElementType.value === "project") {
-        selectedElementType.value = sidebarRef.value.navigateIntoProject();
-        if (selectedElementType.value === "group") {
-          contentRef.value.navigateIntoGroup();
-        }
-      } else if (selectedElementType.value === "group") {
-        selectedElementType.value = contentRef.value.navigateIntoTask();
-      }
-
-    }
-
-    function navigateOut() {
-      if (selectedElementType.value === "group") {
-        contentRef.value.navigateOutGroup();
-        selectedElementType.value = "project";
-        sidebarRef.value.scrollToSelectedProject();
-      }
-      if (selectedElementType.value === "task") {
-        contentRef.value.navigateOutTask();
-        selectedElementType.value = "group";
-      }
-    }
-
-    function navigateNext() {
-      if (selectedElementType.value === "project") {
-        sidebarRef.value.selectNextProject();
-      } else if (selectedElementType.value === "group") {
-        contentRef.value.navigateNextGroup();
-      } else if (selectedElementType.value === "task") {
-        contentRef.value.navigateNextTask();
-      }
-    }
-
-    function navigatePrevious() {
-      if (selectedElementType.value === "project") {
-        sidebarRef.value.selectPreviousProject();
-      } else if (selectedElementType.value === "group") {
-        contentRef.value.navigatePreviousGroup();
-      }else if (selectedElementType.value === "task") {
-        contentRef.value.navigatePreviousTask();
-      }
-    }
-
-    function navigateEdit() {
-      if (selectedElementType.value === "project") {
-        sidebarRef.value.editProject();
-      } else if (selectedElementType.value === "group") {
-        contentRef.value.editGroup();
-      } else if (selectedElementType.value === "task") {
-        contentRef.value.editTask();
-      }
-    }
+    const { handleKeydown } = useKeyboardNavigation(selectedElementType, sidebarRef, contentRef);
 
     function handleProjectSelected(selectedProjectId) {
       projectId.value = selectedProjectId;
@@ -157,13 +75,16 @@ export default {
       selectedElementType.value = "task";
     }
 
-    onMounted(async () => {
+
+    onMounted(() => {
+      console.log("MainLayout mounted");
       window.addEventListener('keydown', handleKeydown);
     });
 
-    onUnmounted(async () => {
+    onUnmounted(() => {
+      console.log("MainLayout unmounted");
       window.removeEventListener('keydown', handleKeydown);
-    })
+    });
 
     return {
       handleSignout,
