@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 	"todopp/event"
 	"todopp/store"
@@ -24,10 +25,72 @@ type Client struct {
 	instance string
 }
 
-var clientInstanceMap = make(map[string]Client)
-var clientsMap = make(map[*Client]bool)
-var loginMap = make(map[string][]Client)
+type ConnectionManager struct {
+	mu                sync.RWMutex
+	clientsMap        map[*Client]bool
+	clientInstanceMap map[string]Client
+	loginMap          map[string][]Client
+}
+
+var manager = &ConnectionManager{
+	clientsMap:        make(map[*Client]bool),
+	clientInstanceMap: make(map[string]Client),
+	loginMap:          make(map[string][]Client),
+}
+
 var broadcast = make(chan []byte)
+
+func (cm *ConnectionManager) AddClient(client *Client) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	cm.clientsMap[client] = true
+	cm.clientInstanceMap[client.instance] = *client
+
+	if clients, exists := cm.loginMap[client.login]; exists {
+		instanceExists := false
+		for _, c := range clients {
+			if c.instance == client.instance {
+				instanceExists = true
+				break
+			}
+		}
+		if !instanceExists {
+			cm.loginMap[client.login] = append(clients, *client)
+		}
+	} else {
+		cm.loginMap[client.login] = []Client{*client}
+	}
+}
+
+func (cm *ConnectionManager) RemoveClient(client *Client) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	delete(cm.clientsMap, client)
+	delete(cm.clientInstanceMap, client.instance)
+
+	var newClients []Client
+	for _, loginClient := range cm.loginMap[client.login] {
+		if loginClient.instance != client.instance {
+			newClients = append(newClients, loginClient)
+		}
+	}
+	cm.loginMap[client.login] = newClients
+}
+
+func (cm *ConnectionManager) GetClientInstance(instance string) (Client, bool) {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	client, ok := cm.clientInstanceMap[instance]
+	return client, ok
+}
+
+func (cm *ConnectionManager) GetClientsByLogin(login string) []Client {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.loginMap[login]
+}
 
 func handleEventConnections(responseWriter http.ResponseWriter, request *http.Request) {
 	webSocket, err := upgrader.Upgrade(responseWriter, request, nil)
@@ -55,37 +118,14 @@ func handleEventConnections(responseWriter http.ResponseWriter, request *http.Re
 	}
 
 	client := &Client{conn: webSocket, send: make(chan []byte), login: login, instance: instance}
-	clientsMap[client] = true
-	clientInstanceMap[client.instance] = *client
 
-	if clients, exists := loginMap[client.login]; exists {
-		instanceExists := false
-		for _, c := range clients {
-			if c.instance == client.instance {
-				instanceExists = true
-				break
-			}
-		}
-		if !instanceExists {
-			loginMap[client.login] = append(clients, *client)
-		}
-	} else {
-		loginMap[client.login] = []Client{*client}
-	}
+	manager.AddClient(client)
 
 	log.Printf("WebSocket opened login %s, instance %s", client.login, client.instance)
 	for {
 		_, msg, err := webSocket.ReadMessage()
 		if err != nil {
-			delete(clientsMap, client)
-			delete(clientInstanceMap, client.instance)
-			var newClients []Client
-			for _, loginClient := range loginMap[client.login] {
-				if loginClient.instance != client.instance {
-					newClients = append(newClients, loginClient)
-				}
-			}
-			loginMap[client.login] = newClients
+			manager.RemoveClient(client)
 			log.Printf("WebSocket closed login %s, instance %s", client.login, client.instance)
 			return
 		}
@@ -118,7 +158,7 @@ func handleEventMessages() {
 
 		response := msg
 
-		clientInstance, keyExists := clientInstanceMap[appEvent.Instance]
+		clientInstance, keyExists := manager.GetClientInstance(appEvent.Instance)
 
 		if !keyExists {
 			continue
@@ -164,7 +204,7 @@ func handleEventMessages() {
 		eventStore.Response = string(response)
 		store.InsertEvent(db, eventStore)
 
-		clients := loginMap[login]
+		clients := manager.GetClientsByLogin(login)
 		if clients == nil {
 			continue
 		}
