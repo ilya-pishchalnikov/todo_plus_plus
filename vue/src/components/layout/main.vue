@@ -1,5 +1,5 @@
 <template>
-  <HeaderLayout @signout="handleSignout"/>
+  <HeaderLayout @signout="handleSignout" @search="handleSearch"/>
 
   <div class="content-wrapper">
     <SidebarLayout 
@@ -7,7 +7,7 @@
       @project-clicked="handleProjectClicked"
       ref="sidebarRef"
     />
-    <ContentLayout :project-id="projectId" @group-click="onGroupClick" @task-click="onTaskClick" ref="contentRef"/>
+    <ContentLayout :project-id="projectId" :search-term="searchTerm" @group-click="onGroupClick" @task-click="onTaskClick" ref="contentRef"/>
   </div>
 
   <div v-if="showPopup" class="popup" id="popup"></div>
@@ -46,6 +46,11 @@ export default {
     const selectedElementType = ref("project");
     const sidebarRef = ref(null);
     const contentRef = ref(null);
+    const searchTerm = ref("");
+
+    function handleSearch(term) {
+      searchTerm.value = term;
+    }
 
     function handleSignout() {
       emit('signout');
@@ -97,7 +102,9 @@ export default {
       projectId,
       selectedElementType,
       sidebarRef,
-      contentRef
+      contentRef,
+      searchTerm,
+      handleSearch
     }
   }
 }

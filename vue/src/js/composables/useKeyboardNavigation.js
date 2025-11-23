@@ -8,7 +8,6 @@ export function useKeyboardNavigation(
 ) {
 
     function handleKeydown(event) {
-        console.log(event.key);
         if (event.key === 'Escape') {
             if (modalService.state.isVisible) {
                 modalService.handleCancel();

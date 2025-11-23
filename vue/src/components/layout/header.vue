@@ -11,7 +11,7 @@
           <path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" 
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <input class="input-search" id="input-search" type="text" placeholder="Search tasks..." />
+        <input class="input-search" id="input-search" type="text" placeholder="Search tasks..." v-model="searchTerm" @input="onSearch" />
       </div>
 
       <!-- Выход -->
@@ -42,6 +42,11 @@ export default {
   setup(props, {emit}) {
 
     const { instance: appEventInstance } = inject(AppEventKey);
+    const searchTerm = ref("");
+
+    function onSearch() {
+      emit('search', searchTerm.value);
+    }
 
     const isConnected = ref(false);
 
@@ -75,7 +80,9 @@ export default {
     return {
       handleSignout,
       onlineIndicator,
-      onlineStyle
+      onlineStyle,
+      searchTerm,
+      onSearch
     }
   }
 }

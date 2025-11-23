@@ -2,6 +2,7 @@
   <div class="groups-region" id="groups-region" @dragover.prevent="dragOverParent" @drop="onDropParent"
     @dragleave="onDragLeaveParent">
     <div v-for="(group, index) in groups" :key="group.id" :id="group.id" 
+      v-show="isGroupVisible(group.id)"
       :class="{
         'group-region':true,
         'selected': index == selectedGroupIndex && !isTaskSelected
@@ -22,7 +23,7 @@
           <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
         </div>
       </div>
-      <TasksComponent :group-id="group.id" ref="tasksRef" @task-click="onTaskClick"/>
+      <TasksComponent :group-id="group.id" :search-term="searchTerm" ref="tasksRef" @task-click="onTaskClick" @visible-count-change="onTaskVisibleCountChange($event, group.id)"/>
     </div>
   </div>
   <AddItemComponent v-if="projectId" @add-item="addGroup" :text="'Add Group'" ref="addGroupRef"/>
@@ -45,6 +46,10 @@ export default {
     projectId: {
       type: String,
       required: true,
+    },
+    searchTerm: {
+      type: String,
+      default: ""
     }
   },
   components: {
@@ -78,6 +83,18 @@ export default {
     const addGroupRef = ref(null);
     const tasksRef = ref([]);
     const isTaskSelected = ref(false);
+    const visibleTaskCounts = ref({});
+
+    function onTaskVisibleCountChange(count, groupId) {
+      visibleTaskCounts.value[groupId] = count;
+    }
+
+    function isGroupVisible(groupId) {
+      if (!props.searchTerm){
+        return true;
+      }
+      return visibleTaskCounts.value[groupId] > 0;
+    }
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -751,7 +768,10 @@ export default {
       navigatePreviousTask,
       editGroup,
       editTask,
-      onTaskClick
+      editTask,
+      onTaskClick,
+      onTaskVisibleCountChange,
+      isGroupVisible
     }
   }
 }

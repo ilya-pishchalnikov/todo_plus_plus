@@ -1,6 +1,6 @@
 <template>
     <main class="main-content">
-      <GroupsComponent :project-id="projectId" @group-click="onGroupClick" @task-click="onTaskClick" ref="groupsRef"/>
+      <GroupsComponent :project-id="projectId" :search-term="searchTerm" @group-click="onGroupClick" @task-click="onTaskClick" ref="groupsRef"/>
     </main>
 </template>
 
@@ -16,6 +16,10 @@ export default {
     projectId: {
       type: String,
       required: true,
+    },
+    searchTerm: {
+      type: String,
+      default: ""
     }
   },
 

@@ -1,6 +1,6 @@
 <template>
   <div class="task-list-region" @click="onTaskClick">
-    <div v-for="(task, index) in tasks" :id="task.id" :key="task.id" :class="{
+    <div v-for="(task, index) in filteredTasks" :id="task.id" :key="task.id" :class="{
       'task-region': true,
       'todo': task.status == 1,
       'inprogress': task.status == 2,
@@ -17,8 +17,7 @@
       @dragend="onDragEnd"
     >
       <img class="task-status-img" :src="getStatusIcon(task.status)" :id="'ti-' + task.id" @click="statusImgOnClick" />
-      <span class="task-text" v-if="!task.isEditing" @click="taskTextClick" :id="'tt-'+task.id">
-        {{ task.text }}
+      <span class="task-text" v-if="!task.isEditing" @click="taskTextClick" :id="'tt-'+task.id" v-html="highlightText(task.text)">
       </span>
       <input v-else 
         :id="'te-'+task.id"
@@ -57,6 +56,10 @@ export default {
     groupId: {
       type: String,
       required: true,
+    },
+    searchTerm: {
+      type: String,
+      default: ""
     }
   }, 
   components: {
@@ -96,6 +99,24 @@ export default {
     appEventInstance.onTaskAdd.push(onTaskAddEventRecieved);
     appEventInstance.onTaskUpdate.push(onTaskUpdateEventReceived);
     appEventInstance.onTaskDelete.push(onTaskDeleteEventReceived);
+
+    const filteredTasks = computed(() => {
+      if (!props.searchTerm) {
+        return tasks.value;
+      }
+      const term = props.searchTerm.toLowerCase();
+      return tasks.value.filter(task => task.text.toLowerCase().includes(term));
+    });
+
+    watch(filteredTasks, (newTasks) => {
+      emit('visible-count-change', newTasks.length);
+    }, { immediate: true });
+
+    function highlightText(text) {
+      if (!props.searchTerm) return text;
+      const regex = new RegExp(`(${props.searchTerm})`, 'gi');
+      return text.replace(regex, '<span class="highlight">$1</span>');
+    }
 
     watch(isReady, (isReady) => {
       if (isReady === true) {
@@ -798,6 +819,8 @@ export default {
       selectedTaskIndex,
       addTaskRef,
       isEditing,
+      filteredTasks,
+      highlightText,
       addTask,
       statusImgOnClick,
       getStatusIcon,
