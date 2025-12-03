@@ -421,11 +421,13 @@ func tokenRenewHandler(responseWriter http.ResponseWriter, request *http.Request
 	cookie, err := request.Cookie("jwt-refresh-token")
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
+		return
 	}
 
 	login, err := auth.VerifyJwtAndGetLogin(cookie.Value)
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusUnauthorized)
+		return
 	}
 
 	jwtKey, err := auth.GetJwtKey()
