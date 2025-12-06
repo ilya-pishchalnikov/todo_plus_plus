@@ -124,118 +124,8 @@ export default {
       }
     }, { immediate: true });
 
-    watch(selectedTaskIndex, (newIndex, oldIndex) => {
-      if (newIndex === -2 && oldIndex !== -2) {
-        addTaskRef.value.select();
-        addTaskRef.value.scrollTo();
-      } else if (newIndex !== -2 && oldIndex === -2) {
-        addTaskRef.value.deselect();      }
-
-      nextTick(() => {
-        scrollToSelectedTask();
-      });
-    });
 
 
-    function navigateIntoTask() {
-      if (tasks.value.length > 0) {
-        selectedTaskIndex.value = 0;
-        if (isEditing.value) {
-          tasks.value[selectedTaskIndex.value].isEditing = true;
-          nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});
-        }
-      } else {
-        selectedTaskIndex.value = -2;
-      }
-    }
-
-    function navigateOutTask() {
-      if (isEditing.value) {
-        if (selectedTaskIndex.value >= 0 && selectedTaskIndex.value <= tasks.value.length - 1) {
-          tasks.value[selectedTaskIndex.value].isEditing = false;
-        }
-      }
-      selectedTaskIndex.value = -1;
-      isEditing.value = false;
-    }
-
-    function navigateNextTask() {
-      if (selectedTaskIndex.value < tasks.value.length - 1 && selectedTaskIndex.value >= -1) {
-        if (isEditing.value) {
-          tasks.value[selectedTaskIndex.value].isEditing = false;
-          const taskId = tasks.value[selectedTaskIndex.value].id;
-          const text = document.getElementById('te-' + taskId).value;
-          saveTask(taskId, text);
-          selectedTaskIndex.value++;
-          tasks.value[selectedTaskIndex.value].isEditing = true;
-          nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});
-        } else {
-          selectedTaskIndex.value++;
-        }
-        return {moveToNextGroup: false, editing: isEditing.value};
-      } else if (selectedTaskIndex.value === -2){
-        selectedTaskIndex.value = -1;
-        const editing = isEditing.value;
-        isEditing.value = false;
-        return {moveToNextGroup: true, editing: editing};;
-      } else if (selectedTaskIndex.value === tasks.value.length - 1) {
-        if (tasks.value[selectedTaskIndex.value].isEditing) {
-          tasks.value[selectedTaskIndex.value].isEditing = false;
-          const taskId = tasks.value[selectedTaskIndex.value].id;
-          const text = document.getElementById('te-' + taskId).value;
-          saveTask(taskId, text);
-        } 
-        selectedTaskIndex.value = -2;
-        return {moveToNextGroup: false, editing: isEditing.value};
-      }
-    }
-
-    function navigatePreviousTask() {
-      if (selectedTaskIndex.value <= tasks.value.length - 1 && selectedTaskIndex.value >= 1) {
-        if (isEditing.value) {
-          tasks.value[selectedTaskIndex.value].isEditing = false;
-          const taskId = tasks.value[selectedTaskIndex.value].id;
-          const text = document.getElementById('te-' + taskId).value;
-          saveTask(taskId, text);
-          selectedTaskIndex.value--;
-          tasks.value[selectedTaskIndex.value].isEditing = true;
-          nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});
-        } else {
-          selectedTaskIndex.value--;
-        }
-        return {moveToPreviousGroup: false, editing: isEditing.value};
-      } else if (selectedTaskIndex.value === -2){
-        if (tasks.value.length > 0) {
-          selectedTaskIndex.value = tasks.value.length - 1;
-          if (isEditing.value) {
-            tasks.value[selectedTaskIndex.value].isEditing = true;
-            console.log(tasks.value[selectedTaskIndex.value]);
-            nextTick(() => {document.getElementById("te-" + tasks.value[selectedTaskIndex.value].id).focus();});          
-          }
-          return {moveToPreviousGroup: false, editing: isEditing.value};;
-        } else {
-          selectedTaskIndex.value = -1;
-          const editing = isEditing.value;
-          isEditing.value = false;
-          return {moveToPreviousGroup: true, editing: editing};
-        }
-      } else if (selectedTaskIndex.value === 0) {
-        const editing = isEditing.value;
-        isEditing.value = false;
-        if (editing) {
-          tasks.value[selectedTaskIndex.value].isEditing = false;
-          const taskId = tasks.value[selectedTaskIndex.value].id;
-          const text = document.getElementById('te-' + taskId).value;
-          saveTask(taskId, text);
-        }
-        selectedTaskIndex.value = -1;
-        return {moveToPreviousGroup: true, editing: editing};
-      }
-    }
-
-    function navigateAddTask() {
-      selectedTaskIndex.value = -2;      
-    }
 
     async function editTask() {
       if (selectedTaskIndex.value >= 0) { 
@@ -251,27 +141,13 @@ export default {
       }
     }
 
+
     function onTaskClick(event) {
       event.stopPropagation();
       const task = event.target;
       selectedTaskIndex.value = tasks.value.findIndex(t => t.id === task.id);
       emit('task-click', props.groupId);
     }
-
-    function scrollToSelectedTask() {
-      let task;
-
-      if (selectedTaskIndex.value >= 0) {
-        task = document.getElementById(tasks.value[selectedTaskIndex.value].id); 
-      }
-      
-      if (task) {
-        scrollElementIntoView(task);
-      } else if (selectedTaskIndex.value === -2){
-        addTaskRef.value.scrollTo();
-      }
-    }
-
 
     function getStatusIcon(status) {
       return statusIcons[Number(status)] || statusIcons[1];
@@ -815,12 +691,12 @@ export default {
 
     return {
       tasks,
-      taskMenuItems,
+      filteredTasks,
       selectedTaskIndex,
       addTaskRef,
-      isEditing,
-      filteredTasks,
+      taskMenuItems,
       highlightText,
+      onTaskAddEventRecieved,
       addTask,
       statusImgOnClick,
       getStatusIcon,
@@ -832,11 +708,6 @@ export default {
       onDragLeave,
       onDrop,
       onDragEnd,
-      navigateIntoTask,
-      navigateOutTask,
-      navigateNextTask,
-      navigatePreviousTask,
-      navigateAddTask,
       editTask,
       onTaskClick,
       onTaskInputKeyDown

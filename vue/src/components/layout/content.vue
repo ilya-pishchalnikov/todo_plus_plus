@@ -27,68 +27,8 @@ export default {
 
     const groupsRef = ref(null);
 
-    function navigateIntoGroup() {
-      if (groupsRef.value) {
-        groupsRef.value.navigateIntoGroup();
-      }
-    }
-
-    function navigateOutGroup() {
-      if (groupsRef.value) {
-        groupsRef.value.navigateOutGroup();
-      }
-    }
-
-    function navigateNextGroup() {
-      if (groupsRef.value) {
-        groupsRef.value.navigateNextGroup();
-      }
-    }
-
-    function navigatePreviousGroup() {
-      if (groupsRef.value) {
-        groupsRef.value.navigatePreviousGroup();
-      }
-    }
-
-    function navigateIntoTask() {
-      if (groupsRef.value) {
-        return groupsRef.value.navigateIntoTask();
-      }
-    }
-
-    function navigateOutTask() {
-      if (groupsRef.value) {
-        groupsRef.value.navigateOutTask();
-      }
-    }
-
-    function navigateNextTask() {
-      if (groupsRef.value) {
-        groupsRef.value.navigateNextTask();
-      }
-    }
-
-    function navigatePreviousTask() {
-      if (groupsRef.value) {
-        groupsRef.value.navigatePreviousTask();
-      }
-    }
-
     function onGroupClick(group) {
       emit('group-click', group);
-    }
-
-    function editGroup (){
-      if (groupsRef.value) {
-        groupsRef.value.editGroup();
-      }
-    }
-
-    function editTask (){
-      if (groupsRef.value) {
-        groupsRef.value.editTask();
-      }
     }
 
     function onTaskClick() {
@@ -97,17 +37,7 @@ export default {
 
     return {
       groupsRef,
-      navigateIntoGroup,
-      navigateOutGroup,
-      navigateNextGroup,
-      navigatePreviousGroup,
-      navigateIntoTask,
-      navigateOutTask,
       onGroupClick,
-      navigateNextTask,
-      navigatePreviousTask,
-      editGroup,
-      editTask,
       onTaskClick
     }
   }

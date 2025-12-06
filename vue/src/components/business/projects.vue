@@ -97,12 +97,6 @@ export default {
     }, { immediate: true });
 
 
-    watch(selectedProjectId, () => {
-      nextTick(() => {
-        scrollToSelectedProject();
-      });
-    });
-
     async function getAllProjects() {
       if (isReady.value === false) {
         console.warn("ProjectsComponent: DataStore is not ready yet.");
@@ -125,74 +119,6 @@ export default {
       if (projectId) {
         emit('project-clicked');
         selectedProjectId.value = projectId;
-      }
-    }
-
-    function selectPreviousProject() {
-      if (selectedProjectId.value) {
-        let previousProjectId = "";
-        for (let project of projects.value) {
-          if (project.id === selectedProjectId.value) {
-            break;
-          }
-          previousProjectId = project.id;
-        }
-        if (previousProjectId) {
-          selectedProjectId.value = previousProjectId;
-        }
-      }
-      else {
-        if (projects.value.length > 0) {
-          selectedProjectId.value = projects.value[projects.value.length - 1].id;
-          addProjectComponent.value.deselect();
-        }
-      }
-    }
-
-    function selectNextProject() {
-      if (selectedProjectId.value) {
-        let nextProjectId = "";
-        let currentProjectFound = false;
-        for (let project of projects.value) {
-          if (currentProjectFound) {
-            nextProjectId = project.id;
-            break;
-          }
-          if (project.id === selectedProjectId.value) {
-            currentProjectFound = true;
-          }
-        }
-        selectedProjectId.value = nextProjectId;
-        if (!nextProjectId) {
-          addProjectComponent.value.select();
-        }
-      }
-    }
-
-    function navigateIntoProject() {
-      if (selectedProjectId.value) {
-        return "group";
-      } else {
-        addProject();
-        return "project";
-      }
-    }
-
-    function editProject() {
-      if (selectedProjectId.value) {
-        renameProject(selectedProjectId.value);
-      } else {
-        addProject();
-      }
-    }
-
-    function scrollToSelectedProject() {
-      const element = document.getElementById(selectedProjectId.value); 
-      
-      if (element) {
-        scrollElementIntoView(element);
-      } else {
-        addProjectComponent.value.scrollTo();
       }
     }
 
@@ -516,12 +442,7 @@ export default {
       onDragLeave,
       onDrop,
       dragOver,
-      onDragEnd,
-      selectPreviousProject,
-      selectNextProject,
-      navigateIntoProject,
-      scrollToSelectedProject,
-      editProject
+      onDragEnd
     }
   }
 }

@@ -24,34 +24,9 @@ export default {
       emit('project-clicked');
     }
 
-    function selectPreviousProject() {
-      projectsRef.value.selectPreviousProject();
-    }
-
-    function selectNextProject() {
-      projectsRef.value.selectNextProject();
-    }
-
-    function navigateIntoProject() {
-      return projectsRef.value.navigateIntoProject();
-    }
-
-    function scrollToSelectedProject() {
-      projectsRef.value.scrollToSelectedProject();
-    }
-
-    function editProject() {
-      projectsRef.value.editProject();
-    }
-
     return {
       handleProjectSelected,
       handleProjectClicked,
-      selectPreviousProject,
-      selectNextProject,
-      navigateIntoProject,
-      scrollToSelectedProject,
-      editProject,
       projectsRef
     }
 

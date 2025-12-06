@@ -29,7 +29,6 @@ import SidebarLayout from './sidebar.vue';
 import ContentLayout from './content.vue';  
 import DataInputPopup from '../common/datainputpopup.vue';
 import { modalService } from '../../js/store/modal-service.js';
-import { useKeyboardNavigation } from '../../js/composables/useKeyboardNavigation.js';
 
 export default {
   name: 'MainLayout',
@@ -56,19 +55,11 @@ export default {
       emit('signout');
     };
 
-    const { handleKeydown } = useKeyboardNavigation(selectedElementType, sidebarRef, contentRef);
-
     function handleProjectSelected(selectedProjectId) {
       projectId.value = selectedProjectId;
     }
 
     function handleProjectClicked() {
-      if (selectedElementType.value = "task") {
-        contentRef.value.navigateOutTask();
-        contentRef.value.navigateOutGroup();
-      } else if (selectedElementType.value === "group") {
-        contentRef.value.navigateOutGroup();
-      }
       selectedElementType.value = "project";
     }
 
@@ -79,17 +70,6 @@ export default {
     function onTaskClick() {
       selectedElementType.value = "task";
     }
-
-
-    onMounted(() => {
-      console.log("MainLayout mounted");
-      window.addEventListener('keydown', handleKeydown);
-    });
-
-    onUnmounted(() => {
-      console.log("MainLayout unmounted");
-      window.removeEventListener('keydown', handleKeydown);
-    });
 
     return {
       handleSignout,

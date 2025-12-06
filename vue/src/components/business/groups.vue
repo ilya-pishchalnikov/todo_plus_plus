@@ -116,95 +116,7 @@ export default {
       } else if (newIndex !== -2 && oldIndex === -2) {
         addGroupRef.value.deselect();
       }
-
-      nextTick(() => {
-        scrollToSelectedGroup();
-      });
     });
-
-    function navigateIntoGroup() {
-      if (groups.value.length > 0) {
-        selectedGroupIndex.value = 0;
-      } else {
-        selectedGroupIndex.value = -2; // Add New Group
-      }
-    }
-
-    function navigateOutGroup() {
-      selectedGroupIndex.value = -1;
-    }
-
-    function navigateIntoTask() {      
-      if(selectedGroupIndex.value >= 0) {
-        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-        taskRef.navigateIntoTask();
-        isTaskSelected.value = true;
-        return 'task';
-      } else {
-        return 'group';
-      }
-    }
-
-    function navigateOutTask() {
-      if(selectedGroupIndex.value >= 0) {
-        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-        taskRef.navigateOutTask();
-        isTaskSelected.value = false;
-        scrollToSelectedGroup();
-      }
-    }   
-
-    function navigateNextGroup() {
-      if (selectedGroupIndex.value < groups.value.length - 1 && selectedGroupIndex.value >= 0) {
-        selectedGroupIndex.value++;
-      } else if (selectedGroupIndex.value === groups.value.length - 1) {
-        selectedGroupIndex.value = -2; // Add New Group
-      }
-    }
-
-    function navigatePreviousGroup() {
-      if (selectedGroupIndex.value > 0) {
-        selectedGroupIndex.value--;
-      } else if (selectedGroupIndex.value === -2 && groups.value.length > 0) { // Add New Group
-        selectedGroupIndex.value = groups.value.length - 1;
-      }
-    }
-
-    function navigateNextTask() {
-      if(selectedGroupIndex.value >= 0) {
-        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-        const navigateResult = taskRef.navigateNextTask();
-        if (navigateResult.moveToNextGroup) {
-          if (selectedGroupIndex.value < groups.value.length - 1) {
-            selectedGroupIndex.value++;
-            const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-            taskRef.isEditing = navigateResult.editing;
-            taskRef.navigateIntoTask();
-          } else if (selectedGroupIndex.value === groups.value.length - 1) {
-            taskRef.isEditing = navigateResult.editing;
-            taskRef.navigateAddTask();
-          }
-        }
-      }
-    }
-
-    function navigatePreviousTask() {
-      if(selectedGroupIndex.value >= 0) {
-        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-        const navigateResult = taskRef.navigatePreviousTask();
-        if (navigateResult.moveToPreviousGroup) {
-          if(selectedGroupIndex.value > 0) {
-            selectedGroupIndex.value--;
-            const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-            taskRef.isEditing = navigateResult.editing;;
-            taskRef.navigateAddTask();
-          } else if (selectedGroupIndex.value === 0) {
-            taskRef.isEditing = navigateResult.editing;
-            taskRef.navigateIntoTask();
-          }
-        }
-      }
-    }
 
     function editGroup() {
       if (selectedGroupIndex.value >= 0) {
@@ -249,26 +161,12 @@ export default {
       }
     }
 
-    function scrollToSelectedGroup() {
-      let group;
 
-      if (selectedGroupIndex.value >= 0) {
-        group = document.getElementById(groups.value[selectedGroupIndex.value].id); 
-      }
-      
-      if (group) {
-        scrollElementIntoView(group);
-      } else if (selectedGroupIndex.value === -2){
-        addGroupRef.value.scrollTo();
-      }
-    }
 
     function onGroupClick(event){
       const groupId = event.target.closest('.group-region')?.id;
       if (groupId) {
         if (isTaskSelected.value && selectedGroupIndex.value >= 0) {
-          const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-          taskRef.navigateOutTask();
           isTaskSelected.value = false;
         }
         selectedGroupIndex.value = groups.value.findIndex(group => group.id === groupId);
@@ -758,14 +656,6 @@ export default {
       onDragLeaveParent,
       dragOverParent,
       onDragEnd,
-      navigateIntoGroup,
-      navigateOutGroup,
-      navigateNextGroup,
-      navigatePreviousGroup,
-      navigateIntoTask,
-      navigateOutTask,
-      navigateNextTask,
-      navigatePreviousTask,
       editGroup,
       editTask,
       editTask,
