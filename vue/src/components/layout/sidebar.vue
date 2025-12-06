@@ -1,6 +1,6 @@
 <template>
   <aside class="sidebar">
-    <ProjectsComponent @project-selected="handleProjectSelected" @project-clicked="handleProjectClicked" ref="projectsRef"/>
+    <ProjectsComponent @project-selected="handleProjectSelected" ref="projectsRef"/>
   </aside>
 </template>
 
@@ -20,13 +20,8 @@ export default {
       emit('project-selected', projectId)
     }
 
-    function handleProjectClicked(projectId) {
-      emit('project-clicked');
-    }
-
     return {
       handleProjectSelected,
-      handleProjectClicked,
       projectsRef
     }
 

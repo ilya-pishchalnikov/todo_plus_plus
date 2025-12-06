@@ -1,6 +1,6 @@
 <template>
     <main class="main-content">
-      <GroupsComponent :project-id="projectId" :search-term="searchTerm" @group-click="onGroupClick" @task-click="onTaskClick" ref="groupsRef"/>
+      <GroupsComponent :project-id="projectId" :search-term="searchTerm" ref="groupsRef"/>
     </main>
 </template>
 
@@ -25,20 +25,7 @@ export default {
 
   setup(props, { emit }) {
 
-    const groupsRef = ref(null);
-
-    function onGroupClick(group) {
-      emit('group-click', group);
-    }
-
-    function onTaskClick() {
-      emit('task-click');
-    }
-
     return {
-      groupsRef,
-      onGroupClick,
-      onTaskClick
     }
   }
 }

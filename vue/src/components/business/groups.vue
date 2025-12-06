@@ -4,10 +4,8 @@
     <div v-for="(group, index) in groups" :key="group.id" :id="group.id" 
       v-show="isGroupVisible(group.id)"
       :class="{
-        'group-region':true,
-        'selected': index == selectedGroupIndex && !isTaskSelected
+        'group-region':true
       }"
-      @click="onGroupClick"
       draggable="true" @dragstart="onDragStart($event, group.id)" @dragenter.prevent @dragover="dragOver"
       @dragleave="onDragLeave" 
       @drop="onDrop" 
@@ -23,7 +21,7 @@
           <MoreOptionsButton :menu-items="groupMenuItems" :source-id="group.id" />
         </div>
       </div>
-      <TasksComponent :group-id="group.id" :search-term="searchTerm" ref="tasksRef" @task-click="onTaskClick" @visible-count-change="onTaskVisibleCountChange($event, group.id)"/>
+      <TasksComponent :group-id="group.id" :search-term="searchTerm" ref="tasksRef" @visible-count-change="onTaskVisibleCountChange($event, group.id)"/>
     </div>
   </div>
   <AddItemComponent v-if="projectId" @add-item="addGroup" :text="'Add Group'" ref="addGroupRef"/>
@@ -79,10 +77,8 @@ export default {
     appEventInstance.onGroupUpdate.push(onGroupUpdateEventRecieved);
 
     const draggingGroupId = ref(null);
-    const selectedGroupIndex = ref(-1);
     const addGroupRef = ref(null);
     const tasksRef = ref([]);
-    const isTaskSelected = ref(false);
     const visibleTaskCounts = ref({});
 
     function onTaskVisibleCountChange(count, groupId) {
@@ -104,40 +100,10 @@ export default {
 
     watch(() => props.projectId, async (newProjectId) => {
       if (newProjectId) {
-        selectedGroupIndex.value = -1;
         await getAllGroups(props.projectId);
       }
     }, { immediate: true });
 
-    watch(selectedGroupIndex, (newIndex, oldIndex) => {
-      if (newIndex === -2 && oldIndex !== -2) {
-        addGroupRef.value.select();
-        addGroupRef.value.scrollTo();
-      } else if (newIndex !== -2 && oldIndex === -2) {
-        addGroupRef.value.deselect();
-      }
-    });
-
-    function editGroup() {
-      if (selectedGroupIndex.value >= 0) {
-        renameGroup(groups.value[selectedGroupIndex.value].id);
-      } else {
-        addGroup();
-      }
-    }
-
-    function editTask() {
-      if (selectedGroupIndex.value >= 0) {
-        const taskRef = tasksRef.value.find(taskRef => taskRef.groupId === groups.value[selectedGroupIndex.value].id);
-        taskRef.editTask();
-      }
-    }
-
-    function onTaskClick(groupId) {
-      selectedGroupIndex.value = groups.value.findIndex(group => group.id === groupId);
-      isTaskSelected.value = true;
-      emit('task-click');
-    }
 
     function onGroupAddEventRecieved(event) {
       if (event.browserInstance === browserInstance) {
@@ -162,25 +128,11 @@ export default {
     }
 
 
-
-    function onGroupClick(event){
-      const groupId = event.target.closest('.group-region')?.id;
-      if (groupId) {
-        if (isTaskSelected.value && selectedGroupIndex.value >= 0) {
-          isTaskSelected.value = false;
-        }
-        selectedGroupIndex.value = groups.value.findIndex(group => group.id === groupId);
-      }
-
-      emit('group-click');
-    }
-
     async function groupHeaderClick(e) {
       const groupId = e.target.id.slice(3);
 
       groups.value.forEach(group => group.isEditing = false);
       const group = groups.value.find(group => group.id === groupId);
-      selectedGroupIndex.value = groups.value.findIndex(g => g.id === groupId);
       group.isEditing = true;
 
       if (group) {
@@ -236,7 +188,6 @@ export default {
     async function onGroupAddEventRecieved(eventPayload) {
       await dataStore.upsertGroup(eventPayload);
       await getAllGroups(props.projectId);
-      selectedGroupIndex.value = groups.value.findIndex(group => group.id === eventPayload.id); 
     }
 
     async function onGroupDeleteEventRecieved(eventPayload) {
@@ -251,9 +202,6 @@ export default {
 
     async function addGroup(prevGroupId, isInsert = false) {
       try {
-        if (selectedGroupIndex.value !== -2) {
-          selectedGroupIndex.value = -2; // Add New Group
-        }
 
         const result = await modalService.openModal(
           "Add Group", groupFields
@@ -633,14 +581,11 @@ export default {
     return {
       groups,
       groupMenuItems,
-      selectedGroupIndex,
-      isTaskSelected,
       addGroupRef,
       tasksRef,
       onGroupAddEventRecieved,
       addGroup,
       groupHeaderClick,
-      onGroupClick,
       saveGroupName,
       cancelGroupName,
       insertGroup,
@@ -656,10 +601,6 @@ export default {
       onDragLeaveParent,
       dragOverParent,
       onDragEnd,
-      editGroup,
-      editTask,
-      editTask,
-      onTaskClick,
       onTaskVisibleCountChange,
       isGroupVisible
     }

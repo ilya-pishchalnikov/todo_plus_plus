@@ -1,12 +1,11 @@
 <template>
-  <div class="task-list-region" @click="onTaskClick">
+  <div class="task-list-region">
     <div v-for="(task, index) in filteredTasks" :id="task.id" :key="task.id" :class="{
       'task-region': true,
       'todo': task.status == 1,
       'inprogress': task.status == 2,
       'done': task.status == 3,
-      'cancelled': task.status == 4,
-      'selected': index === selectedTaskIndex
+      'cancelled': task.status == 4
     }"
       draggable="true"
       @dragstart="onDragStart($event, task.id)"
@@ -91,7 +90,6 @@ export default {
     ]);
 
     const draggingTaskId = ref(null); // State for dragging task ID
-    const selectedTaskIndex = ref(-1);
     const addTaskRef = ref(null);
     const isEditing = ref(false);
 
@@ -128,26 +126,9 @@ export default {
 
 
     async function editTask() {
-      if (selectedTaskIndex.value >= 0) { 
-        const task = tasks.value[selectedTaskIndex.value]
-        if (task) {
-          task.isEditing = true;
-          isEditing.value = true;
-          await nextTick();
-          document.getElementById("te-" + task.id).focus();
-        }
-      } else {
-        addTask();
-      }
+      addTask();
     }
 
-
-    function onTaskClick(event) {
-      event.stopPropagation();
-      const task = event.target;
-      selectedTaskIndex.value = tasks.value.findIndex(t => t.id === task.id);
-      emit('task-click', props.groupId);
-    }
 
     function getStatusIcon(status) {
       return statusIcons[Number(status)] || statusIcons[1];
@@ -219,7 +200,6 @@ export default {
       if (task) {
         task.isEditing = true;
         isEditing.value = true;
-        selectedTaskIndex.value = tasks.value.findIndex(t => t.id === taskId);
         emit('task-click', props.groupId);
         await nextTick();
         document.getElementById("te-" + taskId).focus();
@@ -692,7 +672,6 @@ export default {
     return {
       tasks,
       filteredTasks,
-      selectedTaskIndex,
       addTaskRef,
       taskMenuItems,
       highlightText,
@@ -709,7 +688,6 @@ export default {
       onDrop,
       onDragEnd,
       editTask,
-      onTaskClick,
       onTaskInputKeyDown
     }
   }

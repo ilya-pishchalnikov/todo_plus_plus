@@ -4,10 +4,9 @@
   <div class="content-wrapper">
     <SidebarLayout 
       @project-selected="handleProjectSelected"
-      @project-clicked="handleProjectClicked"
       ref="sidebarRef"
     />
-    <ContentLayout :project-id="projectId" :search-term="searchTerm" @group-click="onGroupClick" @task-click="onTaskClick" ref="contentRef"/>
+    <ContentLayout :project-id="projectId" :search-term="searchTerm" ref="contentRef"/>
   </div>
 
   <div v-if="showPopup" class="popup" id="popup"></div>
@@ -42,7 +41,6 @@ export default {
 
     const showPopup = ref(false);
     const projectId = ref("");
-    const selectedElementType = ref("project");
     const sidebarRef = ref(null);
     const contentRef = ref(null);
     const searchTerm = ref("");
@@ -59,28 +57,12 @@ export default {
       projectId.value = selectedProjectId;
     }
 
-    function handleProjectClicked() {
-      selectedElementType.value = "project";
-    }
-
-    function onGroupClick() {
-      selectedElementType.value = "group";
-    }
-
-    function onTaskClick() {
-      selectedElementType.value = "task";
-    }
-
     return {
       handleSignout,
       handleProjectSelected,
-      handleProjectClicked,
-      onGroupClick,
-      onTaskClick,
       showPopup,
       modalService,
       projectId,
-      selectedElementType,
       sidebarRef,
       contentRef,
       searchTerm,
