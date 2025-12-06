@@ -1195,9 +1195,6 @@ button:active {
     transform: scale(1.02);
 }
 
-.selected {
-    border: 2px solid var(--color-primary-red);
-}
 
 .highlight {
     background-color: yellow;
